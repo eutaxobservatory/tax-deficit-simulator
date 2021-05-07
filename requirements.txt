@@ -1,11 +1,6 @@
 pip>=9
 setuptools>=26
 wheel>=0.29
-pandas
-pytest
-coverage
-flake8
-black
-yapf
-python-gitlab
-twine
+pandas>=1.1.3
+flake8>=3.8.4
+streamlit>=0.69.2
