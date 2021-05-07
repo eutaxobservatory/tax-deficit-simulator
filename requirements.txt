@@ -4,3 +4,4 @@ wheel>=0.29
 pandas>=1.1.3
 flake8>=3.8.4
 streamlit>=0.69.2
+lorem-text>=1.5
