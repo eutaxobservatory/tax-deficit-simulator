@@ -1,0 +1,3 @@
+graft tax-deficit-simulator
+global-exclude *.py[cod] __pycache__ *.so *.ipynb
+recursive-exclude  tax-deficit-simulator/jupy *
