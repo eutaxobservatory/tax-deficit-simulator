@@ -12,5 +12,5 @@ setup(name='tax-deficit-simulator',
       test_suite = 'tests',
       # include_package_data: to install data from MANIFEST.in
       include_package_data=True,
-      scripts=['scripts/tax-deficit-simulator-run'],
+      # scripts=['scripts/tax-deficit-simulator-run'],
       zip_safe=False)
