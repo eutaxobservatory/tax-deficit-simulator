@@ -1,1 +1,1 @@
-web: sh setup.sh && streamlit run tax-deficit-simulator/app.py
+web: sh setup.sh && streamlit run tax_deficit_simulator/app.py
