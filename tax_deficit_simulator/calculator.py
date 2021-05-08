@@ -130,7 +130,10 @@ class TaxDeficitCalculator:
 
         tax_deficits = tax_deficits[tax_deficits[f'Collectible tax deficit for {taxing_country}'] > 0].copy()
 
-        return tax_deficits.sort_values(
+        tax_deficits.sort_values(
             by=f'Collectible tax deficit for {taxing_country}',
-            ascending=False
-        ).copy()
+            ascending=False,
+            inplace=True
+        )
+
+        return tax_deficits.reset_index(drop=True)
