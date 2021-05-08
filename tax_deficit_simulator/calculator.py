@@ -88,3 +88,49 @@ class TaxDeficitCalculator:
         df.sort_values(by='Collectible tax deficit', ascending=False, inplace=True)
 
         return df.reset_index(drop=True)
+
+    def compute_second_scenario_gain(self, country, minimum_ETR=0.25):
+        if self.data is None:
+            raise Exception('You first need to load clean data with the dedicated method and inplace=True.')
+
+        df = self.data.copy()
+
+        tax_deficits = self.compute_all_tax_deficits(minimum_ETR=minimum_ETR, verbose=0)
+
+        taxing_country = country
+
+        attribution_ratios = []
+
+        for country in tax_deficits['Headquarter country'].values:
+
+            if country == taxing_country:
+                attribution_ratios.append(1)
+
+            else:
+                df_restricted = df[df['Parent jurisdiction (whitespaces cleaned)'] == country].copy()
+
+                if taxing_country not in df_restricted['Partner jurisdiction (whitespaces cleaned)'].values:
+                    attribution_ratios.append(0)
+
+                else:
+                    mask = (df_restricted['Partner jurisdiction (whitespaces cleaned)'] == taxing_country)
+                    sales_in_country = df_restricted[mask]['Unrelated Party Revenues'].iloc[0]
+
+                    mask = (df_restricted['Partner jurisdiction (whitespaces cleaned)'] != country)
+                    total_foreign_sales = df_restricted[mask]['Unrelated Party Revenues'].sum()
+
+                    attribution_ratios.append(sales_in_country / total_foreign_sales)
+
+        tax_deficits['Attribution ratios'] = attribution_ratios
+
+        tax_deficits[f'Collectible tax deficit for {taxing_country}'] = \
+            tax_deficits['Collectible tax deficit'] * tax_deficits['Attribution ratios']
+
+        tax_deficits.drop(columns=['Attribution ratios', 'Collectible tax deficit'], inplace=True)
+
+        tax_deficits = tax_deficits[tax_deficits[f'Collectible tax deficit for {taxing_country}'] > 0].copy()
+
+        return tax_deficits.sort_values(
+            by=f'Collectible tax deficit for {taxing_country}',
+            ascending=False
+        ).copy()
