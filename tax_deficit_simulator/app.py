@@ -13,6 +13,19 @@ from calculator import TaxDeficitCalculator
 from utils import get_table_download_link
 
 # ----------------------------------------------------------------------------------------------------------------------
+# --- Setting the page configuration
+
+path_to_logo = os.path.dirname(os.path.abspath(__file__))
+path_to_logo = os.path.join(path_to_logo, 'assets', 'logo_color_RVB.jpg')
+
+PAGE_CONFIG = {
+    'page_title': 'Tax Deficit Simulator',
+    'page_icon': path_to_logo
+}
+
+st.set_page_config(**PAGE_CONFIG)
+
+# ----------------------------------------------------------------------------------------------------------------------
 # --- Instantiating the calculator and loading the data
 
 calculator = TaxDeficitCalculator()
