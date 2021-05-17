@@ -15,8 +15,8 @@ from utils import get_table_download_link
 # ----------------------------------------------------------------------------------------------------------------------
 # --- Setting the page configuration
 
-path_to_logo = os.path.dirname(os.path.abspath(__file__))
-path_to_logo = os.path.join(path_to_logo, 'assets', 'logo_color_RVB.jpg')
+path_to_dir = os.path.dirname(os.path.abspath(__file__))
+path_to_logo = os.path.join(path_to_dir, 'assets', 'logo_color_RVB.jpg')
 
 PAGE_CONFIG = {
     'page_title': 'Tax Deficit Simulator',
@@ -46,6 +46,10 @@ page = st.sidebar.selectbox(
      'Multilateral implementation scenario',
      'Unilateral implementation scenario']
 )
+
+path_to_css = os.path.join(path_to_dir, 'assets', 'custom_styles.css')
+
+st.markdown('<style>' + open(path_to_css).read() + '</style>', unsafe_allow_html=True)
 
 if page == 'Description of the research':
     st.header('This is a page section')
@@ -90,11 +94,14 @@ elif page == 'Multilateral implementation scenario':
 
     st.write(output_df)
 
-    st.markdown('---')
-
-    st.header('Download the result')
-
-    st.markdown(get_table_download_link(output_df), unsafe_allow_html=True)
+    st.markdown(
+        get_table_download_link(
+            output_df,
+            scenario=1,
+            effective_tax_rate=slider_value
+        ),
+        unsafe_allow_html=True
+    )
 
 else:
     tax_deficits = calculator.compute_all_tax_deficits(verbose=0)
@@ -130,8 +137,11 @@ else:
 
     st.write(output_df)
 
-    st.markdown('---')
-
-    st.header('Download the result')
-
-    st.markdown(get_table_download_link(output_df), unsafe_allow_html=True)
+    st.markdown(
+        get_table_download_link(
+            output_df,
+            scenario=2,
+            effective_tax_rate=slider_value
+        ),
+        unsafe_allow_html=True
+    )
