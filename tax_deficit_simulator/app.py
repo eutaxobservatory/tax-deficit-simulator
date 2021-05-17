@@ -141,7 +141,8 @@ else:
         get_table_download_link(
             output_df,
             scenario=2,
-            effective_tax_rate=slider_value
+            effective_tax_rate=slider_value,
+            taxing_country=taxing_country
         ),
         unsafe_allow_html=True
     )

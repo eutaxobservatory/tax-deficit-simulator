@@ -1,7 +1,7 @@
 import base64
 import os
 
-def get_table_download_link(df, scenario, effective_tax_rate):
+def get_table_download_link(df, scenario, effective_tax_rate, taxing_country=None):
 
     csv = df.to_csv(index=False)
 
@@ -13,7 +13,12 @@ def get_table_download_link(df, scenario, effective_tax_rate):
         href += f' download="first_scenario_{effective_tax_rate}_perc.csv">'
 
     elif scenario == 2:
-        href += f' download="second_scenario_{effective_tax_rate}_perc.csv">'
+        taxing_country = taxing_country.lower().replace(' ', '_')
+
+        if 'china' in taxing_country:
+            taxing_country = 'china'
+
+        href += f' download="second_scenario_{taxing_country}_{effective_tax_rate}_perc.csv">'
 
     else:
         raise Exception('Value not accepted for the scenario argument.')
