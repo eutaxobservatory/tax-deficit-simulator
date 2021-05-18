@@ -94,7 +94,7 @@ elif page == 'Multilateral implementation scenario':
         # help='Choose the minimum effective tax rate that headquarter countries should apply.'
     )
 
-    output_df = calculator.compute_all_tax_deficits(
+    output_df = calculator.output_all_tax_deficits_cleaned(
         minimum_ETR=slider_value / 100,
         verbose=0
     )
@@ -137,7 +137,7 @@ else:
         # help=f'Choose the minimum effective tax rate that {taxing_country} should apply.'
     )
 
-    output_df = calculator.compute_second_scenario_gain(
+    output_df = calculator.output_second_scenario_gain_cleaned(
         country=taxing_country,
         minimum_ETR=slider_value / 100
     )

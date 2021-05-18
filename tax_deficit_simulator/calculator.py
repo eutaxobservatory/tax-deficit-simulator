@@ -95,7 +95,16 @@ class TaxDeficitCalculator:
 
         df.sort_values(by='Collectible tax deficit', ascending=False, inplace=True)
 
-        return df.reset_index(drop=True)
+        df.reset_index(drop=True, inplace=True)
+
+        dict_df = df.to_dict()
+
+        dict_df[df.columns[0]][len(df)] = 'Total'
+        dict_df[df.columns[1]][len(df)] = df[df.columns[1]].sum()
+
+        df = pd.DataFrame.from_dict(dict_df)
+
+        return df.copy()
 
     def compute_second_scenario_gain(self, country, minimum_ETR=0.25):
         if self.data is None:
@@ -144,4 +153,53 @@ class TaxDeficitCalculator:
             inplace=True
         )
 
-        return tax_deficits.reset_index(drop=True)
+        tax_deficits.reset_index(drop=True, inplace=True)
+
+        dict_df = tax_deficits.to_dict()
+
+        dict_df[tax_deficits.columns[0]][len(tax_deficits)] = 'Total'
+        dict_df[tax_deficits.columns[1]][len(tax_deficits)] = tax_deficits[tax_deficits.columns[1]].sum()
+
+        df = pd.DataFrame.from_dict(dict_df)
+
+        return df.copy()
+
+    def output_all_tax_deficits_cleaned(self, minimum_ETR=0.25, use_domestic_ETRs=False, verbose=0):
+
+        df = self.compute_all_tax_deficits(
+            minimum_ETR=minimum_ETR,
+            use_domestic_ETRs=use_domestic_ETRs,
+            verbose=verbose
+        )
+
+        df['Collectible tax deficit'] = df['Collectible tax deficit'] / 1000000
+        df['Collectible tax deficit'] = df['Collectible tax deficit'].map('{:,.2f}'.format)
+
+        df.rename(
+            columns={'Collectible tax deficit': 'Collectible tax deficit (€m)'},
+            inplace=True
+        )
+
+        df.style.applymap('font-weight: bold', subset=pd.IndexSlice[df.index[df.index == 'Total'], :])
+
+        return df.copy()
+
+    def output_second_scenario_gain_cleaned(self, country, minimum_ETR=0.25):
+
+        df = self.compute_second_scenario_gain(
+            country=country,
+            minimum_ETR=minimum_ETR
+        )
+
+        df[f'Collectible tax deficit for {country}'] = df[f'Collectible tax deficit for {country}'] / 1000000
+        df[f'Collectible tax deficit for {country}'] = \
+            df[f'Collectible tax deficit for {country}'].map('{:,.2f}'.format)
+
+        df.rename(
+            columns={f'Collectible tax deficit for {country}': f'Collectible tax deficit for {country} (€m)'},
+            inplace=True
+        )
+
+        return df.copy()
+
+
