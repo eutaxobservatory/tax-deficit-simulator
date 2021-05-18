@@ -1,7 +1,11 @@
 import base64
 import os
 
-def get_table_download_link(df, scenario, effective_tax_rate, taxing_country=None):
+path_to_files = os.path.dirname(os.path.abspath(__file__))
+path_to_files = os.path.join(path_to_files, 'files')
+
+
+def get_table_download_button(df, scenario, effective_tax_rate, taxing_country=None):
 
     csv = df.to_csv(index=False)
 
@@ -23,6 +27,42 @@ def get_table_download_link(df, scenario, effective_tax_rate, taxing_country=Non
     else:
         raise Exception('Value not accepted for the scenario argument.')
 
-    href += '<input type="button" value="Click here to download the table" class="download-button-table"></a>'
+    href += '<input type="button" value="Click here to download the table" class="download-button table"></a>'
+
+    return href
+
+
+def get_report_download_button():
+
+    path = os.path.join(path_to_files, 'test.pdf')
+
+    with open(path, 'rb') as file:
+        report_content = file.read()
+
+    b64 = base64.b64encode(report_content).decode()
+
+    href = f'<a href="data:application/octet-stream;base64,{b64}" download="{os.path.basename(path)}">'
+
+    href += '<input type="button" value="Click here to download the full-text report (PDF)" '
+
+    href += 'class="download-button pdf"></a>'
+
+    return href
+
+
+def get_appendix_download_button():
+
+    path = os.path.join(path_to_files, 'test.xlsx')
+
+    with open(path, 'rb') as file:
+        excel_content = file.read()
+
+    b64 = base64.b64encode(excel_content).decode()
+
+    href = f'<a href="data:application/octet-stream;base64,{b64}" download="{os.path.basename(path)}">'
+
+    href += '<input type="button" value="Click here to download the appendix tables (Excel)" '
+
+    href += 'class="download-button excel"></a>'
 
     return href

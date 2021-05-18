@@ -1,5 +1,6 @@
 import pandas as pd
 
+
 class TaxDeficitCalculator:
 
     def __init__(self):
@@ -9,7 +10,7 @@ class TaxDeficitCalculator:
         try:
             df = pd.read_csv(path_to_file, delimiter=';')
 
-        except:
+        except FileNotFoundError:
             raise Exception('Are you sure this is the right path for the source file?')
 
         numeric_columns = list(df.columns[2:])
@@ -19,7 +20,9 @@ class TaxDeficitCalculator:
             df[column_name] = df[column_name].map(lambda x: 0 if x == '..' else x)
             df[column_name] = df[column_name].astype(float)
 
-        df = df[~df['Partner jurisdiction (whitespaces cleaned)'].isin(['Foreign Jurisdictions Total', 'Stateless'])].copy()
+        df = df[
+            ~df['Partner jurisdiction (whitespaces cleaned)'].isin(['Foreign Jurisdictions Total', 'Stateless'])
+        ].copy()
 
         df['ETR'] = df['Income Tax Paid (on Cash Basis)'] / df['Profit (Loss) before Income Tax']
 
@@ -36,7 +39,9 @@ class TaxDeficitCalculator:
         df = self.data.copy()
 
         if country not in df['Parent jurisdiction (whitespaces cleaned)'].unique():
-            raise Exception("You asked for the tax deficit of a country which is not covered by the OECD's 2016 CbCR data.")
+            raise Exception(
+                "You asked for the tax deficit of a country which is not covered by the OECD's 2016 CbCR data."
+            )
 
         df_restricted = df[df['Parent jurisdiction (whitespaces cleaned)'] == country].copy()
 
@@ -44,7 +49,9 @@ class TaxDeficitCalculator:
             if verbose:
                 print('NB: Computations are run using the domestic ETRs of each headquarter country.')
 
-            minimum_ETR = df_restricted[df_restricted['Partner jurisdiction (whitespaces cleaned)'] == country]['ETR'].iloc[0]
+            minimum_ETR = df_restricted[
+                df_restricted['Partner jurisdiction (whitespaces cleaned)'] == country
+            ]['ETR'].iloc[0]
 
         df_restricted = df_restricted[df_restricted['Partner jurisdiction (whitespaces cleaned)'] != country]
 
@@ -52,7 +59,8 @@ class TaxDeficitCalculator:
 
         df_restricted['ETR_differential'] = df_restricted['ETR'].map(lambda x: minimum_ETR - x)
 
-        df_restricted['tax_deficit'] = df_restricted['ETR_differential'] * df_restricted['Profit (Loss) before Income Tax']
+        df_restricted['tax_deficit'] = df_restricted['ETR_differential']\
+            * df_restricted['Profit (Loss) before Income Tax']
 
         return df_restricted['tax_deficit'].sum()
 

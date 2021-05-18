@@ -9,7 +9,7 @@ setup(name='tax_deficit_simulator',
       version="1.0",
       description="Project Description",
       packages=find_packages(),
-      test_suite = 'tests',
+      test_suite='tests',
       # include_package_data: to install data from MANIFEST.in
       include_package_data=True,
       # scripts=['scripts/tax-deficit-simulator-run'],

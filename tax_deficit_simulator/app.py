@@ -10,7 +10,7 @@ from lorem_text import lorem
 
 # Imports from other Python files
 from calculator import TaxDeficitCalculator
-from utils import get_table_download_link
+from utils import *
 
 # ----------------------------------------------------------------------------------------------------------------------
 # --- Setting the page configuration
@@ -66,8 +66,15 @@ if page == 'Description of the research':
 
     st.header('Download section')
 
-    st.markdown('Click here to download the report (PDF file).')
-    st.markdown('Click here to download data and computations (Excel file).')
+    st.markdown(
+        get_report_download_button(),
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        get_appendix_download_button(),
+        unsafe_allow_html=True
+    )
 
 elif page == 'Multilateral implementation scenario':
     st.header('Some explanations before you get started')
@@ -95,7 +102,7 @@ elif page == 'Multilateral implementation scenario':
     st.write(output_df)
 
     st.markdown(
-        get_table_download_link(
+        get_table_download_button(
             output_df,
             scenario=1,
             effective_tax_rate=slider_value
@@ -138,7 +145,7 @@ else:
     st.write(output_df)
 
     st.markdown(
-        get_table_download_link(
+        get_table_download_button(
             output_df,
             scenario=2,
             effective_tax_rate=slider_value,
