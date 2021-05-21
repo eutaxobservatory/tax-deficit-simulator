@@ -1,0 +1,72 @@
+﻿Partner jurisdiction code;Partner jurisdiction;Year;Company name;Headquarter country code;Headquarter country;Revenue;Profit before tax;CIT paid;FTEs
+AUT;Austria;2020;BNP Paribas;FRA;France;76;-4;2;300
+BEL;Belgium;2020;BNP Paribas;FRA;France;4421;1302;159;12909
+BGR;Bulgaria;2020;BNP Paribas;FRA;France;70;13;2;864
+CZE;Czech Republic;2020;BNP Paribas;FRA;France;92;12;4;698
+DNK;Denmark;2020;BNP Paribas;FRA;France;95;8;3;300
+FIN;Finland;2020;BNP Paribas;FRA;France;5;1;0;29
+FRA;France;2020;BNP Paribas;FRA;France;12444;424;461;54676
+DEU;Germany;2020;BNP Paribas;FRA;France;2022;499;168;5711
+GRC;Greece;2020;BNP Paribas;FRA;France;8;2;0;60
+HUN;Hungary;2020;BNP Paribas;FRA;France;64;8;2;468
+IRL;Ireland;2020;BNP Paribas;FRA;France;222;82;8;541
+ITA;Italy;2020;BNP Paribas;FRA;France;5012;1549;100;17723
+LUX;Luxembourg;2020;BNP Paribas;FRA;France;1228;495;89;3562
+NLD;Netherlands;2020;BNP Paribas;FRA;France;411;169;26;993
+PRT;Portugal;2020;BNP Paribas;FRA;France;236;50;26;6585
+POL;Poland;2020;BNP Paribas;FRA;France;1093;254;54;9717
+ROU;Romania;2020;BNP Paribas;FRA;France;86;9;4;806
+SVK;Slovakia;2020;BNP Paribas;FRA;France;23;-7;0;357
+ESP;Spain;2020;BNP Paribas;FRA;France;980;201;78;3977
+SWE;Sweden;2020;BNP Paribas;FRA;France;80;16;3;250
+GGY;Guernsey;2020;BNP Paribas;FRA;France;10;3;0;26
+JEY;Jersey;2020;BNP Paribas;FRA;France;24;-4;0;227
+MCO;Monaco;2020;BNP Paribas;FRA;France;60;26;0;184
+NOR;Norway;2020;BNP Paribas;FRA;France;54;-3;0;162
+RUS;Russia;2020;BNP Paribas;FRA;France;56;26;1;429
+SRB;Serbia;2020;BNP Paribas;FRA;France;34;17;1;593
+CHE;Switzerland;2020;BNP Paribas;FRA;France;398;-344;10;1197
+UKR;Ukraine;2020;BNP Paribas;FRA;France;178;47;10;5246
+GBR;United Kingdom;2020;BNP Paribas;FRA;France;3614;1307;337;7332
+DZA;Algeria;2020;BNP Paribas;FRA;France;109;43;18;1252
+BHR;Bahrain;2020;BNP Paribas;FRA;France;33;-42;0;269
+BWA;Botswana;2020;BNP Paribas;FRA;France;3;2;0;13
+BFA;Burkina Faso;2020;BNP Paribas;FRA;France;20;5;1;226
+COM;Comoros;2020;BNP Paribas;FRA;France;2;-1;0;0
+GIN;Guinea;2020;BNP Paribas;FRA;France;35;3;2;312
+CIV;Ivory Coast;2020;BNP Paribas;FRA;France;57;-9;0;675
+KWT;Kuwait;2020;BNP Paribas;FRA;France;6;0;0;18
+MLI;Mali;2020;BNP Paribas;FRA;France;9;-1;0;0
+MAR;Morocco;2020;BNP Paribas;FRA;France;295;40;31;3252
+NAM;Namibia;2020;BNP Paribas;FRA;France;2;0;0;12
+QAT;Qatar;2020;BNP Paribas;FRA;France;15;4;0;18
+SAU;Saudi Arabia;2020;BNP Paribas;FRA;France;21;1;2;50
+SEN;Senegal;2020;BNP Paribas;FRA;France;51;-10;2;481
+ZAF;South Africa;2020;BNP Paribas;FRA;France;217;14;9;1446
+TUN;Tunisia;2020;BNP Paribas;FRA;France;75;23;10;1122
+TUR;Turkey;2020;BNP Paribas;FRA;France;787;194;81;9677
+ARE;United Arab Emirates;2020;BNP Paribas;FRA;France;47;-37;1;142
+ARG;Argentina;2020;BNP Paribas;FRA;France;46;18;3;187
+BMU;Bermuda;2020;BNP Paribas;FRA;France;0;0;0;0
+BRA;Brazil;2020;BNP Paribas;FRA;France;546;138;75;1550
+CAN;Canada;2020;BNP Paribas;FRA;France;44;24;6;878
+CYM;Cayman Islands;2020;BNP Paribas;FRA;France;0;29;0;0
+CHL;Chile;2020;BNP Paribas;FRA;France;67;23;15;458
+COL;Colombia;2020;BNP Paribas;FRA;France;61;23;12;439
+MEX;Mexico;2020;BNP Paribas;FRA;France;70;26;8;301
+PAN;Panama;2020;BNP Paribas;FRA;France;0;0;0;0
+USA;United States;2020;BNP Paribas;FRA;France;5161;1286;194;12698
+AUS;Australia;2020;BNP Paribas;FRA;France;189;61;9;471
+CHN;China;2020;BNP Paribas;FRA;France;142;59;33;452
+HKG;Hong Kong;2020;BNP Paribas;FRA;France;896;178;17;2249
+IND;India;2020;BNP Paribas;FRA;France;293;180;92;10904
+IDN;Indonesia;2020;BNP Paribas;FRA;France;92;49;10;164
+JPN;Japan;2020;BNP Paribas;FRA;France;631;393;118;668
+MYS;Malaysia;2020;BNP Paribas;FRA;France;41;27;7;102
+NZL;New Zealand;2020;BNP Paribas;FRA;France;11;3;1;45
+PHL;Philippines;2020;BNP Paribas;FRA;France;0;0;0;0
+KOR;South Korea;2020;BNP Paribas;FRA;France;151;71;22;350
+SGP;Singapore;2020;BNP Paribas;FRA;France;674;280;27;1958
+TWN;Taiwan;2020;BNP Paribas;FRA;France;216;122;32;588
+THA;Thailand;2020;BNP Paribas;FRA;France;26;4;1;84
+VNM;Vietnam;2020;BNP Paribas;FRA;France;38;18;4;90
