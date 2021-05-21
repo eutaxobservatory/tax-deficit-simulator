@@ -10,7 +10,8 @@ from lorem_text import lorem
 
 # Imports from other Python files
 from calculator import TaxDeficitCalculator
-from utils import *
+from firm_level import correspondences, CompanyCalculator
+from utils import get_table_download_button, get_report_download_button, get_appendix_download_button
 
 # ----------------------------------------------------------------------------------------------------------------------
 # --- Setting the page configuration
@@ -42,9 +43,12 @@ st.title('Tax Deficit Simulator')
 
 page = st.sidebar.selectbox(
     'Choose the page to view here:',
-    ['Description of the research',
-     'Multilateral implementation scenario',
-     'Unilateral implementation scenario']
+    [
+        'Description of the research',
+        'Case study with one multinational',
+        'Multilateral implementation scenario',
+        'Unilateral implementation scenario'
+    ]
 )
 
 path_to_css = os.path.join(path_to_dir, 'assets', 'custom_styles.css')
@@ -75,6 +79,38 @@ if page == 'Description of the research':
         get_appendix_download_button(),
         unsafe_allow_html=True
     )
+
+elif page == 'Case study with one multinational':
+    st.header('Some explanations before you get started')
+
+    st.markdown(lorem.paragraph())
+
+    st.markdown('---')
+
+    st.header('Compute potential tax revenue gains')
+
+    company_name = st.selectbox(
+        'Select the company that you want to study:',
+        ['...'] + list(correspondences.keys())
+    )
+
+    if company_name != '...':
+
+        company = CompanyCalculator(company_name=company_name)
+
+        # st.markdown(company.get_first_sentence())
+
+        st.pyplot(company.plot_tax_revenue_gains(in_app=True))
+
+        st.markdown('---')
+
+        st.header('Where does this tax deficit come from?')
+
+        df = company.get_tax_deficit_origins_table(minimum_ETR=0.25, formatted=True)
+
+        st.markdown(company.get_second_sentence())
+
+        st.write(df)
 
 elif page == 'Multilateral implementation scenario':
     st.header('Some explanations before you get started')
