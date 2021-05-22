@@ -1,49 +1,49 @@
 ﻿Partner jurisdiction code;Partner jurisdiction;Year;Company name;Headquarter country code;Headquarter country;Revenue;Profit before tax;CIT paid;FTEs
-AUS;Australia;2020;Deutsche Bank;DEU;Germany;177;-25;9;309
+AUS;Australia;2020;Deutsche Bank;DEU;Germany;177;-25;-9;309
 AUT;Austria;2020;Deutsche Bank;DEU;Germany;8;-8;0;74
-BEL;Belgium;2020;Deutsche Bank;DEU;Germany;165;19;-5;499
-BRA;Brazil;2020;Deutsche Bank;DEU;Germany;39;-7;3;129
-CAN;Canada;2020;Deutsche Bank;DEU;Germany;5;1;-1;13
+BEL;Belgium;2020;Deutsche Bank;DEU;Germany;165;19;5;499
+BRA;Brazil;2020;Deutsche Bank;DEU;Germany;39;-7;-3;129
+CAN;Canada;2020;Deutsche Bank;DEU;Germany;5;1;1;13
 CYM;Cayman Islands;2020;Deutsche Bank;DEU;Germany;2;0;0;0
-CHN;China;2020;Deutsche Bank;DEU;Germany;136;44;-11;538
+CHN;China;2020;Deutsche Bank;DEU;Germany;136;44;11;538
 CZE;Czech Republic;2020;Deutsche Bank;DEU;Germany;11;2;0;44
-FRA;France;2020;Deutsche Bank;DEU;Germany;61;13;1;192
-DEU;Germany;2020;Deutsche Bank;DEU;Germany;9555;459;-125;37315
-GBR;United Kingdom;2020;Deutsche Bank;DEU;Germany;3323;-593;65;7728
+FRA;France;2020;Deutsche Bank;DEU;Germany;61;13;-1;192
+DEU;Germany;2020;Deutsche Bank;DEU;Germany;9555;459;125;37315
+GBR;United Kingdom;2020;Deutsche Bank;DEU;Germany;3323;-593;-65;7728
 GRC;Greece;2020;Deutsche Bank;DEU;Germany;0;0;0;9
-HKG;Hong Kong;2020;Deutsche Bank;DEU;Germany;702;89;22;966
-HUN;Hungary;2020;Deutsche Bank;DEU;Germany;19;2;-1;51
-IND;India;2020;Deutsche Bank;DEU;Germany;670;446;-186;12944
-IDN;Indonesia;2020;Deutsche Bank;DEU;Germany;150;86;-30;204
+HKG;Hong Kong;2020;Deutsche Bank;DEU;Germany;702;89;-22;966
+HUN;Hungary;2020;Deutsche Bank;DEU;Germany;19;2;1;51
+IND;India;2020;Deutsche Bank;DEU;Germany;670;446;186;12944
+IDN;Indonesia;2020;Deutsche Bank;DEU;Germany;150;86;30;204
 IRL;Ireland;2020;Deutsche Bank;DEU;Germany;27;1;0;408
-ISR;Israel;2020;Deutsche Bank;DEU;Germany;0;2;-1;7
-ITA;Italy;2020;Deutsche Bank;DEU;Germany;895;-120;12;3460
-JPN;Japan;2020;Deutsche Bank;DEU;Germany;275;-18;10;432
+ISR;Israel;2020;Deutsche Bank;DEU;Germany;0;2;1;7
+ITA;Italy;2020;Deutsche Bank;DEU;Germany;895;-120;-12;3460
+JPN;Japan;2020;Deutsche Bank;DEU;Germany;275;-18;-10;432
 JEY;Jersey;2020;Deutsche Bank;DEU;Germany;1;-6;0;14
-LUX;Luxembourg;2020;Deutsche Bank;DEU;Germany;907;408;-83;510
-MYS;Malaysia;2020;Deutsche Bank;DEU;Germany;109;73;-18;198
-MUS;Mauritius;2020;Deutsche Bank;DEU;Germany;20;19;-1;0
-MEX;Mexico;2020;Deutsche Bank;DEU;Germany;9;-13;-1;19
-NLD;Netherlands;2020;Deutsche Bank;DEU;Germany;217;44;-9;560
-PAK;Pakistan;2020;Deutsche Bank;DEU;Germany;16;9;-3;66
-PHL;Philippines;2020;Deutsche Bank;DEU;Germany;28;7;-3;1392
-POL;Poland;2020;Deutsche Bank;DEU;Germany;73;8;-4;377
+LUX;Luxembourg;2020;Deutsche Bank;DEU;Germany;907;408;83;510
+MYS;Malaysia;2020;Deutsche Bank;DEU;Germany;109;73;18;198
+MUS;Mauritius;2020;Deutsche Bank;DEU;Germany;20;19;1;0
+MEX;Mexico;2020;Deutsche Bank;DEU;Germany;9;-13;1;19
+NLD;Netherlands;2020;Deutsche Bank;DEU;Germany;217;44;9;560
+PAK;Pakistan;2020;Deutsche Bank;DEU;Germany;16;9;3;66
+PHL;Philippines;2020;Deutsche Bank;DEU;Germany;28;7;3;1392
+POL;Poland;2020;Deutsche Bank;DEU;Germany;73;8;4;377
 PRT;Portugal;2020;Deutsche Bank;DEU;Germany;12;-1;0;45
 QAT;Qatar;2020;Deutsche Bank;DEU;Germany;0;2;0;3
 ROU;Romania;2020;Deutsche Bank;DEU;Germany;0;1;0;746
-RUS;Russia;2020;Deutsche Bank;DEU;Germany;45;18;-7;1512
-SAU;Saudi Arabia;2020;Deutsche Bank;DEU;Germany;16;-26;-6;47
-SGP;Singapore;2020;Deutsche Bank;DEU;Germany;838;133;-17;1861
-ZAF;South Africa;2020;Deutsche Bank;DEU;Germany;9;-3;-1;44
-KOR;South Korea;2020;Deutsche Bank;DEU;Germany;107;31;-11;206
-ESP;Spain;2020;Deutsche Bank;DEU;Germany;497;-32;9;2261
-LKA;Sri Lanka;2020;Deutsche Bank;DEU;Germany;16;5;-1;58
+RUS;Russia;2020;Deutsche Bank;DEU;Germany;45;18;7;1512
+SAU;Saudi Arabia;2020;Deutsche Bank;DEU;Germany;16;-26;6;47
+SGP;Singapore;2020;Deutsche Bank;DEU;Germany;838;133;17;1861
+ZAF;South Africa;2020;Deutsche Bank;DEU;Germany;9;-3;1;44
+KOR;South Korea;2020;Deutsche Bank;DEU;Germany;107;31;11;206
+ESP;Spain;2020;Deutsche Bank;DEU;Germany;497;-32;-9;2261
+LKA;Sri Lanka;2020;Deutsche Bank;DEU;Germany;16;5;1;58
 SWE;Sweden;2020;Deutsche Bank;DEU;Germany;1;-1;0;27
-CHE;Switzerland;2020;Deutsche Bank;DEU;Germany;265;22;-3;603
-TWN;Taiwan;2020;Deutsche Bank;DEU;Germany;75;35;-6;135
-THA;Thailand;2020;Deutsche Bank;DEU;Germany;40;7;-1;116
-TUR;Turkey;2020;Deutsche Bank;DEU;Germany;27;11;-3;106
+CHE;Switzerland;2020;Deutsche Bank;DEU;Germany;265;22;3;603
+TWN;Taiwan;2020;Deutsche Bank;DEU;Germany;75;35;6;135
+THA;Thailand;2020;Deutsche Bank;DEU;Germany;40;7;1;116
+TUR;Turkey;2020;Deutsche Bank;DEU;Germany;27;11;3;106
 ARE;United Arab Emirates;2020;Deutsche Bank;DEU;Germany;11;7;0;191
 UKR;Ukraine;2020;Deutsche Bank;DEU;Germany;4;0;0;34
-USA;United States;2020;Deutsche Bank;DEU;Germany;4908;320;-39;8136
-VNM;Vietnam;2020;Deutsche Bank;DEU;Germany;17;5;-1;72
+USA;United States;2020;Deutsche Bank;DEU;Germany;4908;320;39;8136
+VNM;Vietnam;2020;Deutsche Bank;DEU;Germany;17;5;1;72
