@@ -53,7 +53,7 @@ class TaxDeficitCalculator:
                 df_restricted['Partner jurisdiction (whitespaces cleaned)'] == country
             ]['ETR'].iloc[0]
 
-        df_restricted = df_restricted[df_restricted['Partner jurisdiction (whitespaces cleaned)'] != country]
+        # df_restricted = df_restricted[df_restricted['Partner jurisdiction (whitespaces cleaned)'] != country]
 
         df_restricted = df_restricted[df_restricted['ETR'] < minimum_ETR]
 
