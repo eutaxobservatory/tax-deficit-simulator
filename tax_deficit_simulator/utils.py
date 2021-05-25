@@ -5,6 +5,87 @@ path_to_files = os.path.dirname(os.path.abspath(__file__))
 path_to_files = os.path.join(path_to_files, 'files')
 
 
+# ----------------------------------------------------------------------------------------------------------------------
+# --- Utils for the calculator.py file
+
+COUNTRIES_WITH_MINIMUM_REPORTING = ['KOR', 'NLD', 'IRL', 'FIN']
+COUNTRIES_WITH_CONTINENTAL_REPORTING = ['AUT', 'NOR', 'SVN', 'SWE']
+
+def rename_partner_jurisdictions(row):
+
+    if row['Parent jurisdiction (alpha-3 code)'] in COUNTRIES_WITH_MINIMUM_REPORTING:
+        if row['Partner jurisdiction (whitespaces cleaned)'] == 'Foreign Jurisdictions Total':
+            return 'Foreign Total'
+        else:
+            return row['Partner jurisdiction (whitespaces cleaned)']
+
+    else:
+        return row['Partner jurisdiction (whitespaces cleaned)']
+
+def manage_overlap_with_domestic(row, kind):
+    if row['Is domestic?']:
+        return 0
+
+    else:
+        if kind == 'haven':
+            return row['Is partner jurisdiction a tax haven?']
+        elif kind == 'non-haven':
+            return row['Is partner jurisdiction a non-haven?']
+
+def combine_haven_tax_deficits(row):
+    if row['Parent jurisdiction (alpha-3 code)'] not in (
+        COUNTRIES_WITH_MINIMUM_REPORTING + COUNTRIES_WITH_CONTINENTAL_REPORTING
+    ):
+        return max(row['tax_deficit_x_tax_haven'], row['tax_deficit_x_tax_haven_TWZ'])
+
+    else:
+        return 0
+
+# ----------------------------------------------------------------------------------------------------------------------
+# --- Utils for the firm_level.py file
+
+ADDITIONAL_ETRs = {
+    'GEO': 0.15,
+    'BLR': 0.18,
+    'SOM': 0.05,
+    'PNG': 0.3,
+    'TLS': 0.1,
+    'ABW': 0.25,
+    'MOZ': 0.32,
+    'GAB': 0.3,
+    'CRI': 0.3
+}
+
+def compute_ETRs(row, kind):
+
+    if kind == 'mne':
+        if row['Partner jurisdiction code'] in ADDITIONAL_ETRs.keys():
+            return ADDITIONAL_ETRs[row['Partner jurisdiction code']]
+
+        else:
+            try:
+                effective_tax_rate = row['CIT paid'] / row['Profit before tax']
+
+            except:
+                effective_tax_rate = row['Statutory CIT rate']
+
+            return effective_tax_rate
+
+    elif kind == 'bank':
+        try:
+            effective_tax_rate = row['CIT paid'] / row['Profit before tax']
+
+        except:
+            effective_tax_rate = row['Average ETR over 6 years']
+
+        if effective_tax_rate < 0:
+            effective_tax_rate = row['Average ETR over 6 years']
+
+        return effective_tax_rate
+
+# ----------------------------------------------------------------------------------------------------------------------
+# --- Utils for the app.py file
+
 def get_table_download_button(df, scenario, effective_tax_rate, taxing_country=None):
 
     csv = df.to_csv(index=False)

@@ -6,11 +6,15 @@
 import numpy as np
 import pandas as pd
 
+from scipy.stats.mstats import winsorize
+
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 import os
 import json
+
+from utils import compute_ETRs
 
 # ----------------------------------------------------------------------------------------------------------------------
 # --- Loading the data file correspondences
@@ -24,11 +28,22 @@ with open(path_to_correspondences) as file:
     correspondences = json.load(file)
 
 # ----------------------------------------------------------------------------------------------------------------------
+# --- Loading the EU country list
+
+path_to_dir = os.path.dirname(os.path.abspath(__file__))
+
+path_to_eu_countries = os.path.join(path_to_dir, 'data', 'listofeucountries_csv.csv')
+eu_country_codes = list(pd.read_csv(path_to_eu_countries, delimiter=';')['Alpha-3 code'])
+
+# ----------------------------------------------------------------------------------------------------------------------
 # --- Defining the CompanyCalculator class
 
 class CompanyCalculator:
 
     def __init__(self, company_name):
+
+        self.multiplier_EU = 1.133810043
+        self.multiplier_world = 1.133030415
 
         if company_name not in correspondences.keys():
             raise Exception('Company is not part of the 10 companies covered by the available data.')
@@ -39,11 +54,30 @@ class CompanyCalculator:
         # self.url = correspondences[company_name]['url']
 
         path_to_data = os.path.dirname(os.path.abspath(__file__))
-        path_to_data = os.path.join(path_to_data, 'data', 'firm_level_cbcrs', self.file_name)
+        path_to_data = os.path.join(path_to_data, 'data', 'firm_level_cbcrs_new', self.file_name)
 
         # path_to_data = f'../tax_deficit_simulator/data/firm_level_cbcrs/{self.file_name}'
 
-        self.data = pd.read_csv(path_to_data, delimiter=';')
+        df = pd.read_csv(path_to_data, delimiter=';')
+
+        columns = ['Revenue', 'Profit before tax', 'CIT paid', 'FTEs']
+
+        if 'Average ETR over 6 years' in df.columns:
+            self.kind = 'bank'
+            self.exchange_rate = float(str(df['Exchange rate to EUR'].iloc[0]).replace(',', '.'))
+            columns += ['Average ETR over 6 years']
+
+        else:
+            self.kind = 'mne'
+            self.exchange_rate = 1
+            columns += ['Statutory CIT rate']
+
+        for column_name in columns:
+            df[column_name] = df[column_name].astype(str)
+            df[column_name] = df[column_name].map(lambda x: x.replace(',', '.'))
+            df[column_name] = df[column_name].astype(float)
+
+        self.data = df.copy()
 
         headquarter_country = self.data.loc[0, 'Headquarter country']
 
@@ -57,18 +91,27 @@ class CompanyCalculator:
     def compute_tax_deficits(self, minimum_ETR):
         df = self.data.copy()
 
-        # We focus on jurisdictions with positive profits
-        df = df[df['Profit before tax'] > 0].copy()
+        # We exclude jurisdictions with negative profits
+        df = df[df['Profit before tax'] >= 0].copy()
 
-        # We compute the effective tax rate for each partner jurisdiction with positive profits
-        df['ETR'] = df['CIT paid'] / df['Profit before tax']
-        df['ETR'] = df['ETR'].map(lambda x: 0 if x < 0 else x)
+        df['ETR'] = df.apply(
+            lambda row: compute_ETRs(row, kind=self.kind),
+            axis=1
+        )
+
+        df['ETR'] = winsorize(df['ETR'].values, limits=[0.05, 0.05])
 
         # We focus on profits taxed at a rate below the minimum one
-        df = df[df['ETR'] < minimum_ETR].copy()
+        df = df[df['ETR'] <= minimum_ETR].copy()
 
         # We deduce the tax deficit for each partner jurisdiction with positive, low-taxed profits
         df['tax_deficit'] = (minimum_ETR - df['ETR']) * df['Profit before tax']
+
+        multiplier = (
+            df['Headquarter country code'].isin(eu_country_codes) * 1 * self.multiplier_EU
+        ).map(lambda x: self.multiplier_world if x == 0 else x)
+
+        df['tax_deficit'] = df['tax_deficit'] * self.exchange_rate * multiplier
 
         return df.copy()
 
@@ -76,6 +119,26 @@ class CompanyCalculator:
         df = self.compute_tax_deficits(minimum_ETR=minimum_ETR)
 
         return df['tax_deficit'].sum()
+
+    def check_firm_level_results(self):
+        output = {
+            'Company': list(correspondences.keys()),
+        }
+
+        for minimum_ETR in [0.15, 0.21, 0.25, 0.3]:
+
+            output[f'{str(minimum_ETR * 100)}%'] = []
+
+            for company in output['Company']:
+                company_calculator = CompanyCalculator(company)
+
+                output[f'{str(minimum_ETR * 100)}%'].append(
+                    company_calculator.compute_tax_revenue_gain(minimum_ETR=minimum_ETR)
+                )
+
+        df = pd.DataFrame.from_dict(output)
+
+        return df.copy()
 
     def plot_tax_revenue_gains(self, in_app=False):
         x = np.array([15, 21, 25, 30])
@@ -125,18 +188,29 @@ class CompanyCalculator:
             inplace=True
         )
 
+        dict_df = df.to_dict()
+
+        dict_df[df.columns[0]][len(df)] = 'Total'
+        dict_df[df.columns[1]][len(df)] = 0
+        dict_df[df.columns[2]][len(df)] = df[f'Collectible tax deficit for {self.headquarter_country} (€m)'].sum()
+
+        df = pd.DataFrame.from_dict(dict_df)
+
         if not formatted:
+            df.iloc[-1, 1] = '..'
+
             return df.copy()
 
         else:
 
             df[f'Collectible tax deficit for {self.headquarter_country} (€m)'] = \
-                df[f'Collectible tax deficit for {self.headquarter_country} (€m)'].map('{:,.0f}'.format)
+                df[f'Collectible tax deficit for {self.headquarter_country} (€m)'].map('{:,.2f}'.format)
 
             df['Effective tax rate (%)'] = df['Effective tax rate (%)'].map('{:.1f}'.format)
 
-            return df.copy()
+            df.iloc[-1, 1] = '..'
 
+            return df.copy()
 
     def get_second_sentence(self):
 

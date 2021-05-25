@@ -31,10 +31,7 @@ st.set_page_config(**PAGE_CONFIG)
 
 calculator = TaxDeficitCalculator()
 
-path = os.path.dirname(os.path.abspath(__file__))
-path = os.path.join(path, 'data', 'test.csv')
-
-calculator.load_clean_data(path_to_file=path)
+calculator.load_clean_data()
 
 # ----------------------------------------------------------------------------------------------------------------------
 # --- Instantiating the app
@@ -130,9 +127,8 @@ elif page == 'Multilateral implementation scenario':
         # help='Choose the minimum effective tax rate that headquarter countries should apply.'
     )
 
-    output_df = calculator.output_all_tax_deficits_cleaned(
-        minimum_ETR=slider_value / 100,
-        verbose=0
+    output_df = calculator.output_all_tax_deficits_formatted(
+        minimum_ETR=slider_value / 100
     )
 
     st.write(output_df)
@@ -147,9 +143,13 @@ elif page == 'Multilateral implementation scenario':
     )
 
 else:
-    tax_deficits = calculator.compute_all_tax_deficits(verbose=0)
+    tax_deficits = calculator.get_total_tax_deficits()
 
-    tax_deficits.sort_values(by='Headquarter country', inplace=True)
+    tax_deficits.sort_values(by='Parent jurisdiction (whitespaces cleaned)', inplace=True)
+
+    tax_deficits = tax_deficits[
+        ~tax_deficits['Parent jurisdiction (whitespaces cleaned)'].isin(['Total - EU27', 'Total - Whole sample'])
+    ].copy()
 
     st.header('Some explanations before you get started')
 
@@ -161,7 +161,7 @@ else:
 
     taxing_country = st.selectbox(
         'Select the country that would collect the tax deficit:',
-        list(tax_deficits['Headquarter country'].values)
+        list(tax_deficits['Parent jurisdiction (whitespaces cleaned)'].values)
     )
 
     slider_value = st.slider(
@@ -173,7 +173,7 @@ else:
         # help=f'Choose the minimum effective tax rate that {taxing_country} should apply.'
     )
 
-    output_df = calculator.output_second_scenario_gain_cleaned(
+    output_df = calculator.output_second_scenario_gain_formatted(
         country=taxing_country,
         minimum_ETR=slider_value / 100
     )
