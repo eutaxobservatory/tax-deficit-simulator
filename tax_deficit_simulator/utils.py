@@ -8,8 +8,10 @@ path_to_files = os.path.join(path_to_files, 'files')
 # ----------------------------------------------------------------------------------------------------------------------
 # --- Utils for the calculator.py file
 
+
 COUNTRIES_WITH_MINIMUM_REPORTING = ['KOR', 'NLD', 'IRL', 'FIN']
 COUNTRIES_WITH_CONTINENTAL_REPORTING = ['AUT', 'NOR', 'SVN', 'SWE']
+
 
 def rename_partner_jurisdictions(row):
 
@@ -22,6 +24,7 @@ def rename_partner_jurisdictions(row):
     else:
         return row['Partner jurisdiction (whitespaces cleaned)']
 
+
 def manage_overlap_with_domestic(row, kind):
     if row['Is domestic?']:
         return 0
@@ -32,6 +35,7 @@ def manage_overlap_with_domestic(row, kind):
         elif kind == 'non-haven':
             return row['Is partner jurisdiction a non-haven?']
 
+
 def combine_haven_tax_deficits(row):
     if row['Parent jurisdiction (alpha-3 code)'] not in (
         COUNTRIES_WITH_MINIMUM_REPORTING + COUNTRIES_WITH_CONTINENTAL_REPORTING
@@ -40,6 +44,7 @@ def combine_haven_tax_deficits(row):
 
     else:
         return 0
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 # --- Utils for the firm_level.py file
@@ -55,6 +60,7 @@ ADDITIONAL_ETRs = {
     'GAB': 0.3,
     'CRI': 0.3
 }
+
 
 def compute_ETRs(row, kind):
 
@@ -82,6 +88,7 @@ def compute_ETRs(row, kind):
             effective_tax_rate = row['Average ETR over 6 years']
 
         return effective_tax_rate
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 # --- Utils for the app.py file

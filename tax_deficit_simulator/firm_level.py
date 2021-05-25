@@ -16,6 +16,7 @@ import json
 
 from utils import compute_ETRs
 
+
 # ----------------------------------------------------------------------------------------------------------------------
 # --- Loading the data file correspondences
 
@@ -27,6 +28,7 @@ path_to_correspondences = os.path.join(path_to_correspondences, 'data', 'firm_le
 with open(path_to_correspondences) as file:
     correspondences = json.load(file)
 
+
 # ----------------------------------------------------------------------------------------------------------------------
 # --- Loading the EU country list
 
@@ -34,6 +36,7 @@ path_to_dir = os.path.dirname(os.path.abspath(__file__))
 
 path_to_eu_countries = os.path.join(path_to_dir, 'data', 'listofeucountries_csv.csv')
 eu_country_codes = list(pd.read_csv(path_to_eu_countries, delimiter=';')['Alpha-3 code'])
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 # --- Defining the CompanyCalculator class
@@ -225,10 +228,3 @@ class CompanyCalculator:
         s += ' profits that were taxed below a minimum effective tax rate of 25%.'
 
         return s
-
-
-
-
-
-
-
