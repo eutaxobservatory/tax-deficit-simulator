@@ -12,6 +12,9 @@ path_to_dir = os.path.dirname(os.path.abspath(__file__))
 path_to_eu_countries = os.path.join(path_to_dir, 'data', 'listofeucountries_csv.csv')
 eu_country_codes = list(pd.read_csv(path_to_eu_countries, delimiter=';')['Alpha-3 code'])
 
+eu_27_country_codes = eu_country_codes.copy()
+eu_27_country_codes.remove('GBR')
+
 path_to_tax_haven_list = os.path.join(path_to_dir, 'data', 'tax_haven_list.csv')
 tax_haven_country_codes = list(pd.read_csv(path_to_tax_haven_list, delimiter=';')['Alpha-3 code'])
 
@@ -337,7 +340,7 @@ class TaxDeficitCalculator:
             inplace=True
         )
 
-        total_eu = (df['Parent jurisdiction (alpha-3 code)'].isin(eu_country_codes) * 1 * df['tax_deficit']).sum()
+        total_eu = (df['Parent jurisdiction (alpha-3 code)'].isin(eu_27_country_codes) * 1 * df['tax_deficit']).sum()
         total_whole_sample = df['tax_deficit'].sum()
 
         dict_df = df.to_dict()
@@ -361,7 +364,7 @@ class TaxDeficitCalculator:
         df.drop(columns=['Parent jurisdiction (alpha-3 code)'], inplace=True)
 
         df['tax_deficit'] = df['tax_deficit'] / 10**6
-        df['tax_deficit'] = df['tax_deficit'].map('{:,.2f}'.format)
+        df['tax_deficit'] = df['tax_deficit'].map('{:,.0f}'.format)
 
         df.rename(
             columns={
