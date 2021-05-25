@@ -33,8 +33,8 @@ class TaxDeficitCalculator:
 
         self.USD_to_EUR_2016 = 0.9038899931387901
 
-        self.multiplier_EU = 1.0184
-        self.multiplier_world = 0.9991
+        self.multiplier_EU = 1.133810043
+        self.multiplier_world = 1.133030415
 
     def load_clean_data(
         self,
