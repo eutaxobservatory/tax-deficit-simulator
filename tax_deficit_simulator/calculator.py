@@ -31,10 +31,10 @@ class TaxDeficitCalculator:
         self.assumed_non_haven_ETR_TWZ = 0.2
         self.assumed_haven_ETR_TWZ = 0.1
 
-        self.USD_to_EUR_2016 = 0.9038899931387901
+        self.USD_to_EUR_2016 = 1 / 1.1069031
 
-        self.multiplier_EU = 1.133810043
-        self.multiplier_world = 1.133030415
+        self.multiplier_EU = 1.13381004333496
+        self.multiplier_world = 1.1330304145813
 
     def load_clean_data(
         self,
@@ -121,38 +121,45 @@ class TaxDeficitCalculator:
         if self.oecd is None:
             raise Exception('You first need to load clean data with the dedicated method and inplace=True.')
 
-        oecd = self.oecd.copy()
+        if minimum_ETR > 0.1:
+            oecd = self.oecd.copy()
 
-        mask_eu = oecd['Parent jurisdiction (alpha-3 code)'].isin(eu_country_codes)
-        mask_non_haven = ~oecd['Parent jurisdiction (alpha-3 code)'].isin(tax_haven_country_codes)
-        mask_minimum_reporting_countries = ~oecd['Parent jurisdiction (alpha-3 code)'].isin(
-            COUNTRIES_WITH_MINIMUM_REPORTING + COUNTRIES_WITH_CONTINENTAL_REPORTING
-        )
+            mask_eu = oecd['Parent jurisdiction (alpha-3 code)'].isin(eu_country_codes)
+            mask_non_haven = ~oecd['Parent jurisdiction (alpha-3 code)'].isin(tax_haven_country_codes)
+            mask_minimum_reporting_countries = ~oecd['Parent jurisdiction (alpha-3 code)'].isin(
+                COUNTRIES_WITH_MINIMUM_REPORTING + COUNTRIES_WITH_CONTINENTAL_REPORTING
+            )
 
-        mask = np.logical_and(mask_eu, mask_non_haven)
-        mask = np.logical_and(mask, mask_minimum_reporting_countries)
+            mask = np.logical_and(mask_eu, mask_non_haven)
+            mask = np.logical_and(mask, mask_minimum_reporting_countries)
 
-        self.mask = mask.copy()
+            self.mask = mask.copy()
 
-        mask = mask * 1
+            mask = mask * 1
 
-        foreign_non_haven_profits = (
-            (
-                mask * oecd['Is partner jurisdiction a non-haven?']
-            ) * oecd['Profit (Loss) before Income Tax']
-        ).sum()
-        foreign_haven_profits = (
-            (
-                mask * oecd['Is partner jurisdiction a tax haven?']
-            ) * oecd['Profit (Loss) before Income Tax']
-        ).sum()
+            foreign_non_haven_profits = (
+                (
+                    mask * oecd['Is partner jurisdiction a non-haven?']
+                ) * oecd['Profit (Loss) before Income Tax']
+            ).sum()
+            foreign_haven_profits = (
+                (
+                    mask * oecd['Is partner jurisdiction a tax haven?']
+                ) * oecd['Profit (Loss) before Income Tax']
+            ).sum()
 
-        imputation_ratio_non_haven = (
-            (
-                max(minimum_ETR - self.assumed_non_haven_ETR_TWZ, 0) * foreign_non_haven_profits
-            ) /
-            ((minimum_ETR - self.assumed_haven_ETR_TWZ) * foreign_haven_profits)
-        )
+            imputation_ratio_non_haven = (
+                (
+                    max(minimum_ETR - self.assumed_non_haven_ETR_TWZ, 0) * foreign_non_haven_profits
+                ) /
+                ((minimum_ETR - self.assumed_haven_ETR_TWZ) * foreign_haven_profits)
+            )
+
+        elif minimum_ETR == 0.1:
+            imputation_ratio_non_haven = 1
+
+        else:
+            raise Exception('Unexpected minimum ETR entered (strictly below 0.1).')
 
         return imputation_ratio_non_haven
 
