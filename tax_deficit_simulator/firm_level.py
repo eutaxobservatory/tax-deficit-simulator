@@ -45,8 +45,8 @@ class CompanyCalculator:
 
     def __init__(self, company_name):
 
-        self.multiplier_EU = 1.133810043
-        self.multiplier_world = 1.133030415
+        self.multiplier_EU = 1.0184
+        self.multiplier_world = 0.9991
 
         if company_name not in correspondences.keys():
             raise Exception('Company is not part of the 10 companies covered by the available data.')
@@ -57,7 +57,7 @@ class CompanyCalculator:
         # self.url = correspondences[company_name]['url']
 
         path_to_data = os.path.dirname(os.path.abspath(__file__))
-        path_to_data = os.path.join(path_to_data, 'data', 'firm_level_cbcrs_new', self.file_name)
+        path_to_data = os.path.join(path_to_data, 'data', 'firm_level_cbcrs', self.file_name)
 
         # path_to_data = f'../tax_deficit_simulator/data/firm_level_cbcrs/{self.file_name}'
 
@@ -95,7 +95,8 @@ class CompanyCalculator:
         df = self.data.copy()
 
         # We exclude jurisdictions with negative profits
-        df = df[df['Profit before tax'] >= 0].copy()
+        mask = ~(df['Profit before tax'] < 0)
+        df = df[mask].copy()
 
         df['ETR'] = df.apply(
             lambda row: compute_ETRs(row, kind=self.kind),
