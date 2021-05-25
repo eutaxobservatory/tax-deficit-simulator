@@ -1,38 +1,47 @@
 {
 
     "BNP Paribas": {
-        "file_name": "bnp_paribas.csv"
+        "file_name": "bnp_paribas.csv",
+        "Currency": "EUR"
     },
 
     "SEB Bank": {
-        "file_name": "seb_bank.csv"
+        "file_name": "seb_bank.csv",
+        "Currency": "SEK"
     },
 
     "ENI": {
-        "file_name": "eni.csv"
+        "file_name": "eni.csv",
+        "Currency": "EUR"
     },
 
     "Danske Bank": {
-        "file_name": "danske_bank.csv"
+        "file_name": "danske_bank.csv",
+        "Currency": "DKK"
     },
 
     "Deutsche Bank": {
-        "file_name": "deutsche_bank.csv"
+        "file_name": "deutsche_bank.csv",
+        "Currency": "EUR"
     },
 
     "Erste Bank": {
-        "file_name": "erste_bank.csv"
+        "file_name": "erste_bank.csv",
+        "Currency": "EUR"
     },
 
     "Repsol": {
-        "file_name": "repsol.csv"
+        "file_name": "repsol.csv",
+        "Currency": "EUR"
     },
 
     "BP": {
-        "file_name": "bp.csv"
+        "file_name": "bp.csv",
+        "Currency": "EUR"
     },
 
     "Shell": {
-        "file_name": "shell.csv"
+        "file_name": "shell.csv",
+        "Currency": "EUR"
     }
 }
