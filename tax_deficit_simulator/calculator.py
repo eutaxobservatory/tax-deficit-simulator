@@ -642,12 +642,12 @@ class TaxDeficitCalculator:
 
         imputation = tax_deficits['Collectible tax deficit for the EU'].sum()
 
+        tax_deficits.reset_index(drop=True, inplace=True)
+
         dict_df = tax_deficits.to_dict()
 
         dict_df[tax_deficits.columns[0]][len(tax_deficits)] = 'Imputation'
         dict_df[tax_deficits.columns[1]][len(tax_deficits)] = imputation - to_be_removed_from_imputation
-
-        self.to_be_removed_from_imputation = to_be_removed_from_imputation
 
         dict_df[tax_deficits.columns[0]][len(tax_deficits) + 1] = 'EU27'
         dict_df[tax_deficits.columns[1]][len(tax_deficits) + 1] = eu_27_tax_deficit
@@ -659,7 +659,7 @@ class TaxDeficitCalculator:
 
         df = pd.DataFrame.from_dict(dict_df)
 
-        return df.reset_index(drop=True)
+        return df.copy()
 
     def output_intermediary_scenario_gain_formatted(self, minimum_ETR=0.25):
 

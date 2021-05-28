@@ -44,6 +44,7 @@ page = st.sidebar.selectbox(
         'Description of the research',
         'Case study with one multinational',
         'Multilateral implementation scenario',
+        'Partial cooperation scenario',
         'Unilateral implementation scenario'
     ]
 )
@@ -142,6 +143,39 @@ elif page == 'Multilateral implementation scenario':
         unsafe_allow_html=True
     )
 
+elif page == 'Partial cooperation scenario':
+    st.header('Some explanations before you get started')
+
+    st.markdown(lorem.paragraph())
+
+    st.markdown('---')
+
+    st.header('Simulate potential tax revenue gains')
+
+    slider_value = st.slider(
+        'Select the minimum Effective Tax Rate (ETR):',
+        min_value=10, max_value=50,
+        value=25,
+        step=1,
+        format="%g percent",
+        # help='Choose the minimum effective tax rate that headquarter countries should apply.'
+    )
+
+    output_df = calculator.output_intermediary_scenario_gain_formatted(
+        minimum_ETR=slider_value / 100
+    )
+
+    st.write(output_df)
+
+    st.markdown(
+        get_table_download_button(
+            output_df,
+            scenario=2,
+            effective_tax_rate=slider_value
+        ),
+        unsafe_allow_html=True
+    )
+
 else:
     tax_deficits = calculator.get_total_tax_deficits()
 
@@ -183,7 +217,7 @@ else:
     st.markdown(
         get_table_download_button(
             output_df,
-            scenario=2,
+            scenario=3,
             effective_tax_rate=slider_value,
             taxing_country=taxing_country
         ),

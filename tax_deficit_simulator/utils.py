@@ -102,15 +102,18 @@ def get_table_download_button(df, scenario, effective_tax_rate, taxing_country=N
     href = f'<a href="data:file/csv;base64,{b64}"'
 
     if scenario == 1:
-        href += f' download="first_scenario_{effective_tax_rate}_perc.csv">'
+        href += f' download="multilateral_scenario_{effective_tax_rate}_perc.csv">'
 
     elif scenario == 2:
+        href += f' download="partial_cooperation_scenario_{effective_tax_rate}_perc.csv">'
+
+    elif scenario == 3:
         taxing_country = taxing_country.lower().replace(' ', '_')
 
         if 'china' in taxing_country:
             taxing_country = 'china'
 
-        href += f' download="second_scenario_{taxing_country}_{effective_tax_rate}_perc.csv">'
+        href += f' download="unilateral_scenario_{taxing_country}_{effective_tax_rate}_perc.csv">'
 
     else:
         raise Exception('Value not accepted for the scenario argument.')
