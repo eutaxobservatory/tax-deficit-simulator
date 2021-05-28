@@ -132,7 +132,7 @@ elif page == 'Multilateral implementation scenario':
 
     st.markdown(text_content[page]["3"])
 
-    st.markdown(text_content[page]["4"])
+    # st.markdown(text_content[page]["4"])
 
     slider_value = st.slider(
         'Select the minimum Effective Tax Rate (ETR):',

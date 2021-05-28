@@ -27,7 +27,7 @@ path_to_twz_domestic = os.path.join(path_to_dir, 'data', 'twz_domestic.csv')
 
 class TaxDeficitCalculator:
 
-    def __init__(self):
+    def __init__(self, alternative_imputation=True):
         self.oecd = None
         self.twz = None
 
@@ -38,6 +38,9 @@ class TaxDeficitCalculator:
 
         self.multiplier_EU = 1.13381004333496
         self.multiplier_world = 1.1330304145813
+
+        self.alternative_imputation = alternative_imputation
+        self.reference_rate_for_alternative_imputation = 0.21
 
         # This is the list of countries from which EU countries collect part of the
         self.country_list_intermediary_scenario = [
@@ -183,6 +186,37 @@ class TaxDeficitCalculator:
             raise Exception('Unexpected minimum ETR entered (strictly below 0.1).')
 
         return imputation_ratio_non_haven
+
+    def get_alternative_non_haven_factor(self, minimum_ETR):
+        if self.oecd is None:
+            raise Exception('You first need to load clean data with the dedicated method and inplace=True.')
+
+        if minimum_ETR > 0.2:
+            raise Exception('These computations are only used when the minimum ETR considered is 0.2 or less.')
+
+        oecd_stratified = self.get_stratified_oecd_data(
+            minimum_ETR=self.reference_rate_for_alternative_imputation
+        )
+
+        df_restricted = oecd_stratified[
+            ~oecd_stratified['Parent jurisdiction (alpha-3 code)'].isin(
+                COUNTRIES_WITH_CONTINENTAL_REPORTING + COUNTRIES_WITH_MINIMUM_REPORTING
+            )
+        ].copy()
+
+        denominator = df_restricted['tax_deficit_x_non_haven'].sum()
+
+        oecd_stratified = self.get_stratified_oecd_data(minimum_ETR=minimum_ETR)
+
+        df_restricted = oecd_stratified[
+            ~oecd_stratified['Parent jurisdiction (alpha-3 code)'].isin(
+                COUNTRIES_WITH_CONTINENTAL_REPORTING + COUNTRIES_WITH_MINIMUM_REPORTING
+            )
+        ].copy()
+
+        numerator = df_restricted['tax_deficit_x_non_haven'].sum()
+
+        return numerator / denominator
 
     def get_stratified_oecd_data(self, minimum_ETR=0.25):
         if self.oecd is None:
@@ -335,6 +369,43 @@ class TaxDeficitCalculator:
 
         for column_name in merged_df.columns[2:]:
             merged_df[column_name] = merged_df[column_name] * self.USD_to_EUR_2016 * multiplier
+
+        # --- Managing the case where the minimum ETR is 20% or below for TWZ countries
+
+        if minimum_ETR <= 0.2 and self.alternative_imputation:
+            multiplying_factor = self.get_alternative_non_haven_factor(minimum_ETR=minimum_ETR)
+
+            df = self.compute_all_tax_deficits(
+                minimum_ETR=self.reference_rate_for_alternative_imputation
+            )
+
+            oecd_reporting_countries_but_SWE = self.oecd[
+                self.oecd['Parent jurisdiction (alpha-3 code)'] != 'SWE'
+            ]['Parent jurisdiction (alpha-3 code)'].unique()
+
+            df = df[
+                ~df['Parent jurisdiction (alpha-3 code)'].isin(oecd_reporting_countries_but_SWE)
+            ].copy()
+
+            df['tax_deficit_x_non_haven_imputation'] = df['tax_deficit_x_non_haven'] * multiplying_factor
+
+            mapping = {}
+
+            for _, row in df.iterrows():
+                mapping[row['Parent jurisdiction (alpha-3 code)']] = row['tax_deficit_x_non_haven_imputation']
+
+            merged_df['tax_deficit_x_non_haven_imputation'] = merged_df['Parent jurisdiction (alpha-3 code)'].map(
+                lambda country_code: mapping.get(country_code, 0)
+            )
+
+            merged_df['tax_deficit_x_non_haven'] += merged_df['tax_deficit_x_non_haven_imputation']
+
+            merged_df['tax_deficit'] += merged_df['tax_deficit_x_non_haven_imputation']
+
+            merged_df.drop(
+                columns=['tax_deficit_x_non_haven_imputation'],
+                inplace=True
+            )
 
         return merged_df.reset_index(drop=True).copy()
 
