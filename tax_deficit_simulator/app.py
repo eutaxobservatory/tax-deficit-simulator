@@ -6,6 +6,7 @@ import streamlit as st
 
 # Various utils
 import os
+import json
 from lorem_text import lorem
 
 # Imports from other Python files
@@ -32,6 +33,14 @@ st.set_page_config(**PAGE_CONFIG)
 calculator = TaxDeficitCalculator()
 
 calculator.load_clean_data()
+
+# ----------------------------------------------------------------------------------------------------------------------
+# --- Loading the text content
+
+path_to_text = os.path.join(path_to_dir, 'assets', 'text_content.json')
+
+with open(path_to_text) as file:
+    text_content = json.load(file)
 
 # ----------------------------------------------------------------------------------------------------------------------
 # --- Instantiating the app
@@ -113,11 +122,17 @@ elif page == 'Case study with one multinational':
 elif page == 'Multilateral implementation scenario':
     st.header('Some explanations before you get started')
 
-    st.markdown(lorem.paragraph())
+    st.markdown(text_content[page]["1"])
+
+    st.markdown(text_content[page]["2"])
 
     st.markdown('---')
 
     st.header('Simulate potential tax revenue gains')
+
+    st.markdown(text_content[page]["3"])
+
+    st.markdown(text_content[page]["4"])
 
     slider_value = st.slider(
         'Select the minimum Effective Tax Rate (ETR):',

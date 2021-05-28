@@ -1,0 +1,8 @@
+{
+    "Multilateral implementation scenario":{
+        "1": "This page is dedicated to the multilateral implementation scenario. We simulate an international agreement on a minimum tax of the type currently discussed by the OECD, favored by a number of European Union countries, and by the United States. In this scenario, each headquarter country would collect the tax deficit of its own multinationals.",
+        "2": "For instance, if the internationally agreed minimum tax rate is 25% and a German company has an effective tax rate of 10% on the profits it records in Singapore, then Germany would impose an additional tax of 15% on these profits to arrive at an effective rate of 25%. More generally, Germany would collect extra taxes so that its multinationals pay at least 25% in taxes on the profits they book in each country and other nations would proceed similarly.",
+        "3": "In this section, you can simulate the results of such a multilateral agreement and choose the agreed-upon minimum effective tax rate. As an indication, the United States [recently announced](https://home.treasury.gov/news/press-releases/jy0189) that it would support a lower-bound rate of 15%, while France and Germany had previously advocated for a 21% minimum effective tax rate.",
+        "4": "The benchmark minimum tax rate considered in our report is 25%, a relatively modest rate in an international and historical perspective."
+    }
+}
