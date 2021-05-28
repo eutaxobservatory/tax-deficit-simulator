@@ -18,7 +18,7 @@ eu_27_country_codes.remove('GBR')
 path_to_tax_haven_list = os.path.join(path_to_dir, 'data', 'tax_haven_list.csv')
 tax_haven_country_codes = list(pd.read_csv(path_to_tax_haven_list, delimiter=';')['Alpha-3 code'])
 
-path_to_oecd = os.path.join(path_to_dir, 'data', 'test.csv')
+path_to_oecd = os.path.join(path_to_dir, 'data', 'oecd.csv')
 
 path_to_twz = os.path.join(path_to_dir, 'data', 'twz.csv')
 
@@ -38,6 +38,24 @@ class TaxDeficitCalculator:
 
         self.multiplier_EU = 1.13381004333496
         self.multiplier_world = 1.1330304145813
+
+        # This is the list of countries from which EU countries collect part of the
+        self.country_list_intermediary_scenario = [
+            'USA',
+            'AUS',
+            'CAN',
+            'CHL',
+            'MEX',
+            'NOR',
+            'BMU',
+            'BRA',
+            'CHN',
+            'IND',
+            'SGP',
+            'ZAF',
+            'IDN',
+            'JPN'
+        ]
 
     def load_clean_data(
         self,
@@ -262,6 +280,8 @@ class TaxDeficitCalculator:
 
         imputation_ratio_non_haven = self.get_non_haven_imputation_ratio(minimum_ETR=minimum_ETR)
 
+        self.imputation_ratio_non_haven = imputation_ratio_non_haven
+
         twz_not_in_oecd['tax_deficit_x_non_haven'] = \
             twz_not_in_oecd['tax_deficit_x_tax_haven_TWZ'] * imputation_ratio_non_haven
 
@@ -376,7 +396,7 @@ class TaxDeficitCalculator:
 
         return df.copy()
 
-    def compute_second_scenario_gain(self, country, minimum_ETR=0.25):
+    def compute_unilateral_scenario_gain(self, country, minimum_ETR=0.25):
 
         if self.oecd is None or self.twz is None:
             raise Exception('You first need to load clean data with the dedicated method and inplace=True.')
@@ -440,6 +460,9 @@ class TaxDeficitCalculator:
             ~tax_deficits['Parent jurisdiction (whitespaces cleaned)'].isin([taxing_country, 'United States'])
         ][f'Collectible tax deficit for {taxing_country}'].sum()
 
+        if taxing_country_code == 'DEU':
+            imputation /= 2
+
         tax_deficits.reset_index(drop=True, inplace=True)
 
         dict_df = tax_deficits.to_dict()
@@ -448,13 +471,13 @@ class TaxDeficitCalculator:
         dict_df[tax_deficits.columns[1]][len(tax_deficits)] = imputation
 
         dict_df[tax_deficits.columns[0]][len(tax_deficits) + 1] = 'Total'
-        dict_df[tax_deficits.columns[1]][len(tax_deficits) + 1] = tax_deficits[tax_deficits.columns[1]].sum()
+        dict_df[tax_deficits.columns[1]][len(tax_deficits) + 1] = tax_deficits[tax_deficits.columns[1]].sum() + imputation
 
         df = pd.DataFrame.from_dict(dict_df)
 
         return df.copy()
 
-    def check_second_scenario_gain_computations(self, minimum_ETR=0.25):
+    def check_unilateral_scenario_gain_computations(self, minimum_ETR=0.25):
 
         country_list = self.get_total_tax_deficits()
 
@@ -475,7 +498,7 @@ class TaxDeficitCalculator:
 
         for country in country_list:
 
-            df = self.compute_second_scenario_gain(
+            df = self.compute_unilateral_scenario_gain(
                 country=country,
                 minimum_ETR=minimum_ETR
             )
@@ -515,9 +538,9 @@ class TaxDeficitCalculator:
 
         return df.copy()
 
-    def output_second_scenario_gain_formatted(self, country, minimum_ETR=0.25):
+    def output_unilateral_scenario_gain_formatted(self, country, minimum_ETR=0.25):
 
-        df = self.compute_second_scenario_gain(
+        df = self.compute_unilateral_scenario_gain(
             country=country,
             minimum_ETR=minimum_ETR
         )
@@ -536,3 +559,126 @@ class TaxDeficitCalculator:
         )
 
         return df.copy()
+
+    def compute_intermediary_scenario_gain(self, minimum_ETR=0.25):
+
+        tax_deficits = self.get_total_tax_deficits(minimum_ETR=minimum_ETR)
+
+        oecd = self.oecd.copy()
+
+        eu_27_tax_deficit = tax_deficits[
+            tax_deficits['Parent jurisdiction (whitespaces cleaned)'] == 'Total - EU27'
+        ]['tax_deficit'].iloc[0]
+
+        attribution_ratios = {}
+
+        europe_or_other_europe_ratios = {}
+
+        for country in self.country_list_intermediary_scenario:
+
+            oecd_restricted = oecd[oecd['Parent jurisdiction (alpha-3 code)'] == country]
+
+            total_sales = oecd_restricted['Unrelated Party Revenues'].sum()
+
+            mask_eu_27 = oecd_restricted['Partner jurisdiction (alpha-3 code)'].isin(eu_27_country_codes)
+
+            if country in ['AUS', 'CAN', 'CHL', 'BRA', 'CHN', 'SGP', 'IDN', 'JPN']:
+                mask_other_europe = (oecd_restricted['Partner jurisdiction (whitespaces cleaned)'] == 'Other Europe')
+
+                mask = np.logical_or(mask_eu_27, mask_other_europe)
+
+                other_europe_sales = oecd_restricted[mask_other_europe]['Unrelated Party Revenues'].sum()
+                europe_or_other_europe_ratios[country] = other_europe_sales / total_sales
+
+            elif country == 'NOR':
+                mask_europe = (oecd_restricted['Partner jurisdiction (whitespaces cleaned)'] == 'Europe')
+
+                mask = np.logical_or(mask_eu_27, mask_europe)
+
+                europe_sales = oecd_restricted[mask_europe]['Unrelated Party Revenues'].sum()
+                europe_or_other_europe_ratios[country] = europe_sales / total_sales
+
+            else:
+                mask = mask_eu_27.copy()
+
+                europe_or_other_europe_ratios[country] = 0
+
+            oecd_restricted = oecd_restricted[mask].copy()
+
+            eu_sales = oecd_restricted['Unrelated Party Revenues'].sum()
+
+            attribution_ratios[country] = eu_sales / total_sales
+
+        tax_deficits = tax_deficits[
+            tax_deficits['Parent jurisdiction (alpha-3 code)'].isin(
+                self.country_list_intermediary_scenario
+            )
+        ].copy()
+
+        tax_deficits['EU attribution ratios'] = tax_deficits['Parent jurisdiction (alpha-3 code)'].map(
+            attribution_ratios
+        )
+
+        tax_deficits['Europe or Other Europe ratios'] = tax_deficits['Parent jurisdiction (alpha-3 code)'].map(
+            europe_or_other_europe_ratios
+        )
+
+        tax_deficits['Collectible tax deficit for the EU'] = \
+            tax_deficits['tax_deficit'] * tax_deficits['EU attribution ratios']
+
+        to_be_removed_from_imputation = (
+            tax_deficits['tax_deficit'] * tax_deficits['Europe or Other Europe ratios']
+        ).sum()
+
+        tax_deficits.drop(
+            columns=[
+                'Parent jurisdiction (alpha-3 code)',
+                'tax_deficit',
+                'EU attribution ratios',
+                'Europe or Other Europe ratios'
+            ],
+            inplace=True
+        )
+
+        imputation = tax_deficits['Collectible tax deficit for the EU'].sum()
+
+        dict_df = tax_deficits.to_dict()
+
+        dict_df[tax_deficits.columns[0]][len(tax_deficits)] = 'Imputation'
+        dict_df[tax_deficits.columns[1]][len(tax_deficits)] = imputation - to_be_removed_from_imputation
+
+        self.to_be_removed_from_imputation = to_be_removed_from_imputation
+
+        dict_df[tax_deficits.columns[0]][len(tax_deficits) + 1] = 'EU27'
+        dict_df[tax_deficits.columns[1]][len(tax_deficits) + 1] = eu_27_tax_deficit
+
+        dict_df[tax_deficits.columns[0]][len(tax_deficits) + 2] = 'Total'
+        dict_df[tax_deficits.columns[1]][len(tax_deficits) + 2] = (
+            2 * imputation + eu_27_tax_deficit - to_be_removed_from_imputation
+        )
+
+        df = pd.DataFrame.from_dict(dict_df)
+
+        return df.reset_index(drop=True)
+
+    def output_intermediary_scenario_gain_formatted(self, minimum_ETR=0.25):
+
+        df = self.compute_intermediary_scenario_gain(minimum_ETR=minimum_ETR)
+
+        df['Collectible tax deficit for the EU'] = df['Collectible tax deficit for the EU'] / 10 ** 6
+
+        df['Collectible tax deficit for the EU'] = df['Collectible tax deficit for the EU'].map('{:,.0f}'.format)
+
+        df.rename(
+            columns={
+                'Collectible tax deficit for the EU': 'Collectible tax deficit for the EU (€m)',
+                'Parent jurisdiction (whitespaces cleaned)': 'Headquarter country or region'
+            },
+            inplace=True
+        )
+
+        return df.copy()
+
+
+
+

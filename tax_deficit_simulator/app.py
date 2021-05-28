@@ -173,7 +173,7 @@ else:
         # help=f'Choose the minimum effective tax rate that {taxing_country} should apply.'
     )
 
-    output_df = calculator.output_second_scenario_gain_formatted(
+    output_df = calculator.output_unilateral_scenario_gain_formatted(
         country=taxing_country,
         minimum_ETR=slider_value / 100
     )
