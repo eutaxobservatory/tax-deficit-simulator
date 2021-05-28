@@ -1,70 +1,70 @@
 ﻿Partner jurisdiction code;Partner jurisdiction;Year;Company name;Headquarter country code;Headquarter country;Revenue;Profit before tax;CIT paid;FTEs;Average ETR over 6 years;Exchange rate to EUR
-ARE;United Arab Emirates;2019;BNP Paribas;FRA;France;45;17;5;76;0,1832178;1
-ARG;Argentina;2019;BNP Paribas;FRA;France;37;-6;9;217;0,3067589;1
-AUS;Australia;2019;BNP Paribas;FRA;France;178;53;0;486;0,3016499;1
-AUT;Austria;2019;BNP Paribas;FRA;France;64;-5;2;285;0,1825204;1
-BEL;Belgium;2019;BNP Paribas;FRA;France;4468;1531;159;13515;0,1724621;1
+ARE;United Arab Emirates;2019;BNP Paribas;FRA;France;45;17;5;76;0,145584;1
+ARG;Argentina;2019;BNP Paribas;FRA;France;37;-6;9;217;0,3039937;1
+AUS;Australia;2019;BNP Paribas;FRA;France;178;53;0;486;0,2988728;1
+AUT;Austria;2019;BNP Paribas;FRA;France;64;-5;2;285;0,1331489;1
+BEL;Belgium;2019;BNP Paribas;FRA;France;4468;1531;159;13515;0,1512038;1
 BFA;Burkina Faso;2019;BNP Paribas;FRA;France;22;4;1;239;0,1869159;1
-BGR;Bulgaria;2019;BNP Paribas;FRA;France;74;24;3;919;0,1162775;1
-BHR;Bahrain;2019;BNP Paribas;FRA;France;20;-44;0;276;0;1
-BMU;Bermuda;2019;BNP Paribas;FRA;France;0;0;0;0;0;1
-BRA;Brazil;2019;BNP Paribas;FRA;France;647;185;59;1542;0,262848;1
-CAN;Canada;2019;BNP Paribas;FRA;France;48;35;9;816;0,2393465;1
-CHE;Switzerland;2019;BNP Paribas;FRA;France;435;-29;10;1385;-0,0329162;1
-CHL;Chile;2019;BNP Paribas;FRA;France;87;46;9;449;0,2193853;1
-CHN;China;2019;BNP Paribas;FRA;France;149;71;20;422;0,0725368;1
-CIV;Ivory Coast;2019;BNP Paribas;FRA;France;78;7;0;694;0,2005149;1
-COL;Colombia;2019;BNP Paribas;FRA;France;70;31;13;357;0,3063411;1
+BGR;Bulgaria;2019;BNP Paribas;FRA;France;74;24;3;919;0,0920674;1
+BHR;Bahrain;2019;BNP Paribas;FRA;France;20;-44;0;276;0,0364767;1
+BMU;Bermuda;2019;BNP Paribas;FRA;France;0;0;0;0;0,0364767;1
+BRA;Brazil;2019;BNP Paribas;FRA;France;647;185;59;1542;0,2498098;1
+CAN;Canada;2019;BNP Paribas;FRA;France;48;35;9;816;0,2376744;1
+CHE;Switzerland;2019;BNP Paribas;FRA;France;435;-29;10;1385;0,2454789;1
+CHL;Chile;2019;BNP Paribas;FRA;France;87;46;9;449;0,2176698;1
+CHN;China;2019;BNP Paribas;FRA;France;149;71;20;422;0,069664;1
+CIV;Ivory Coast;2019;BNP Paribas;FRA;France;78;7;0;694;0,1998543;1
+COL;Colombia;2019;BNP Paribas;FRA;France;70;31;13;357;0,3023454;1
 COM;Comoros;2019;BNP Paribas;FRA;France;3;0;0;68;0;1
-CYM;Cayman IslandS;2019;BNP Paribas;FRA;France;8;8;0;0;-0,0329162;1
-CZE;Czech Republic;2019;BNP Paribas;FRA;France;103;25;0;744;0,1805446;1
-DEU;Germany;2019;BNP Paribas;FRA;France;1799;399;99;5207;0,2342376;1
-DNK;Denmark;2019;BNP Paribas;FRA;France;89;12;2;278;0,1852359;1
+CYM;Cayman IslandS;2019;BNP Paribas;FRA;France;8;8;0;0;0,0364767;1
+CZE;Czech Republic;2019;BNP Paribas;FRA;France;103;25;0;744;0,1785487;1
+DEU;Germany;2019;BNP Paribas;FRA;France;1799;399;99;5207;0,1898156;1
+DNK;Denmark;2019;BNP Paribas;FRA;France;89;12;2;278;0,1726726;1
 DZA;Algeria;2019;BNP Paribas;FRA;France;127;45;21;1336;0,3071016;1
-ESP;Spain;2019;BNP Paribas;FRA;France;1200;582;123;3809;0,4349445;1
-FIN;Finland;2019;BNP Paribas;FRA;France;4;0;0;32;0,2190767;1
-FRA;France;2019;BNP Paribas;FRA;France;14038;2139;767;56285;0,2808899;1
-GBR;United Kingdom;2019;BNP Paribas;FRA;France;3227;842;173;7649;0,2664731;1
-GGY;Guernsey;2019;BNP Paribas;FRA;France;10;2;0;22;0,0817557;1
-GIN;Guinea;2019;BNP Paribas;FRA;France;34;7;-2;320;0,3287671;1
-GRC;Greece;2019;BNP Paribas;FRA;France;7;0;0;58;0,3601653;1
-HKG;Hong Kong;2019;BNP Paribas;FRA;France;704;-17;20;2375;0,0982381;1
-HUN;Hungary;2019;BNP Paribas;FRA;France;75;23;2;495;0,3468463;1
-IDN;Indonesia;2019;BNP Paribas;FRA;France;71;24;10;161;0,4349445;1
-IND;India;2019;BNP Paribas;FRA;France;264;152;66;10617;0,4349445;1
-IRL;Ireland;2019;BNP Paribas;FRA;France;254;123;15;559;0,0541072;1
-ITA;Italy;2019;BNP Paribas;FRA;France;5159;1414;373;18366;0,3180768;1
-JEY;Jersey;2019;BNP Paribas;FRA;France;38;5;0;214;0,0800989;1
-JPN;Japan;2019;BNP Paribas;FRA;France;500;259;65;689;0,2821167;1
-KOR;Republic of Korea;2019;BNP Paribas;FRA;France;119;37;0;349;0,253734;1
-KWT;Kuwait;2019;BNP Paribas;FRA;France;8;3;1;21;0,0323218;1
-LUX;Luxembourg;2019;BNP Paribas;FRA;France;1240;487;115;3643;0,1526281;1
-MAR;Morocco;2019;BNP Paribas;FRA;France;295;101;37;3404;0,3467542;1
-MCO;Monaco;2019;BNP Paribas;FRA;France;66;30;2;195;0,1816231;1
-MEX;Mexico;2019;BNP Paribas;FRA;France;83;39;11;281;0,2430528;1
-MLI;Mali;2019;BNP Paribas;FRA;France;14;2;1;79;0,3571429;1
-MYS;Malaysia;2019;BNP Paribas;FRA;France;37;21;5;98;0,2394363;1
-NLD;Netherlands;2019;BNP Paribas;FRA;France;305;69;12;966;0,2504536;1
-NOR;Norway;2019;BNP Paribas;FRA;France;54;-1;0;156;0,2140479;1
-NZL;New Zealand;2019;BNP Paribas;FRA;France;10;5;1;43;0,2698635;1
-PAN;Panama;2019;BNP Paribas;FRA;France;0;0;0;0;0;1
-PHL;Philippines;2019;BNP Paribas;FRA;France;0;-1;0;0;0,2225207;1
-POL;Poland;2019;BNP Paribas;FRA;France;1111;229;51;10528;0,26102;1
-PRT;Portugal;2019;BNP Paribas;FRA;France;226;87;26;5936;0,1513967;1
-QAT;Qatar;2019;BNP Paribas;FRA;France;25;10;1;25;0,0805232;1
-ROU;Romania;2019;BNP Paribas;FRA;France;89;19;3;911;0,197357;1
-RUS;Russia;2019;BNP Paribas;FRA;France;58;27;2;370;0,2375382;1
-SAU;Saudi Arabia;2019;BNP Paribas;FRA;France;21;2;1;51;0,0057295;1
-SEN;Senegal;2019;BNP Paribas;FRA;France;57;14;6;485;0,3005464;1
-SGP;Singapore;2019;BNP Paribas;FRA;France;501;101;12;2026;0,1918038;1
-SRB;Serbia;2019;BNP Paribas;FRA;France;33;15;2;601;-0,0329162;1
-SVK;Slovakia;2019;BNP Paribas;FRA;France;27;3;1;342;0,2276019;1
-SWE;Sweden;2019;BNP Paribas;FRA;France;55;1;3;269;0,2051518;1
-THA;Thailand;2019;BNP Paribas;FRA;France;26;9;3;79;0,2880442;1
-TUN;Tunisia;2019;BNP Paribas;FRA;France;80;31;12;1137;0,3441558;1
-TUR;Turkey;2019;BNP Paribas;FRA;France;1003;284;97;9847;0,3074043;1
-TWN;Taiwan;2019;BNP Paribas;FRA;France;179;91;12;495;0,1223675;1
-UKR;Ukraine;2019;BNP Paribas;FRA;France;219;98;5;5427;-0,0329162;1
-USA;United States of America;2019;BNP Paribas;FRA;France;4296;940;132;13174;0,2781727;1
-VNM;Viet Nam;2019;BNP Paribas;FRA;France;41;27;7;89;0,1974287;1
-ZAF;South Africa;2019;BNP Paribas;FRA;France;183;63;17;1639;0,2781797;1
+ESP;Spain;2019;BNP Paribas;FRA;France;1200;582;123;3809;0,2370273;1
+FIN;Finland;2019;BNP Paribas;FRA;France;4;0;0;32;0,2049662;1
+FRA;France;2019;BNP Paribas;FRA;France;14038;2139;767;56285;0,2502703;1
+GBR;United Kingdom;2019;BNP Paribas;FRA;France;3227;842;173;7649;0,1788404;1
+GGY;Guernsey;2019;BNP Paribas;FRA;France;10;2;0;22;0,0790731;1
+GIN;Guinea;2019;BNP Paribas;FRA;France;34;7;-2;320;0,3208704;1
+GRC;Greece;2019;BNP Paribas;FRA;France;7;0;0;58;0,2569511;1
+HKG;Hong Kong;2019;BNP Paribas;FRA;France;704;-17;20;2375;0,0967474;1
+HUN;Hungary;2019;BNP Paribas;FRA;France;75;23;2;495;0,1506169;1
+IDN;Indonesia;2019;BNP Paribas;FRA;France;71;24;10;161;0,3174627;1
+IND;India;2019;BNP Paribas;FRA;France;264;152;66;10617;0,3208704;1
+IRL;Ireland;2019;BNP Paribas;FRA;France;254;123;15;559;0,0566144;1
+ITA;Italy;2019;BNP Paribas;FRA;France;5159;1414;373;18366;0,197409;1
+JEY;Jersey;2019;BNP Paribas;FRA;France;38;5;0;214;0,0754821;1
+JPN;Japan;2019;BNP Paribas;FRA;France;500;259;65;689;0,254679;1
+KOR;Republic of Korea;2019;BNP Paribas;FRA;France;119;37;0;349;0,1830358;1
+KWT;Kuwait;2019;BNP Paribas;FRA;France;8;3;1;21;0,0364767;1
+LUX;Luxembourg;2019;BNP Paribas;FRA;France;1240;487;115;3643;0,1476581;1
+MAR;Morocco;2019;BNP Paribas;FRA;France;295;101;37;3404;0,3208704;1
+MCO;Monaco;2019;BNP Paribas;FRA;France;66;30;2;195;0,1728722;1
+MEX;Mexico;2019;BNP Paribas;FRA;France;83;39;11;281;0,2418037;1
+MLI;Mali;2019;BNP Paribas;FRA;France;14;2;1;79;0,3125;1
+MYS;Malaysia;2019;BNP Paribas;FRA;France;37;21;5;98;0,2392736;1
+NLD;Netherlands;2019;BNP Paribas;FRA;France;305;69;12;966;0,2316061;1
+NOR;Norway;2019;BNP Paribas;FRA;France;54;-1;0;156;0,2100024;1
+NZL;New Zealand;2019;BNP Paribas;FRA;France;10;5;1;43;0,2695976;1
+PAN;Panama;2019;BNP Paribas;FRA;France;0;0;0;0;0,0364767;1
+PHL;Philippines;2019;BNP Paribas;FRA;France;0;-1;0;0;0,1914226;1
+POL;Poland;2019;BNP Paribas;FRA;France;1111;229;51;10528;0,2565852;1
+PRT;Portugal;2019;BNP Paribas;FRA;France;226;87;26;5936;0,147901;1
+QAT;Qatar;2019;BNP Paribas;FRA;France;25;10;1;25;0,0744601;1
+ROU;Romania;2019;BNP Paribas;FRA;France;89;19;3;911;0,1354083;1
+RUS;Russia;2019;BNP Paribas;FRA;France;58;27;2;370;0,2160558;1
+SAU;Saudi Arabia;2019;BNP Paribas;FRA;France;21;2;1;51;0,0364767;1
+SEN;Senegal;2019;BNP Paribas;FRA;France;57;14;6;485;0,2534562;1
+SGP;Singapore;2019;BNP Paribas;FRA;France;501;101;12;2026;0,1257318;1
+SRB;Serbia;2019;BNP Paribas;FRA;France;33;15;2;601;0,0364767;1
+SVK;Slovakia;2019;BNP Paribas;FRA;France;27;3;1;342;0,2255828;1
+SWE;Sweden;2019;BNP Paribas;FRA;France;55;1;3;269;0,2047679;1
+THA;Thailand;2019;BNP Paribas;FRA;France;26;9;3;79;0,1540888;1
+TUN;Tunisia;2019;BNP Paribas;FRA;France;80;31;12;1137;0,2813067;1
+TUR;Turkey;2019;BNP Paribas;FRA;France;1003;284;97;9847;0,1889699;1
+TWN;Taiwan;2019;BNP Paribas;FRA;France;179;91;12;495;0,1015967;1
+UKR;Ukraine;2019;BNP Paribas;FRA;France;219;98;5;5427;0,1200848;1
+USA;United States of America;2019;BNP Paribas;FRA;France;4296;940;132;13174;0,1662334;1
+VNM;Viet Nam;2019;BNP Paribas;FRA;France;41;27;7;89;0,1918642;1
+ZAF;South Africa;2019;BNP Paribas;FRA;France;183;63;17;1639;0,2740327;1
