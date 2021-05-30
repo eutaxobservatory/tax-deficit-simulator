@@ -186,7 +186,7 @@ elif page == 'Partial cooperation scenario':
         # help='Choose the minimum effective tax rate that headquarter countries should apply.'
     )
 
-    output_df = calculator.output_intermediary_scenario_gain_formatted(
+    output_df = calculator.output_intermediary_scenario_gain_formatted_alternative(
         minimum_ETR=slider_value / 100
     )
 

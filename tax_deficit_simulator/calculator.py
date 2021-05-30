@@ -869,9 +869,6 @@ class TaxDeficitCalculator:
             )
         ].copy()
 
-        if eu_27_tax_deficits['tax_deficit'].sum() != eu_27_tax_deficit:
-            print('Oh oh, debugging incoming.')
-
         tax_deficits = tax_deficits[
             tax_deficits['Parent jurisdiction (alpha-3 code)'].isin(
                 self.country_list_intermediary_scenario
@@ -993,6 +990,28 @@ class TaxDeficitCalculator:
                 'Parent jurisdiction (whitespaces cleaned)': 'Headquarter country or region'
             },
             inplace=True
+        )
+
+        return df.copy()
+
+    def output_intermediary_scenario_gain_formatted_alternative(self, minimum_ETR=0.25):
+
+        df = self.compute_intermediary_scenario_gain_alternative(minimum_ETR=minimum_ETR)
+
+        df.drop(columns=['tax_deficit', 'From foreign MNEs'], inplace=True)
+
+        df['Total'] = df['Total'].map('{:,.0f}'.format)
+
+        df.rename(
+            columns={
+                'Parent jurisdiction (whitespaces cleaned)': 'Taxing country',
+                'Total': 'Collectible tax deficit (€m)'
+            },
+            inplace=True
+        )
+
+        df['Taxing country'] = df['Taxing country'].map(
+            lambda x: x if x not in ['Europe', 'Other Europe'] else f'"{x}"'
         )
 
         return df.copy()

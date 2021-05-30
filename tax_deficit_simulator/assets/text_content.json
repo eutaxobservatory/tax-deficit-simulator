@@ -19,7 +19,7 @@
     "Partial cooperation scenario":{
         "1": "This page is dedicated to an imperfect cooperation scenario, in which only EU countries apply a minimum tax, while non-EU countries do not change their tax policies. In this scenario, each EU country would collect the tax deficit of its own multinationals (as in the full coordination scenario), plus a portion of the tax deficit of multinationals incorporated outside of the European Union. This portion would be based on the geography of sales to final customers.",
         "2": "For instance, if a company incorporated in the United Kingdom makes 20% of its final (i.e., non-intragroup) sales in Germany, then Germany would collect 20% of the tax deficit of this company, if it has any.",
-        "3": "In this section, you can simulate the results of such a partial cooperation and choose the minimum effective tax rate applied by EU member states. The table then indicates the corporate income tax revenue gains of each EU country under this agreement."
+        "3": "In this section, you can simulate the results of such a partial cooperation and choose the minimum effective tax rate applied by EU member states. The table then indicates the corporate income tax revenue gains of each in-sample EU country under this agreement."
     },
     "Unilateral implementation scenario":{
         "1": "This page is dedicated to the unilateral implementation or “first-mover” scenario, in which one country alone decides to collect the tax deficit of multinational companies. This first-mover would collect the full tax deficit of its own multinationals, plus a portion (proportional to the destination of sales) of the tax deficit of all foreign multinationals.",
