@@ -19,10 +19,11 @@ from utils import get_table_download_button, get_report_download_button, get_app
 
 path_to_dir = os.path.dirname(os.path.abspath(__file__))
 path_to_logo = os.path.join(path_to_dir, 'assets', 'logo_color_RVB.jpg')
+path_to_small_logo = os.path.join(path_to_dir, 'assets', 'small_logo.jpg')
 
 PAGE_CONFIG = {
     'page_title': 'Tax Deficit Simulator',
-    'page_icon': path_to_logo
+    'page_icon': path_to_small_logo
 }
 
 st.set_page_config(**PAGE_CONFIG)
@@ -47,6 +48,8 @@ with open(path_to_text) as file:
 
 st.title('Tax Deficit Simulator')
 
+st.sidebar.image(path_to_logo, width=150)
+
 page = st.sidebar.selectbox(
     'Choose the page to view here:',
     [
@@ -63,19 +66,22 @@ path_to_css = os.path.join(path_to_dir, 'assets', 'custom_styles.css')
 st.markdown('<style>' + open(path_to_css).read() + '</style>', unsafe_allow_html=True)
 
 if page == 'Description of the research':
-    st.header('This is a page section')
+    st.header('Context')
 
-    st.markdown(lorem.paragraph())
+    for i in range(1, 6):
+        st.markdown(text_content[page][str(i)])
 
     st.markdown('---')
 
-    st.header('This is another page section')
+    st.header('How to use this simulator?')
 
-    st.markdown(lorem.paragraph())
+    st.markdown(text_content[page]["6"])
 
     st.markdown('---')
 
     st.header('Download section')
+
+    st.markdown(text_content[page]["7"])
 
     st.markdown(
         get_report_download_button(),
@@ -143,7 +149,7 @@ elif page == 'Multilateral implementation scenario':
         # help='Choose the minimum effective tax rate that headquarter countries should apply.'
     )
 
-    output_df = calculator.output_all_tax_deficits_formatted(
+    output_df = calculator.output_tax_deficits_formatted(
         minimum_ETR=slider_value / 100
     )
 
@@ -161,11 +167,15 @@ elif page == 'Multilateral implementation scenario':
 elif page == 'Partial cooperation scenario':
     st.header('Some explanations before you get started')
 
-    st.markdown(lorem.paragraph())
+    st.markdown(text_content[page]["1"])
+
+    st.markdown(text_content[page]["2"])
 
     st.markdown('---')
 
     st.header('Simulate potential tax revenue gains')
+
+    st.markdown(text_content[page]["3"])
 
     slider_value = st.slider(
         'Select the minimum Effective Tax Rate (ETR):',
@@ -192,25 +202,29 @@ elif page == 'Partial cooperation scenario':
     )
 
 else:
-    tax_deficits = calculator.get_total_tax_deficits()
+    tax_deficits = calculator.output_tax_deficits_formatted()
 
-    tax_deficits.sort_values(by='Parent jurisdiction (whitespaces cleaned)', inplace=True)
+    tax_deficits.sort_values(by='Headquarter country', inplace=True)
 
     tax_deficits = tax_deficits[
-        ~tax_deficits['Parent jurisdiction (whitespaces cleaned)'].isin(['Total - EU27', 'Total - Whole sample'])
+        ~tax_deficits['Headquarter country'].isin(['Total - EU27', 'Total - Whole sample'])
     ].copy()
 
     st.header('Some explanations before you get started')
 
-    st.markdown(lorem.paragraph())
+    st.markdown(text_content[page]["1"])
+
+    st.markdown(text_content[page]["2"])
 
     st.markdown('---')
 
     st.header('Simulate potential tax revenue gains')
 
+    st.markdown(text_content[page]["3"])
+
     taxing_country = st.selectbox(
         'Select the country that would collect the tax deficit:',
-        list(tax_deficits['Parent jurisdiction (whitespaces cleaned)'].values)
+        list(tax_deficits['Headquarter country'].values)
     )
 
     slider_value = st.slider(

@@ -1,7 +1,29 @@
 {
+    "Description of the research":{
+        "1": "This simulator accompanies the report of the [EU Tax Observatory](wikipedia.org), *Collecting the tax deficit of multinational companies: Simulations for the European Union* (June 2021).",
+        "2": "This study estimates how much tax revenue the European Union could collect by imposing a minimum tax on the profits of multinational companies. It relies on the notion of tax deficit, defined as the difference between what multinationals currently pay in taxes, and what they would pay if they were subject to a minimum tax rate in each country. Three ways for EU countries to collect this tax deficit are considered:",
+        "3": "* an international agreement on a minimum tax of the type currently discussed by the OECD, in which scenario a minimum tax rate of 25% could increase corporate income tax revenues in the European Union by about €170 billion in 2021;",
+        "4": "* an incomplete international agreement in which only EU countries apply a minimum tax. An additional €30 billion would then come from collecting a portion of the tax deficit of non-EU multinationals;",
+        "5": "* a “first-mover” scenario, in which one country alone decides to collect the tax deficit of multinational companies. On average, a first mover in the European Union would increase its corporate tax revenues by close to 70% relative to its current corporate tax collection.",
+        "6": "This simulator was designed for policy makers, journalists, members of civil society, and all citizens in each EU country to assess the revenue potential from minimum taxation on both domestic and foreign firms. Each of the aforementioned scenarios can be investigated on a specific page, accessible via the left-hand sidebar, that allows to simulate corporate tax revenue gains from any minimum effective tax rate between 10% and 50%.",
+        "7": "CONTACT INFORMATION?"
+    },
+    "Case study with one multinational":{
+        "1": "TO BE COMPLETED."
+    },
     "Multilateral implementation scenario":{
         "1": "This page is dedicated to the multilateral implementation scenario. We simulate an international agreement on a minimum tax of the type currently discussed by the OECD, favored by a number of European Union countries, and by the United States. In this scenario, each headquarter country would collect the tax deficit of its own multinationals.",
         "2": "For instance, if the internationally agreed minimum tax rate is 25% and a German company has an effective tax rate of 10% on the profits it records in Singapore, then Germany would impose an additional tax of 15% on these profits to arrive at an effective rate of 25%. More generally, Germany would collect extra taxes so that its multinationals pay at least 25% in taxes on the profits they book in each country and other nations would proceed similarly.",
         "3": "In this section, you can simulate the results of such a multilateral agreement and choose the agreed-upon minimum effective tax rate. As an indication, the United States [recently announced](https://home.treasury.gov/news/press-releases/jy0189) that it would support a lower-bound rate of 15%, while France and Germany had previously advocated for a 21% minimum effective tax rate. The benchmark minimum tax rate considered in our report is 25%, a relatively modest rate in an international and historical perspective."
+    },
+    "Partial cooperation scenario":{
+        "1": "This page is dedicated to an imperfect cooperation scenario, in which only EU countries apply a minimum tax, while non-EU countries do not change their tax policies. In this scenario, each EU country would collect the tax deficit of its own multinationals (as in the full coordination scenario), plus a portion of the tax deficit of multinationals incorporated outside of the European Union. This portion would be based on the geography of sales to final customers.",
+        "2": "For instance, if a company incorporated in the United Kingdom makes 20% of its final (i.e., non-intragroup) sales in Germany, then Germany would collect 20% of the tax deficit of this company, if it has any.",
+        "3": "In this section, you can simulate the results of such a partial cooperation and choose the minimum effective tax rate applied by EU member states. The table then indicates the corporate income tax revenue gains of each EU country under this agreement."
+    },
+    "Unilateral implementation scenario":{
+        "1": "This page is dedicated to the unilateral implementation or “first-mover” scenario, in which one country alone decides to collect the tax deficit of multinational companies. This first-mover would collect the full tax deficit of its own multinationals, plus a portion (proportional to the destination of sales) of the tax deficit of all foreign multinationals.",
+        "2": "For instance, if this first-mover is Germany, then Germany would collect 100% of the tax deficit of German multinationals, plus a portion of the tax deficit (if there is one) of French, UK, US, etc. multinationals. This portion would be equal to the fraction of the global sales these multinationals make in Germany.",
+        "3": "In this section, you can simulate the outcome of this "
     }
 }
