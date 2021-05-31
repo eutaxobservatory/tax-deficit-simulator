@@ -9,7 +9,9 @@
         "7": "CONTACT INFORMATION?"
     },
     "Case study with one multinational":{
-        "1": "TO BE COMPLETED."
+        "1": "This page aims at illustrating the notion of tax deficit with a few examples of multinationals that release the relevant data publicly. Indeed, since 2015, banks with a consolidated turnover above 750 million euros and that operate in the European Union are required to publicly disclose the activity of all their affiliates regarding the allocation of their income, profit and taxes. Besides, several non-bank multinationals have voluntarily started disclosing their country-by-country report, which tabulates how much revenues, profits and taxes they have registered in each country of residence of their subsidiaries.",
+        "2": "In this section, you can use the dropdown to select a European multinational company and examine the additional corporate tax revenue that the headquarter country could collect by imposing a minimum tax rate on all its activities.",
+        "3": "The bar chart below shows how this additional corporate tax revenue varies depending on the minimum rate chosen. As in the report, we consider 4 reference rates of respectively 15%, 21%, 25% and 30%."
     },
     "Multilateral implementation scenario":{
         "1": "This page is dedicated to the multilateral implementation scenario. We simulate an international agreement on a minimum tax of the type currently discussed by the OECD, favored by a number of European Union countries, and by the United States. In this scenario, each headquarter country would collect the tax deficit of its own multinationals.",
@@ -24,6 +26,6 @@
     "Unilateral implementation scenario":{
         "1": "This page is dedicated to the unilateral implementation or “first-mover” scenario, in which one country alone decides to collect the tax deficit of multinational companies. This first-mover would collect the full tax deficit of its own multinationals, plus a portion (proportional to the destination of sales) of the tax deficit of all foreign multinationals.",
         "2": "For instance, if this first-mover is Germany, then Germany would collect 100% of the tax deficit of German multinationals, plus a portion of the tax deficit (if there is one) of French, UK, US, etc. multinationals. This portion would be equal to the fraction of the global sales these multinationals make in Germany.",
-        "3": "In this section, you can simulate the outcome of this "
+        "3": "In this section, you can select which country would be this first-mover and observe how the minimum rate it will impose influences its corporate tax revenue gains. The table indicates the country of residence of the multinationals whose tax deficit it would collect, entirely (for its own multinationals) or partly (for the foreign ones, based on the location of their sales)."
     }
 }

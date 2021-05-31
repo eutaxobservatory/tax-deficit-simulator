@@ -215,6 +215,17 @@ class CompanyCalculator:
 
             return df.copy()
 
+    def get_first_sentence(self):
+        amount = self.compute_tax_revenue_gain(minimum_ETR=0.25)
+
+        s = f'Should {self.headquarter_country} impose a minimum tax rate of 25% on all the profits registered by '
+
+        s += f'{self.company_name}, it could collect an additional tax revenue of about {int(round(amount))} million '
+
+        s += 'EUR. This is the tax deficit of the company, which is fully attributed to its headquarter country.'
+
+        return s
+
     def get_second_sentence(self):
 
         df = self.compute_tax_deficits(minimum_ETR=0.25)

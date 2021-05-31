@@ -96,11 +96,13 @@ if page == 'Description of the research':
 elif page == 'Case study with one multinational':
     st.header('Some explanations before you get started')
 
-    st.markdown(lorem.paragraph())
+    st.markdown(text_content[page]["1"])
 
     st.markdown('---')
 
     st.header('Compute potential tax revenue gains')
+
+    st.markdown(text_content[page]["2"])
 
     company_name = st.selectbox(
         'Select the company that you want to study:',
@@ -111,13 +113,17 @@ elif page == 'Case study with one multinational':
 
         company = CompanyCalculator(company_name=company_name)
 
-        # st.markdown(company.get_first_sentence())
+        st.markdown(f'### What is the tax deficit of {company_name}?')
+
+        st.markdown(company.get_first_sentence())
+
+        st.markdown(text_content[page]["3"])
 
         st.pyplot(company.plot_tax_revenue_gains(in_app=True))
 
         st.markdown('---')
 
-        st.header('Where does this tax deficit come from?')
+        st.markdown('### Where does this tax deficit come from?')
 
         df = company.get_tax_deficit_origins_table(minimum_ETR=0.25, formatted=True)
 
