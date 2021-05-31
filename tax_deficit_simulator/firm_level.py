@@ -220,11 +220,9 @@ class CompanyCalculator:
 
         s = f'Should {self.headquarter_country} impose a minimum tax rate of 25% on all the profits registered by '
 
-        # s += f'{self.company_name}, it could collect an additional tax revenue of about {int(round(amount))} million '
+        s += f'{self.company_name}, it could collect an additional tax revenue of about {"{:,.0f}".format(amount)} mil'
 
-        s += f'{self.company_name}, it could collect an additional tax revenue of about {"{:,.0f}".format(amount)} million '
-
-        s += 'EUR. This is the tax deficit of the company, which is fully attributed to its headquarter country.'
+        s += 'lion EUR. This is the tax deficit of the company, which is fully attributed to its headquarter country.'
 
         return s
 
@@ -251,4 +249,3 @@ class CompanyCalculator:
         s += f'{self.headquarter_country} and its breakdown based on the location of low-taxed profits.'
 
         return s
-

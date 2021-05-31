@@ -547,12 +547,16 @@ class TaxDeficitCalculator:
                 inplace=True
             )
 
-            merged_df[f'tax_deficit_{int(rate * 100)}'] /= (merged_df['CIT revenue'] * self.multiplier_2021 * self.USD_to_EUR_2016 / 100)
+            merged_df[f'tax_deficit_{int(rate * 100)}'] /= (
+                merged_df['CIT revenue'] * self.multiplier_2021 * self.USD_to_EUR_2016 / 100
+            )
 
         eu_df = merged_df[merged_df['Parent jurisdiction (alpha-3 code)'].isin(eu_27_country_codes)].copy()
 
         self.check = [
-            (eu_df[f'tax_deficit_{rate}'] * eu_df['CIT revenue'] / 100).sum() / eu_df['CIT revenue'].sum() for rate in [15, 21, 25, 30]
+            (
+                eu_df[f'tax_deficit_{rate}'] * eu_df['CIT revenue'] / 100
+            ).sum() / eu_df['CIT revenue'].sum() for rate in [15, 21, 25, 30]
         ]
 
         merged_df = merged_df[
@@ -692,7 +696,9 @@ class TaxDeficitCalculator:
         dict_df[tax_deficits.columns[1]][len(tax_deficits)] = imputation
 
         dict_df[tax_deficits.columns[0]][len(tax_deficits) + 1] = 'Total'
-        dict_df[tax_deficits.columns[1]][len(tax_deficits) + 1] = tax_deficits[tax_deficits.columns[1]].sum() + imputation
+        dict_df[tax_deficits.columns[1]][len(tax_deficits) + 1] = (
+            tax_deficits[tax_deficits.columns[1]].sum() + imputation
+        )
 
         df = pd.DataFrame.from_dict(dict_df)
 
