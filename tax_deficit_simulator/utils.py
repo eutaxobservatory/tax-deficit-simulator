@@ -93,7 +93,7 @@ def compute_ETRs(row, kind):
 # ----------------------------------------------------------------------------------------------------------------------
 # --- Utils for the app.py file
 
-def get_table_download_button(df, scenario, effective_tax_rate, taxing_country=None):
+def get_table_download_button(df, scenario, effective_tax_rate, company=None, taxing_country=None):
 
     csv = df.to_csv(index=False)
 
@@ -101,7 +101,12 @@ def get_table_download_button(df, scenario, effective_tax_rate, taxing_country=N
 
     href = f'<a href="data:file/csv;base64,{b64}"'
 
-    if scenario == 1:
+    if scenario == 0:
+        company_name = company.lower().replace(' ', '_')
+
+        href += f' download="{company_name}_{effective_tax_rate}_perc.csv">'
+
+    elif scenario == 1:
         href += f' download="multilateral_scenario_{effective_tax_rate}_perc.csv">'
 
     elif scenario == 2:

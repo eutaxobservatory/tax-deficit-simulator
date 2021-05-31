@@ -83,8 +83,8 @@ class CompanyCalculator:
 
         headquarter_country = self.data.loc[0, 'Headquarter country']
 
-        if headquarter_country == 'Netherlands':
-            headquarter_country = 'the Netherlands'
+        if headquarter_country in ['Netherlands', 'United Kingdom']:
+            headquarter_country = 'the ' + headquarter_country
 
         self.headquarter_country = headquarter_country
 
@@ -220,7 +220,9 @@ class CompanyCalculator:
 
         s = f'Should {self.headquarter_country} impose a minimum tax rate of 25% on all the profits registered by '
 
-        s += f'{self.company_name}, it could collect an additional tax revenue of about {int(round(amount))} million '
+        # s += f'{self.company_name}, it could collect an additional tax revenue of about {int(round(amount))} million '
+
+        s += f'{self.company_name}, it could collect an additional tax revenue of about {"{:,.0f}".format(amount)} million '
 
         s += 'EUR. This is the tax deficit of the company, which is fully attributed to its headquarter country.'
 
@@ -239,3 +241,14 @@ class CompanyCalculator:
         s += ' profits that were taxed below a minimum effective tax rate of 25%.'
 
         return s
+
+    def get_third_sentence(self):
+
+        s = 'After investigating the effect of a 25% minimum rate, the following slider allows you to select what rate,'
+
+        s += ' between 10% and 50%, would be imposed. The table presents the implied corporate tax revenue gain for '
+
+        s += f'{self.headquarter_country} and its breakdown based on the location of low-taxed profits.'
+
+        return s
+

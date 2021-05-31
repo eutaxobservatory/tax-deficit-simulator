@@ -81,17 +81,15 @@ if page == 'Description of the research':
 
     st.header('Download section')
 
-    st.markdown(text_content[page]["7"])
-
     st.markdown(
         get_report_download_button(),
         unsafe_allow_html=True
     )
 
-    st.markdown(
-        get_appendix_download_button(),
-        unsafe_allow_html=True
-    )
+    # st.markdown(
+    #     get_appendix_download_button(),
+    #     unsafe_allow_html=True
+    # )
 
 elif page == 'Case study with one multinational':
     st.header('Some explanations before you get started')
@@ -130,6 +128,38 @@ elif page == 'Case study with one multinational':
         st.markdown(company.get_second_sentence())
 
         st.write(df)
+
+        st.markdown('---')
+
+        st.markdown('### How important is the minimum effective tax rate?')
+
+        st.markdown(company.get_third_sentence())
+
+        slider_value = st.slider(
+            'Select the minimum Effective Tax Rate (ETR):',
+            min_value=10, max_value=50,
+            value=25,
+            step=1,
+            format="%g percent",
+            # help='Choose the minimum effective tax rate that headquarter countries should apply.'
+        )
+
+        output_df = company.get_tax_deficit_origins_table(
+            minimum_ETR=slider_value / 100,
+            formatted=True
+        )
+
+        st.write(output_df)
+
+        st.markdown(
+            get_table_download_button(
+                output_df,
+                scenario=0,
+                effective_tax_rate=slider_value,
+                company=company_name
+            ),
+            unsafe_allow_html=True
+        )
 
 elif page == 'Multilateral implementation scenario':
     st.header('Some explanations before you get started')

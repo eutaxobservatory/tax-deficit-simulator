@@ -6,7 +6,6 @@ import os
 from utils import rename_partner_jurisdictions, manage_overlap_with_domestic, combine_haven_tax_deficits, \
     COUNTRIES_WITH_MINIMUM_REPORTING, COUNTRIES_WITH_CONTINENTAL_REPORTING
 
-
 path_to_dir = os.path.dirname(os.path.abspath(__file__))
 
 path_to_eu_countries = os.path.join(path_to_dir, 'data', 'listofeucountries_csv.csv')
@@ -19,34 +18,45 @@ path_to_tax_haven_list = os.path.join(path_to_dir, 'data', 'tax_haven_list.csv')
 tax_haven_country_codes = list(pd.read_csv(path_to_tax_haven_list, delimiter=';')['Alpha-3 code'])
 
 path_to_oecd = os.path.join(path_to_dir, 'data', 'oecd.csv')
-
 path_to_twz = os.path.join(path_to_dir, 'data', 'twz.csv')
-
 path_to_twz_domestic = os.path.join(path_to_dir, 'data', 'twz_domestic.csv')
-
 path_to_twz_CIT = os.path.join(path_to_dir, 'data', 'twz_CIT.csv')
 
 
 class TaxDeficitCalculator:
 
     def __init__(self, alternative_imputation=True):
+
+        # These attributes will store the data loaded with the "load_clean_data" method
         self.oecd = None
         self.twz = None
+        self.twz_domestic = None
+        self.twz_CIT = None
 
+        # For non-OECD reporting countries, data are taken from TWZ 2019 appendix tables
+        # An effective tax rate of 20% is assumed to be applied on profits registered in non-havens
         self.assumed_non_haven_ETR_TWZ = 0.2
+
+        # An effective tax rate of 10% is assumed to be applied on profits registered in tax havens
         self.assumed_haven_ETR_TWZ = 0.1
 
+        # Average exchange rate over the year 2016, extracted from benchmark computations run on Stata
+        # Source: European Central Bank
         self.USD_to_EUR_2016 = 1 / 1.1069031
 
         # self.multiplier_EU = 1.13381004333496
         # self.multiplier_world = 1.1330304145813
 
+        # Gross growth rate of worldwide GDP in current EUR between 2016 and 2021
+        # Extracted from benchmark computations run on Stata
         self.multiplier_2021 = 1.1330304145813
 
+        # For rates of 0.2 or lower an alternative imputation is used to estimate the non-haven tax deficit of non-OECD
+        # reporting countries; this argument allows to enable or disable this imputation
         self.alternative_imputation = alternative_imputation
         self.reference_rate_for_alternative_imputation = 0.25
 
-        # This is the list of countries from which EU countries collect part of the
+        # The list of countries whose tax deficit is partly collected by EU countries in the intermediary scenario
         self.country_list_intermediary_scenario = [
             'USA',
             'AUS',
@@ -69,45 +79,82 @@ class TaxDeficitCalculator:
         path_to_oecd=path_to_oecd,
         path_to_twz=path_to_twz,
         path_to_twz_domestic=path_to_twz_domestic,
+        path_to_twz_CIT=path_to_twz_CIT,
         inplace=True
     ):
+        """
+        This method allows to load and clean data from 4 different sources:
+
+        - the "oecd.csv" file which was extracted from the OECD's aggregated and anonymized country-by-country repor-
+        ting, considering only the positive profit sample. Figures are in 2016 USD;
+
+        - the "twz.csv" file which was extracted from the Table C4 of the TWZ 2019 online appendix. It presents, for
+        a number of countries, the amounts of profits shifted to tax havens that are re-allocated to them on an ultima-
+        te ownership basis. Figures are in 2016 USD million;
+
+        - the "twz_domestic.csv" file, taken from the outputs of benchmark computations run on Stata. It presents for
+        each country the amount of corporate profits registered locally by domestic MNEs and the effective tax rate to
+        which they are subject. Figures are in 2016 USD billion;
+
+        - the "twz_CIT.file", extracted from Table U1 of the TWZ 2019 online appendix. It presents the corporate income
+        tax revenue of each country in 2016 USD billion.
+
+        Default paths are used to let the simulator run via the app.py file. If you wish to use the tax_deficit_calcula-
+        tor package in another context, you can save the data locally and give the method paths to the data files. The
+        possibility to load the files from an online host instead will soon be implemented.
+        """
         try:
+
+            # We try to read the files from the provided paths
             oecd = pd.read_csv(path_to_oecd, delimiter=';')
             twz = pd.read_csv(path_to_twz, delimiter=';')
             twz_domestic = pd.read_csv(path_to_twz_domestic, delimiter=';')
             twz_CIT = pd.read_csv(path_to_twz_CIT, delimiter=';')
 
         except FileNotFoundError:
+
+            # If at least one of the files is not found
             raise Exception('Are you sure these are the right paths for the source files?')
 
         # --- Cleaning the OECD data
 
         numeric_columns = list(oecd.columns[5:])
 
+        # We transform numeric columns so that they can be manipulated as such in Python
         for column_name in numeric_columns:
+            # We replace the decimal separator
             oecd[column_name] = oecd[column_name].map(lambda x: x.replace(',', '.'))
+
+            # We impute 0 for all missing values
             oecd[column_name] = oecd[column_name].map(lambda x: 0 if x == '..' else x)
+
+            # We typecast the figures from strings into floats
             oecd[column_name] = oecd[column_name].astype(float)
 
+        # Thanks to a function defined in utils.py, we rename the "Foreign Jurisdictions Total" field for all countries
+        # that only report a domestic / foreign breakdown in their CbCR
         oecd['Partner jurisdiction (whitespaces cleaned)'] = oecd.apply(rename_partner_jurisdictions, axis=1)
 
+        # We eliminate stateless entities and the "Foreign Jurisdictions Total" filds
         oecd = oecd[
             ~oecd['Partner jurisdiction (whitespaces cleaned)'].isin(['Foreign Jurisdictions Total', 'Stateless'])
         ].copy()
 
+        # ETR computation (using tax paid as the numerator)
         oecd['ETR'] = oecd['Income Tax Paid (on Cash Basis)'] / oecd['Profit (Loss) before Income Tax']
         oecd['ETR'] = oecd['ETR'].map(lambda x: 0 if x < 0 else x)
 
+        # Adding an indicator variable
         oecd['Is domestic?'] = oecd.apply(
             lambda row: row['Parent jurisdiction (alpha-3 code)'] == row['Partner jurisdiction (alpha-3 code)'],
             axis=1
         ) * 1
 
+        # Adding an other indicator variable
         oecd['Is partner jurisdiction a non-haven?'] = 1 - oecd['Is partner jurisdiction a tax haven?']
 
-        # oecd['Is partner jurisdiction a tax haven? - 2'] = oecd['Is partner jurisdiction a tax haven?'].copy()
-        # oecd['Is partner jurisdiction a non-haven? - 2'] = oecd['Is partner jurisdiction a non-haven?'].copy()
-
+        # Thanks to a small function imported from utils.py, we manage the slightly problematic overlap between the
+        # various indicator variables ("Is domestic?" sort of gets the priority over the others)
         oecd['Is partner jurisdiction a tax haven?'] = oecd.apply(
             lambda row: manage_overlap_with_domestic(row, 'haven'),
             axis=1
@@ -120,26 +167,32 @@ class TaxDeficitCalculator:
 
         # --- Cleaning the TWZ tax haven profits data
 
+        # Adding an indicator variable for OECD reporting - We do not consider the Swedish CbCR
         twz['Is parent in OECD data?'] = twz['Alpha-3 country code'].map(
             lambda x: x in oecd['Parent jurisdiction (alpha-3 code)'].unique() if x != 'SWE' else False
         ) * 1
 
+        # We reformat numeric columns - Resulting figures are expressed in 2016 USD
         for column_name in ['Profits in all tax havens', 'Profits in all tax havens (positive only)']:
             twz[column_name] = twz[column_name].map(lambda x: x.replace(',', '.'))
             twz[column_name] = twz[column_name].astype(float) * 1000000
 
+        # We filter out countries with 0 profits in tax havens
         twz = twz[twz['Profits in all tax havens (positive only)'] > 0].copy()
 
         # --- Cleaning the TWZ domestic profits data
 
+        # Reformatting the profits column - Resulting figures are expressed in 2016 USD
         twz_domestic['Domestic profits'] = twz_domestic['Domestic profits']\
             .map(lambda x: x.replace(',', '.'))\
             .astype(float) * 1000000000
 
+        # Reformatting the ETR column
         twz_domestic['Domestic ETR'] = twz_domestic['Domestic ETR'].map(lambda x: x.replace(',', '.')).astype(float)
 
         # --- Cleaning the TWZ CIT revenue data
 
+        # Reformatting the CIT revenue column - Resulting figures are expressed in 2016 USD
         twz_CIT['CIT revenue'] = twz_CIT['CIT revenue']\
             .map(lambda x: x.replace(',', '.'))\
             .astype(float) * 1000000000
@@ -462,7 +515,7 @@ class TaxDeficitCalculator:
         return df.reset_index(drop=True)
 
     def check_appendix_A2(self):
-        if self.oecd is None or self.twz is None:
+        if self.twz_CIT is None:
             raise Exception('You first need to load clean data with the dedicated method and inplace=True.')
 
         df = self.get_total_tax_deficits(minimum_ETR=0.15)
