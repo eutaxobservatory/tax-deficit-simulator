@@ -130,7 +130,7 @@ def get_table_download_button(df, scenario, effective_tax_rate, company=None, ta
 
 def get_report_download_button():
 
-    path = os.path.join(path_to_files, 'EUTO2021.pdf')
+    path = os.path.join(path_to_files, 'test.pdf')
 
     with open(path, 'rb') as file:
         report_content = file.read()
