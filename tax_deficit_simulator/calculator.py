@@ -138,8 +138,8 @@ class TaxDeficitCalculator:
         each country the amount of corporate profits registered locally by domestic MNEs and the effective tax rate to
         which they are subject. Figures are in 2016 USD billion;
 
-        - the "twz_CIT.csv" file, extracted from Table U1 of the TWZ 2019 online appendix. It presents the corporate income
-        tax revenue of each country in 2016 USD billion.
+        - the "twz_CIT.csv" file, extracted from Table U1 of the TWZ 2019 online appendix. It presents the corporate in-
+        come tax revenue of each country in 2016 USD billion.
 
         Default paths are used to let the simulator run via the app.py file. If you wish to use the tax_deficit_calcula-
         tor package in another context, you can save the data locally and give the method paths to the data files. The
