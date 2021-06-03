@@ -36,11 +36,19 @@ from tax_deficit_simulator.calculator import TaxDeficitCalculator
 calculator = TaxDeficitCalculator()
 ```
 
-Before anything else, you will need to load and clean the data with the dedicated function. The easiest is probably to fetch the data online as follows:
+Before anything else, you will need to load and clean the data with the dedicated method. For now, you will need to pass the paths to the data as argumentsg:
 
 ```
-calculator.load_clean_data(fetch_data_online=True, inplace=True)
+calculator.load_clean_data(
+    path_to_oecd=path_to_oecd,
+    path_to_twz=path_to_twz,
+    path_to_twz_domestic=path_to_twz_domestic,
+    path_to_twz_CIT=path_to_twz_CIT,
+    inplace=True
+)
 ```
+
+An option to directly fetch the data online should soon be available.
 
 You can then run any computation in which you are interested. For instance, if you want to output the same table as the one presented in the "Multilateral implementation scenario" page of the simulator, you can use:
 
