@@ -875,9 +875,14 @@ class TaxDeficitCalculator:
 
         # We simply convert the name of the taxing country to the corresponding alpha-3 code
         taxing_country = country
-        taxing_country_code = tax_deficits[
-            tax_deficits['Parent jurisdiction (whitespaces cleaned)'] == taxing_country
-        ]['Parent jurisdiction (alpha-3 code)'].iloc[0]
+        try:
+            taxing_country_code = self.oecd[
+                self.oecd['Parent jurisdiction (whitespaces cleaned)'] == taxing_country
+            ]['Parent jurisdiction (alpha-3 code)'].iloc[0]
+        except:
+            taxing_country_code = self.twz[
+                self.twz['Country'] == taxing_country
+            ]['Alpha-3 country code'].iloc[0]
 
         # This list will store the allocation ratios (for each headquarter country, the share of its tax deficit that
         # can be collected by the taxing country) computed based on the location of extra-group sales
