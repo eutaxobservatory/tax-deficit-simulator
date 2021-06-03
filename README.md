@@ -58,11 +58,9 @@ calculator.output_tax_deficits_formatted()
 
 ## Further documentation
 
-The full project documentation is available here for detailed specifications.
+The full project documentation is available [here](https://eutaxobservatory.github.io/tax-deficit-simulator/) for detailed specifications.
 
 The documentation was built with [pdoc](https://pdoc3.github.io/pdoc/).
-
-**LINK TO THE DOCUMENTATION TO BE ADDED**
 
 # Contributions
 
