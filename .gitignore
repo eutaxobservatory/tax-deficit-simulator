@@ -11,3 +11,4 @@ groupama/data/base_pno.*
 .idea/
 notebooks/
 *.ipynb
+__pycache__/
