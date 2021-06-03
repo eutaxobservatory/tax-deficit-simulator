@@ -1,0 +1,1187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.9.2" />
+<title>tax_deficit_simulator.firm_level API documentation</title>
+<meta name="description" content="This module is dedicated to simulations based on microeconomic data, namely the country-by-country breakdowns mandatori-
+ly reported by EU banks since …" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>tax_deficit_simulator.firm_level</code></h1>
+</header>
+<section id="section-intro">
+<p>This module is dedicated to simulations based on microeconomic data, namely the country-by-country breakdowns mandatori-
+ly reported by EU banks since 2014 and the voluntary country-by-country disclosures of some multinationals.</p>
+<p>Through the CompanyCalculator class, this module provides the computational logic backing the simulations of the "Case
+study with one multinational" page of the online tax deficit simulator.</p>
+<p>All explanations regarding the estimation methodology can be found in the body of the report or in its appendices. Com-
+plementary information about how computations are run in Python can be found in the following docstrings and comments.</p>
+<p>So far, the code presented here has not yet been optimized for performance. Feedback on how to improve computation ti-
+mes, the readability of the code or anything else are very much welcome!</p>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">&#34;&#34;&#34;
+This module is dedicated to simulations based on microeconomic data, namely the country-by-country breakdowns mandatori-
+ly reported by EU banks since 2014 and the voluntary country-by-country disclosures of some multinationals.
+
+Through the CompanyCalculator class, this module provides the computational logic backing the simulations of the &#34;Case
+study with one multinational&#34; page of the online tax deficit simulator.
+
+All explanations regarding the estimation methodology can be found in the body of the report or in its appendices. Com-
+plementary information about how computations are run in Python can be found in the following docstrings and comments.
+
+So far, the code presented here has not yet been optimized for performance. Feedback on how to improve computation ti-
+mes, the readability of the code or anything else are very much welcome!
+&#34;&#34;&#34;
+
+# ----------------------------------------------------------------------------------------------------------------------
+# --- Imports
+
+import numpy as np
+import pandas as pd
+
+from scipy.stats.mstats import winsorize
+
+import matplotlib.pyplot as plt
+
+import os
+import json
+
+from utils import compute_ETRs
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# --- Loading the data file correspondences
+
+path_to_correspondences = os.path.dirname(os.path.abspath(__file__))
+path_to_correspondences = os.path.join(path_to_correspondences, &#39;data&#39;, &#39;firm_level_cbcrs_correspondence.json&#39;)
+
+# path_to_correspondences = &#39;../tax_deficit_simulator/data/firm_level_cbcrs_correspondence.json&#39;
+
+with open(path_to_correspondences) as file:
+    correspondences = json.load(file)
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# --- Loading the EU country list
+
+path_to_dir = os.path.dirname(os.path.abspath(__file__))
+
+path_to_eu_countries = os.path.join(path_to_dir, &#39;data&#39;, &#39;listofeucountries_csv.csv&#39;)
+eu_country_codes = list(pd.read_csv(path_to_eu_countries, delimiter=&#39;;&#39;)[&#39;Alpha-3 code&#39;])
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# --- Defining the CompanyCalculator class
+
+class CompanyCalculator:
+
+    def __init__(self, company_name):
+        &#34;&#34;&#34;
+        This is the instantiation function for the CompanyCalculator class.
+
+        It takes as argument the name of the company under study. For now, there is not much flexibility in the way the
+        company name can be specified. It has to match those of the firm_level_cbcrs_correspondence.json file.
+
+        From there, the instantiation function is mainly used to:
+
+        - define various attributes that either correspond to the assumptions lying behind the estimations presented in
+        the report or that will prove useful in the &#34;app.py&#34; file;
+
+        - read the CbCR data of the company from the data folder.
+        &#34;&#34;&#34;
+
+        # Gross growth rate of EU-28 and worldwide GDP in current EUR between 2019 and 2021
+        # Extracted from benchmark computations run on Stata
+        self.multiplier_EU = 1.0184
+        self.multiplier_world = 0.9991
+
+        # Only a few companies are covered by the simulator and available in the data folder
+        if company_name not in correspondences.keys():
+            raise Exception(&#39;Company is not part of the 9 companies covered by the available data.&#39;)
+
+        # We define some useful attributes
+        self.company_name = company_name
+        self.file_name = correspondences[company_name][&#39;file_name&#39;]
+
+        # We build the path to the corresponding data file
+        path_to_data = os.path.dirname(os.path.abspath(__file__))
+        path_to_data = os.path.join(path_to_data, &#39;data&#39;, &#39;firm_level_cbcrs&#39;, self.file_name)
+
+        # We read the .csv file in a Pandas DataFrame
+        df = pd.read_csv(path_to_data, delimiter=&#39;;&#39;)
+
+        # Numeric columns to preprocess
+        columns = [&#39;Revenue&#39;, &#39;Profit before tax&#39;, &#39;CIT paid&#39;, &#39;FTEs&#39;]
+
+        # If this condition is verified, then the company is a bank and we must also preprocess the &#34;Average ETR over 6
+        # years&#34; column (which allows to correct for unplausible ETRs)
+        if &#39;Average ETR over 6 years&#39; in df.columns:
+            self.kind = &#39;bank&#39;
+            self.exchange_rate = float(str(df[&#39;Exchange rate to EUR&#39;].iloc[0]).replace(&#39;,&#39;, &#39;.&#39;))
+            columns += [&#39;Average ETR over 6 years&#39;]
+
+        # If this condition is verified, then the company is a non-bank multinational and we must also preprocess the
+        # &#34;Statutory CIT rate&#34; column (which will be used to replace unplausible ETRs)
+        else:
+            self.kind = &#39;mne&#39;
+            self.exchange_rate = 1
+            columns += [&#39;Statutory CIT rate&#39;]
+
+        # We preprocess numeric columns
+        for column_name in columns:
+            df[column_name] = df[column_name].astype(str)
+            df[column_name] = df[column_name].map(lambda x: x.replace(&#39;,&#39;, &#39;.&#39;))
+            df[column_name] = df[column_name].astype(float)
+
+        # And store the resulting DataFrame in an attribute of the CompanyCalculator object
+        self.data = df.copy()
+
+        # We define a few other useful attributes
+        headquarter_country = self.data.loc[0, &#39;Headquarter country&#39;]
+
+        if headquarter_country in [&#39;Netherlands&#39;, &#39;United Kingdom&#39;]:
+            headquarter_country = &#39;the &#39; + headquarter_country
+
+        self.headquarter_country = headquarter_country
+
+        self.year = self.data.loc[0, &#39;Year&#39;]
+
+    def compute_tax_deficits(self, minimum_ETR):
+        &#34;&#34;&#34;
+        This method encapsulates the key computational logic of the simulation.
+
+        Taking the selected minimum effective tax rate as input, it indeed allows to compute the tax deficit that the
+        country where the multinational is headquartered could collect from imposing this minimum ETR on all its pro-
+        fits, domestic or foreign.
+
+        It outputs a DataFrame that mainly indicates, for each jurisdiction where the multinational is active:
+
+        - the reported revenue;
+
+        - the reported profit before tax;
+
+        - the amount of corporate income tax paid;
+
+        - the number of employees;
+
+        - the average effective tax rate faced by the multinational over the 6 latest years in the partner jurisdiction
+        (for a bank) or the statutory CIT rate of the partner jurisdiction (for a non-bank);
+
+        - the effective tax rate retained based on the methodology detailed in the report;
+
+        - and the resulting tax deficit that can be collected by the headquarter country.
+        &#34;&#34;&#34;
+        df = self.data.copy()
+
+        # We exclude jurisdictions with negative profits
+        mask = ~(df[&#39;Profit before tax&#39;] &lt; 0)
+        df = df[mask].copy()
+
+        # We determine what ETR to retain based on the methodology detailed in the report (Appendix D)
+        df[&#39;ETR&#39;] = df.apply(
+            lambda row: compute_ETRs(row, kind=self.kind),
+            axis=1
+        )
+
+        # We winsorize ETRs to the 5% and 95% quantiles
+        df[&#39;ETR&#39;] = winsorize(df[&#39;ETR&#39;].values, limits=[0.05, 0.05])
+
+        # We focus on profits taxed at an effective rate below the minimum one
+        df = df[df[&#39;ETR&#39;] &lt;= minimum_ETR].copy()
+
+        # We deduce the tax deficit for each partner jurisdiction with positive, low-taxed profits
+        df[&#39;tax_deficit&#39;] = (minimum_ETR - df[&#39;ETR&#39;]) * df[&#39;Profit before tax&#39;]
+
+        # The last lines are dedicated to the extrapolation of 2019 USD results into 2021 EUR
+        multiplier = (
+            df[&#39;Headquarter country code&#39;].isin(eu_country_codes) * 1 * self.multiplier_EU
+        ).map(lambda x: self.multiplier_world if x == 0 else x)
+
+        df[&#39;tax_deficit&#39;] = df[&#39;tax_deficit&#39;] * self.exchange_rate * multiplier
+
+        return df.copy()
+
+    def compute_tax_revenue_gain(self, minimum_ETR):
+        &#34;&#34;&#34;
+        Relying on the compute_tax_deficits method defined above, this method simply returns the total tax deficit that
+        the headquarter country could collect from the multinational in 2021 EUR.
+        &#34;&#34;&#34;
+        df = self.compute_tax_deficits(minimum_ETR=minimum_ETR)
+
+        return df[&#39;tax_deficit&#39;].sum()
+
+    def check_firm_level_results(self):
+        &#34;&#34;&#34;
+        This method is mainly used to compare the results of computations defined above with the Table 4 of the report.
+        For each of the 9 in-sample companies, we compute their total tax deficits for various minimum effective tax
+        rates (15%, 21%, 25%, 30%) and gather the results in a single DataFrame.
+        &#34;&#34;&#34;
+
+        # We instantiate a dictionary that will store the results
+        output = {
+            &#39;Company&#39;: list(correspondences.keys()),
+        }
+
+        # We iterate over the effective tax rates of interest
+        for minimum_ETR in [0.15, 0.21, 0.25, 0.3]:
+
+            # We create a dedicated key-value pair in the output dictionary
+            output[f&#39;{str(minimum_ETR * 100)}%&#39;] = []
+
+            # We iterate over the list of firms for which data is available in this repository
+            for company in output[&#39;Company&#39;]:
+                # We instantiate the CompanyCalculator object
+                company_calculator = CompanyCalculator(company)
+
+                # And compute the tax deficit for the minimum effective tax rate under consideration
+                output[f&#39;{str(minimum_ETR * 100)}%&#39;].append(
+                    company_calculator.compute_tax_revenue_gain(minimum_ETR=minimum_ETR)
+                )
+
+        # We convert the output dictionary into a Pandas DataFrame
+        df = pd.DataFrame.from_dict(output)
+
+        return df.copy()
+
+    def plot_tax_revenue_gains(self, in_app=False):
+        &#34;&#34;&#34;
+        This method is used in the &#34;app.py&#34; file, which lies behind the Streamlit simulator. It allows to create the bar
+        chart that displays the multinational&#39;s tax deficit for the 4 benchmark minimum effective tax rates. The in_app
+        argument indicates whether the method is called in or outside the simulator:
+
+        - if the boolean argument is set to True, the method returns the figure object as required by Streamlit;
+
+        - if it is set to False (for instance if the method is called in a notebook), the chart is directly displayed.
+        &#34;&#34;&#34;
+
+        # We create the categorical values for the x axis
+        x = np.array([15, 21, 25, 30])
+        x_cat = list(map(lambda val: str(val) + &#39;%&#39;, x))
+
+        # For each minimum effective tax rate, we compute the corresponding tax deficit, which gives the y values
+        y = np.array([self.compute_tax_revenue_gain(ETR) for ETR in x / 100])
+
+        # We instantiate the figure and the axis object
+        fig, ax = plt.subplots()
+
+        # We create the bar chart
+        ax.bar(x=x_cat, height=y, width=0.7, color=&#39;#4472C4&#39;)
+
+        # And reformat it
+        ax.set_title(
+            f&#39;Collectible tax deficit for {self.headquarter_country}&#39;
+            + &#39; depending on the minimum effective tax rate retained&#39;
+        )
+
+        ax.set_xlabel(&#39;Minimum effective tax rate&#39;)
+        ax.set_ylabel(f&#39;Collectible tax deficit for {self.headquarter_country} (€m)&#39;)
+
+        # Before returning it, depending on the in_app argument
+        if not in_app:
+            fig.show()
+
+        else:
+            return fig
+
+    def get_tax_deficit_origins_table(self, minimum_ETR, formatted=False):
+        &#34;&#34;&#34;
+        This method builds upon the compute_tax_deficits method to output a clean DataFrame that presents, for each ju-
+        risdiction where the multinational is active and faces an effective tax rate below the selected minimum ETR, the
+        effective tax rate retained and the resulting tax deficit in 2021 million EUR. It takes as arguments:
+
+        - the selected minimum effective tax rate;
+
+        - and &#34;formatted&#34;, a boolean indicating whether or not to format the table as for the online simulator.
+        &#34;&#34;&#34;
+
+        # We determine the tax deficit of the company and its breakdown by partner jurisdiction thanks to the compute_
+        # tax_deficits method defined above
+        df = self.compute_tax_deficits(minimum_ETR=minimum_ETR)
+
+        # We sort values based on the tax deficit amount, in descending order
+        df = df[[&#39;Partner jurisdiction&#39;, &#39;ETR&#39;, &#39;tax_deficit&#39;]].sort_values(
+            by=&#39;tax_deficit&#39;,
+            ascending=False
+        ).copy()
+
+        # ETRs are converted into percentages
+        df[&#39;ETR&#39;] = df[&#39;ETR&#39;] * 100
+
+        # We rename columns in a more appropriate way
+        df.rename(
+            columns={
+                &#39;tax_deficit&#39;: f&#39;Collectible tax deficit for {self.headquarter_country} (€m)&#39;,
+                &#39;Partner jurisdiction&#39;: &#39;Jurisdiction where profit was registered&#39;,
+                &#39;ETR&#39;: &#39;Effective tax rate (%)&#39;
+            },
+            inplace=True
+        )
+
+        df.reset_index(
+            drop=True,
+            inplace=True
+        )
+
+        # We add the &#34;Total&#34; field at the bottom of the DataFrame
+        dict_df = df.to_dict()
+
+        dict_df[df.columns[0]][len(df)] = &#39;Total&#39;
+        dict_df[df.columns[1]][len(df)] = 0
+        dict_df[df.columns[2]][len(df)] = df[f&#39;Collectible tax deficit for {self.headquarter_country} (€m)&#39;].sum()
+
+        df = pd.DataFrame.from_dict(dict_df)
+
+        # We either format numeric values as strings or not depending on the &#34;formatted&#34; boolean argument
+        if not formatted:
+            df.iloc[-1, 1] = &#39;..&#39;
+
+            return df.copy()
+
+        else:
+
+            df[f&#39;Collectible tax deficit for {self.headquarter_country} (€m)&#39;] = \
+                df[f&#39;Collectible tax deficit for {self.headquarter_country} (€m)&#39;].map(&#39;{:,.2f}&#39;.format)
+
+            df[&#39;Effective tax rate (%)&#39;] = df[&#39;Effective tax rate (%)&#39;].map(&#39;{:.1f}&#39;.format)
+
+            df.iloc[-1, 1] = &#39;..&#39;
+
+            return df.copy()
+
+    def get_first_sentence(self):
+        &#34;&#34;&#34;
+        This method is used in the &#34;app.py&#34; file. Without requiring any specific argument, it outputs the first sentence
+        displayed on the &#34;Case study with one multinational&#34; page.
+        &#34;&#34;&#34;
+        amount = self.compute_tax_revenue_gain(minimum_ETR=0.25)
+
+        s = f&#39;Should {self.headquarter_country} impose a minimum tax rate of 25% on all the profits registered by &#39;
+
+        s += f&#39;{self.company_name}, it could collect an additional tax revenue of about {&#34;{:,.0f}&#34;.format(amount)} mil&#39;
+
+        s += &#39;lion EUR. This is the tax deficit of the company, which is fully attributed to its headquarter country.&#39;
+
+        return s
+
+    def get_second_sentence(self):
+        &#34;&#34;&#34;
+        This method is used in the &#34;app.py&#34; file. Without requiring any specific argument, it outputs the second senten-
+        ce displayed on the &#34;Case study with one multinational&#34; page.
+        &#34;&#34;&#34;
+        df = self.compute_tax_deficits(minimum_ETR=0.25)
+
+        s = &#39;We now want to investigate where this tax deficit comes from, i.e. in what jurisdictions the profits taxed&#39;
+
+        s += f&#39; at a lower rate than the minimum effective tax rate were booked by {self.company_name} in {self.year}. &#39;
+
+        s += f&#39;The following table provides the details of the {len(df)} countries where {self.company_name} registered&#39;
+
+        s += &#39; profits that were taxed below a minimum effective tax rate of 25%.&#39;
+
+        return s
+
+    def get_third_sentence(self):
+        &#34;&#34;&#34;
+        This method is used in the &#34;app.py&#34; file. Without requiring any specific argument, it outputs the third sentence
+        displayed on the &#34;Case study with one multinational&#34; page.
+        &#34;&#34;&#34;
+        s = &#39;After investigating the effect of a 25% minimum rate, the following slider allows you to select what rate,&#39;
+
+        s += &#39; between 10% and 50%, would be imposed. The table presents the implied corporate tax revenue gain for &#39;
+
+        s += f&#39;{self.headquarter_country} and its breakdown based on the location of low-taxed profits.&#39;
+
+        return s</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="tax_deficit_simulator.firm_level.CompanyCalculator"><code class="flex name class">
+<span>class <span class="ident">CompanyCalculator</span></span>
+<span>(</span><span>company_name)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This is the instantiation function for the CompanyCalculator class.</p>
+<p>It takes as argument the name of the company under study. For now, there is not much flexibility in the way the
+company name can be specified. It has to match those of the firm_level_cbcrs_correspondence.json file.</p>
+<p>From there, the instantiation function is mainly used to:</p>
+<ul>
+<li>
+<p>define various attributes that either correspond to the assumptions lying behind the estimations presented in
+the report or that will prove useful in the "app.py" file;</p>
+</li>
+<li>
+<p>read the CbCR data of the company from the data folder.</p>
+</li>
+</ul></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class CompanyCalculator:
+
+    def __init__(self, company_name):
+        &#34;&#34;&#34;
+        This is the instantiation function for the CompanyCalculator class.
+
+        It takes as argument the name of the company under study. For now, there is not much flexibility in the way the
+        company name can be specified. It has to match those of the firm_level_cbcrs_correspondence.json file.
+
+        From there, the instantiation function is mainly used to:
+
+        - define various attributes that either correspond to the assumptions lying behind the estimations presented in
+        the report or that will prove useful in the &#34;app.py&#34; file;
+
+        - read the CbCR data of the company from the data folder.
+        &#34;&#34;&#34;
+
+        # Gross growth rate of EU-28 and worldwide GDP in current EUR between 2019 and 2021
+        # Extracted from benchmark computations run on Stata
+        self.multiplier_EU = 1.0184
+        self.multiplier_world = 0.9991
+
+        # Only a few companies are covered by the simulator and available in the data folder
+        if company_name not in correspondences.keys():
+            raise Exception(&#39;Company is not part of the 9 companies covered by the available data.&#39;)
+
+        # We define some useful attributes
+        self.company_name = company_name
+        self.file_name = correspondences[company_name][&#39;file_name&#39;]
+
+        # We build the path to the corresponding data file
+        path_to_data = os.path.dirname(os.path.abspath(__file__))
+        path_to_data = os.path.join(path_to_data, &#39;data&#39;, &#39;firm_level_cbcrs&#39;, self.file_name)
+
+        # We read the .csv file in a Pandas DataFrame
+        df = pd.read_csv(path_to_data, delimiter=&#39;;&#39;)
+
+        # Numeric columns to preprocess
+        columns = [&#39;Revenue&#39;, &#39;Profit before tax&#39;, &#39;CIT paid&#39;, &#39;FTEs&#39;]
+
+        # If this condition is verified, then the company is a bank and we must also preprocess the &#34;Average ETR over 6
+        # years&#34; column (which allows to correct for unplausible ETRs)
+        if &#39;Average ETR over 6 years&#39; in df.columns:
+            self.kind = &#39;bank&#39;
+            self.exchange_rate = float(str(df[&#39;Exchange rate to EUR&#39;].iloc[0]).replace(&#39;,&#39;, &#39;.&#39;))
+            columns += [&#39;Average ETR over 6 years&#39;]
+
+        # If this condition is verified, then the company is a non-bank multinational and we must also preprocess the
+        # &#34;Statutory CIT rate&#34; column (which will be used to replace unplausible ETRs)
+        else:
+            self.kind = &#39;mne&#39;
+            self.exchange_rate = 1
+            columns += [&#39;Statutory CIT rate&#39;]
+
+        # We preprocess numeric columns
+        for column_name in columns:
+            df[column_name] = df[column_name].astype(str)
+            df[column_name] = df[column_name].map(lambda x: x.replace(&#39;,&#39;, &#39;.&#39;))
+            df[column_name] = df[column_name].astype(float)
+
+        # And store the resulting DataFrame in an attribute of the CompanyCalculator object
+        self.data = df.copy()
+
+        # We define a few other useful attributes
+        headquarter_country = self.data.loc[0, &#39;Headquarter country&#39;]
+
+        if headquarter_country in [&#39;Netherlands&#39;, &#39;United Kingdom&#39;]:
+            headquarter_country = &#39;the &#39; + headquarter_country
+
+        self.headquarter_country = headquarter_country
+
+        self.year = self.data.loc[0, &#39;Year&#39;]
+
+    def compute_tax_deficits(self, minimum_ETR):
+        &#34;&#34;&#34;
+        This method encapsulates the key computational logic of the simulation.
+
+        Taking the selected minimum effective tax rate as input, it indeed allows to compute the tax deficit that the
+        country where the multinational is headquartered could collect from imposing this minimum ETR on all its pro-
+        fits, domestic or foreign.
+
+        It outputs a DataFrame that mainly indicates, for each jurisdiction where the multinational is active:
+
+        - the reported revenue;
+
+        - the reported profit before tax;
+
+        - the amount of corporate income tax paid;
+
+        - the number of employees;
+
+        - the average effective tax rate faced by the multinational over the 6 latest years in the partner jurisdiction
+        (for a bank) or the statutory CIT rate of the partner jurisdiction (for a non-bank);
+
+        - the effective tax rate retained based on the methodology detailed in the report;
+
+        - and the resulting tax deficit that can be collected by the headquarter country.
+        &#34;&#34;&#34;
+        df = self.data.copy()
+
+        # We exclude jurisdictions with negative profits
+        mask = ~(df[&#39;Profit before tax&#39;] &lt; 0)
+        df = df[mask].copy()
+
+        # We determine what ETR to retain based on the methodology detailed in the report (Appendix D)
+        df[&#39;ETR&#39;] = df.apply(
+            lambda row: compute_ETRs(row, kind=self.kind),
+            axis=1
+        )
+
+        # We winsorize ETRs to the 5% and 95% quantiles
+        df[&#39;ETR&#39;] = winsorize(df[&#39;ETR&#39;].values, limits=[0.05, 0.05])
+
+        # We focus on profits taxed at an effective rate below the minimum one
+        df = df[df[&#39;ETR&#39;] &lt;= minimum_ETR].copy()
+
+        # We deduce the tax deficit for each partner jurisdiction with positive, low-taxed profits
+        df[&#39;tax_deficit&#39;] = (minimum_ETR - df[&#39;ETR&#39;]) * df[&#39;Profit before tax&#39;]
+
+        # The last lines are dedicated to the extrapolation of 2019 USD results into 2021 EUR
+        multiplier = (
+            df[&#39;Headquarter country code&#39;].isin(eu_country_codes) * 1 * self.multiplier_EU
+        ).map(lambda x: self.multiplier_world if x == 0 else x)
+
+        df[&#39;tax_deficit&#39;] = df[&#39;tax_deficit&#39;] * self.exchange_rate * multiplier
+
+        return df.copy()
+
+    def compute_tax_revenue_gain(self, minimum_ETR):
+        &#34;&#34;&#34;
+        Relying on the compute_tax_deficits method defined above, this method simply returns the total tax deficit that
+        the headquarter country could collect from the multinational in 2021 EUR.
+        &#34;&#34;&#34;
+        df = self.compute_tax_deficits(minimum_ETR=minimum_ETR)
+
+        return df[&#39;tax_deficit&#39;].sum()
+
+    def check_firm_level_results(self):
+        &#34;&#34;&#34;
+        This method is mainly used to compare the results of computations defined above with the Table 4 of the report.
+        For each of the 9 in-sample companies, we compute their total tax deficits for various minimum effective tax
+        rates (15%, 21%, 25%, 30%) and gather the results in a single DataFrame.
+        &#34;&#34;&#34;
+
+        # We instantiate a dictionary that will store the results
+        output = {
+            &#39;Company&#39;: list(correspondences.keys()),
+        }
+
+        # We iterate over the effective tax rates of interest
+        for minimum_ETR in [0.15, 0.21, 0.25, 0.3]:
+
+            # We create a dedicated key-value pair in the output dictionary
+            output[f&#39;{str(minimum_ETR * 100)}%&#39;] = []
+
+            # We iterate over the list of firms for which data is available in this repository
+            for company in output[&#39;Company&#39;]:
+                # We instantiate the CompanyCalculator object
+                company_calculator = CompanyCalculator(company)
+
+                # And compute the tax deficit for the minimum effective tax rate under consideration
+                output[f&#39;{str(minimum_ETR * 100)}%&#39;].append(
+                    company_calculator.compute_tax_revenue_gain(minimum_ETR=minimum_ETR)
+                )
+
+        # We convert the output dictionary into a Pandas DataFrame
+        df = pd.DataFrame.from_dict(output)
+
+        return df.copy()
+
+    def plot_tax_revenue_gains(self, in_app=False):
+        &#34;&#34;&#34;
+        This method is used in the &#34;app.py&#34; file, which lies behind the Streamlit simulator. It allows to create the bar
+        chart that displays the multinational&#39;s tax deficit for the 4 benchmark minimum effective tax rates. The in_app
+        argument indicates whether the method is called in or outside the simulator:
+
+        - if the boolean argument is set to True, the method returns the figure object as required by Streamlit;
+
+        - if it is set to False (for instance if the method is called in a notebook), the chart is directly displayed.
+        &#34;&#34;&#34;
+
+        # We create the categorical values for the x axis
+        x = np.array([15, 21, 25, 30])
+        x_cat = list(map(lambda val: str(val) + &#39;%&#39;, x))
+
+        # For each minimum effective tax rate, we compute the corresponding tax deficit, which gives the y values
+        y = np.array([self.compute_tax_revenue_gain(ETR) for ETR in x / 100])
+
+        # We instantiate the figure and the axis object
+        fig, ax = plt.subplots()
+
+        # We create the bar chart
+        ax.bar(x=x_cat, height=y, width=0.7, color=&#39;#4472C4&#39;)
+
+        # And reformat it
+        ax.set_title(
+            f&#39;Collectible tax deficit for {self.headquarter_country}&#39;
+            + &#39; depending on the minimum effective tax rate retained&#39;
+        )
+
+        ax.set_xlabel(&#39;Minimum effective tax rate&#39;)
+        ax.set_ylabel(f&#39;Collectible tax deficit for {self.headquarter_country} (€m)&#39;)
+
+        # Before returning it, depending on the in_app argument
+        if not in_app:
+            fig.show()
+
+        else:
+            return fig
+
+    def get_tax_deficit_origins_table(self, minimum_ETR, formatted=False):
+        &#34;&#34;&#34;
+        This method builds upon the compute_tax_deficits method to output a clean DataFrame that presents, for each ju-
+        risdiction where the multinational is active and faces an effective tax rate below the selected minimum ETR, the
+        effective tax rate retained and the resulting tax deficit in 2021 million EUR. It takes as arguments:
+
+        - the selected minimum effective tax rate;
+
+        - and &#34;formatted&#34;, a boolean indicating whether or not to format the table as for the online simulator.
+        &#34;&#34;&#34;
+
+        # We determine the tax deficit of the company and its breakdown by partner jurisdiction thanks to the compute_
+        # tax_deficits method defined above
+        df = self.compute_tax_deficits(minimum_ETR=minimum_ETR)
+
+        # We sort values based on the tax deficit amount, in descending order
+        df = df[[&#39;Partner jurisdiction&#39;, &#39;ETR&#39;, &#39;tax_deficit&#39;]].sort_values(
+            by=&#39;tax_deficit&#39;,
+            ascending=False
+        ).copy()
+
+        # ETRs are converted into percentages
+        df[&#39;ETR&#39;] = df[&#39;ETR&#39;] * 100
+
+        # We rename columns in a more appropriate way
+        df.rename(
+            columns={
+                &#39;tax_deficit&#39;: f&#39;Collectible tax deficit for {self.headquarter_country} (€m)&#39;,
+                &#39;Partner jurisdiction&#39;: &#39;Jurisdiction where profit was registered&#39;,
+                &#39;ETR&#39;: &#39;Effective tax rate (%)&#39;
+            },
+            inplace=True
+        )
+
+        df.reset_index(
+            drop=True,
+            inplace=True
+        )
+
+        # We add the &#34;Total&#34; field at the bottom of the DataFrame
+        dict_df = df.to_dict()
+
+        dict_df[df.columns[0]][len(df)] = &#39;Total&#39;
+        dict_df[df.columns[1]][len(df)] = 0
+        dict_df[df.columns[2]][len(df)] = df[f&#39;Collectible tax deficit for {self.headquarter_country} (€m)&#39;].sum()
+
+        df = pd.DataFrame.from_dict(dict_df)
+
+        # We either format numeric values as strings or not depending on the &#34;formatted&#34; boolean argument
+        if not formatted:
+            df.iloc[-1, 1] = &#39;..&#39;
+
+            return df.copy()
+
+        else:
+
+            df[f&#39;Collectible tax deficit for {self.headquarter_country} (€m)&#39;] = \
+                df[f&#39;Collectible tax deficit for {self.headquarter_country} (€m)&#39;].map(&#39;{:,.2f}&#39;.format)
+
+            df[&#39;Effective tax rate (%)&#39;] = df[&#39;Effective tax rate (%)&#39;].map(&#39;{:.1f}&#39;.format)
+
+            df.iloc[-1, 1] = &#39;..&#39;
+
+            return df.copy()
+
+    def get_first_sentence(self):
+        &#34;&#34;&#34;
+        This method is used in the &#34;app.py&#34; file. Without requiring any specific argument, it outputs the first sentence
+        displayed on the &#34;Case study with one multinational&#34; page.
+        &#34;&#34;&#34;
+        amount = self.compute_tax_revenue_gain(minimum_ETR=0.25)
+
+        s = f&#39;Should {self.headquarter_country} impose a minimum tax rate of 25% on all the profits registered by &#39;
+
+        s += f&#39;{self.company_name}, it could collect an additional tax revenue of about {&#34;{:,.0f}&#34;.format(amount)} mil&#39;
+
+        s += &#39;lion EUR. This is the tax deficit of the company, which is fully attributed to its headquarter country.&#39;
+
+        return s
+
+    def get_second_sentence(self):
+        &#34;&#34;&#34;
+        This method is used in the &#34;app.py&#34; file. Without requiring any specific argument, it outputs the second senten-
+        ce displayed on the &#34;Case study with one multinational&#34; page.
+        &#34;&#34;&#34;
+        df = self.compute_tax_deficits(minimum_ETR=0.25)
+
+        s = &#39;We now want to investigate where this tax deficit comes from, i.e. in what jurisdictions the profits taxed&#39;
+
+        s += f&#39; at a lower rate than the minimum effective tax rate were booked by {self.company_name} in {self.year}. &#39;
+
+        s += f&#39;The following table provides the details of the {len(df)} countries where {self.company_name} registered&#39;
+
+        s += &#39; profits that were taxed below a minimum effective tax rate of 25%.&#39;
+
+        return s
+
+    def get_third_sentence(self):
+        &#34;&#34;&#34;
+        This method is used in the &#34;app.py&#34; file. Without requiring any specific argument, it outputs the third sentence
+        displayed on the &#34;Case study with one multinational&#34; page.
+        &#34;&#34;&#34;
+        s = &#39;After investigating the effect of a 25% minimum rate, the following slider allows you to select what rate,&#39;
+
+        s += &#39; between 10% and 50%, would be imposed. The table presents the implied corporate tax revenue gain for &#39;
+
+        s += f&#39;{self.headquarter_country} and its breakdown based on the location of low-taxed profits.&#39;
+
+        return s</code></pre>
+</details>
+<h3>Methods</h3>
+<dl>
+<dt id="tax_deficit_simulator.firm_level.CompanyCalculator.check_firm_level_results"><code class="name flex">
+<span>def <span class="ident">check_firm_level_results</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This method is mainly used to compare the results of computations defined above with the Table 4 of the report.
+For each of the 9 in-sample companies, we compute their total tax deficits for various minimum effective tax
+rates (15%, 21%, 25%, 30%) and gather the results in a single DataFrame.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def check_firm_level_results(self):
+    &#34;&#34;&#34;
+    This method is mainly used to compare the results of computations defined above with the Table 4 of the report.
+    For each of the 9 in-sample companies, we compute their total tax deficits for various minimum effective tax
+    rates (15%, 21%, 25%, 30%) and gather the results in a single DataFrame.
+    &#34;&#34;&#34;
+
+    # We instantiate a dictionary that will store the results
+    output = {
+        &#39;Company&#39;: list(correspondences.keys()),
+    }
+
+    # We iterate over the effective tax rates of interest
+    for minimum_ETR in [0.15, 0.21, 0.25, 0.3]:
+
+        # We create a dedicated key-value pair in the output dictionary
+        output[f&#39;{str(minimum_ETR * 100)}%&#39;] = []
+
+        # We iterate over the list of firms for which data is available in this repository
+        for company in output[&#39;Company&#39;]:
+            # We instantiate the CompanyCalculator object
+            company_calculator = CompanyCalculator(company)
+
+            # And compute the tax deficit for the minimum effective tax rate under consideration
+            output[f&#39;{str(minimum_ETR * 100)}%&#39;].append(
+                company_calculator.compute_tax_revenue_gain(minimum_ETR=minimum_ETR)
+            )
+
+    # We convert the output dictionary into a Pandas DataFrame
+    df = pd.DataFrame.from_dict(output)
+
+    return df.copy()</code></pre>
+</details>
+</dd>
+<dt id="tax_deficit_simulator.firm_level.CompanyCalculator.compute_tax_deficits"><code class="name flex">
+<span>def <span class="ident">compute_tax_deficits</span></span>(<span>self, minimum_ETR)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This method encapsulates the key computational logic of the simulation.</p>
+<p>Taking the selected minimum effective tax rate as input, it indeed allows to compute the tax deficit that the
+country where the multinational is headquartered could collect from imposing this minimum ETR on all its pro-
+fits, domestic or foreign.</p>
+<p>It outputs a DataFrame that mainly indicates, for each jurisdiction where the multinational is active:</p>
+<ul>
+<li>
+<p>the reported revenue;</p>
+</li>
+<li>
+<p>the reported profit before tax;</p>
+</li>
+<li>
+<p>the amount of corporate income tax paid;</p>
+</li>
+<li>
+<p>the number of employees;</p>
+</li>
+<li>
+<p>the average effective tax rate faced by the multinational over the 6 latest years in the partner jurisdiction
+(for a bank) or the statutory CIT rate of the partner jurisdiction (for a non-bank);</p>
+</li>
+<li>
+<p>the effective tax rate retained based on the methodology detailed in the report;</p>
+</li>
+<li>
+<p>and the resulting tax deficit that can be collected by the headquarter country.</p>
+</li>
+</ul></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def compute_tax_deficits(self, minimum_ETR):
+    &#34;&#34;&#34;
+    This method encapsulates the key computational logic of the simulation.
+
+    Taking the selected minimum effective tax rate as input, it indeed allows to compute the tax deficit that the
+    country where the multinational is headquartered could collect from imposing this minimum ETR on all its pro-
+    fits, domestic or foreign.
+
+    It outputs a DataFrame that mainly indicates, for each jurisdiction where the multinational is active:
+
+    - the reported revenue;
+
+    - the reported profit before tax;
+
+    - the amount of corporate income tax paid;
+
+    - the number of employees;
+
+    - the average effective tax rate faced by the multinational over the 6 latest years in the partner jurisdiction
+    (for a bank) or the statutory CIT rate of the partner jurisdiction (for a non-bank);
+
+    - the effective tax rate retained based on the methodology detailed in the report;
+
+    - and the resulting tax deficit that can be collected by the headquarter country.
+    &#34;&#34;&#34;
+    df = self.data.copy()
+
+    # We exclude jurisdictions with negative profits
+    mask = ~(df[&#39;Profit before tax&#39;] &lt; 0)
+    df = df[mask].copy()
+
+    # We determine what ETR to retain based on the methodology detailed in the report (Appendix D)
+    df[&#39;ETR&#39;] = df.apply(
+        lambda row: compute_ETRs(row, kind=self.kind),
+        axis=1
+    )
+
+    # We winsorize ETRs to the 5% and 95% quantiles
+    df[&#39;ETR&#39;] = winsorize(df[&#39;ETR&#39;].values, limits=[0.05, 0.05])
+
+    # We focus on profits taxed at an effective rate below the minimum one
+    df = df[df[&#39;ETR&#39;] &lt;= minimum_ETR].copy()
+
+    # We deduce the tax deficit for each partner jurisdiction with positive, low-taxed profits
+    df[&#39;tax_deficit&#39;] = (minimum_ETR - df[&#39;ETR&#39;]) * df[&#39;Profit before tax&#39;]
+
+    # The last lines are dedicated to the extrapolation of 2019 USD results into 2021 EUR
+    multiplier = (
+        df[&#39;Headquarter country code&#39;].isin(eu_country_codes) * 1 * self.multiplier_EU
+    ).map(lambda x: self.multiplier_world if x == 0 else x)
+
+    df[&#39;tax_deficit&#39;] = df[&#39;tax_deficit&#39;] * self.exchange_rate * multiplier
+
+    return df.copy()</code></pre>
+</details>
+</dd>
+<dt id="tax_deficit_simulator.firm_level.CompanyCalculator.compute_tax_revenue_gain"><code class="name flex">
+<span>def <span class="ident">compute_tax_revenue_gain</span></span>(<span>self, minimum_ETR)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Relying on the compute_tax_deficits method defined above, this method simply returns the total tax deficit that
+the headquarter country could collect from the multinational in 2021 EUR.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def compute_tax_revenue_gain(self, minimum_ETR):
+    &#34;&#34;&#34;
+    Relying on the compute_tax_deficits method defined above, this method simply returns the total tax deficit that
+    the headquarter country could collect from the multinational in 2021 EUR.
+    &#34;&#34;&#34;
+    df = self.compute_tax_deficits(minimum_ETR=minimum_ETR)
+
+    return df[&#39;tax_deficit&#39;].sum()</code></pre>
+</details>
+</dd>
+<dt id="tax_deficit_simulator.firm_level.CompanyCalculator.get_first_sentence"><code class="name flex">
+<span>def <span class="ident">get_first_sentence</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This method is used in the "app.py" file. Without requiring any specific argument, it outputs the first sentence
+displayed on the "Case study with one multinational" page.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_first_sentence(self):
+    &#34;&#34;&#34;
+    This method is used in the &#34;app.py&#34; file. Without requiring any specific argument, it outputs the first sentence
+    displayed on the &#34;Case study with one multinational&#34; page.
+    &#34;&#34;&#34;
+    amount = self.compute_tax_revenue_gain(minimum_ETR=0.25)
+
+    s = f&#39;Should {self.headquarter_country} impose a minimum tax rate of 25% on all the profits registered by &#39;
+
+    s += f&#39;{self.company_name}, it could collect an additional tax revenue of about {&#34;{:,.0f}&#34;.format(amount)} mil&#39;
+
+    s += &#39;lion EUR. This is the tax deficit of the company, which is fully attributed to its headquarter country.&#39;
+
+    return s</code></pre>
+</details>
+</dd>
+<dt id="tax_deficit_simulator.firm_level.CompanyCalculator.get_second_sentence"><code class="name flex">
+<span>def <span class="ident">get_second_sentence</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This method is used in the "app.py" file. Without requiring any specific argument, it outputs the second senten-
+ce displayed on the "Case study with one multinational" page.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_second_sentence(self):
+    &#34;&#34;&#34;
+    This method is used in the &#34;app.py&#34; file. Without requiring any specific argument, it outputs the second senten-
+    ce displayed on the &#34;Case study with one multinational&#34; page.
+    &#34;&#34;&#34;
+    df = self.compute_tax_deficits(minimum_ETR=0.25)
+
+    s = &#39;We now want to investigate where this tax deficit comes from, i.e. in what jurisdictions the profits taxed&#39;
+
+    s += f&#39; at a lower rate than the minimum effective tax rate were booked by {self.company_name} in {self.year}. &#39;
+
+    s += f&#39;The following table provides the details of the {len(df)} countries where {self.company_name} registered&#39;
+
+    s += &#39; profits that were taxed below a minimum effective tax rate of 25%.&#39;
+
+    return s</code></pre>
+</details>
+</dd>
+<dt id="tax_deficit_simulator.firm_level.CompanyCalculator.get_tax_deficit_origins_table"><code class="name flex">
+<span>def <span class="ident">get_tax_deficit_origins_table</span></span>(<span>self, minimum_ETR, formatted=False)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This method builds upon the compute_tax_deficits method to output a clean DataFrame that presents, for each ju-
+risdiction where the multinational is active and faces an effective tax rate below the selected minimum ETR, the
+effective tax rate retained and the resulting tax deficit in 2021 million EUR. It takes as arguments:</p>
+<ul>
+<li>
+<p>the selected minimum effective tax rate;</p>
+</li>
+<li>
+<p>and "formatted", a boolean indicating whether or not to format the table as for the online simulator.</p>
+</li>
+</ul></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_tax_deficit_origins_table(self, minimum_ETR, formatted=False):
+    &#34;&#34;&#34;
+    This method builds upon the compute_tax_deficits method to output a clean DataFrame that presents, for each ju-
+    risdiction where the multinational is active and faces an effective tax rate below the selected minimum ETR, the
+    effective tax rate retained and the resulting tax deficit in 2021 million EUR. It takes as arguments:
+
+    - the selected minimum effective tax rate;
+
+    - and &#34;formatted&#34;, a boolean indicating whether or not to format the table as for the online simulator.
+    &#34;&#34;&#34;
+
+    # We determine the tax deficit of the company and its breakdown by partner jurisdiction thanks to the compute_
+    # tax_deficits method defined above
+    df = self.compute_tax_deficits(minimum_ETR=minimum_ETR)
+
+    # We sort values based on the tax deficit amount, in descending order
+    df = df[[&#39;Partner jurisdiction&#39;, &#39;ETR&#39;, &#39;tax_deficit&#39;]].sort_values(
+        by=&#39;tax_deficit&#39;,
+        ascending=False
+    ).copy()
+
+    # ETRs are converted into percentages
+    df[&#39;ETR&#39;] = df[&#39;ETR&#39;] * 100
+
+    # We rename columns in a more appropriate way
+    df.rename(
+        columns={
+            &#39;tax_deficit&#39;: f&#39;Collectible tax deficit for {self.headquarter_country} (€m)&#39;,
+            &#39;Partner jurisdiction&#39;: &#39;Jurisdiction where profit was registered&#39;,
+            &#39;ETR&#39;: &#39;Effective tax rate (%)&#39;
+        },
+        inplace=True
+    )
+
+    df.reset_index(
+        drop=True,
+        inplace=True
+    )
+
+    # We add the &#34;Total&#34; field at the bottom of the DataFrame
+    dict_df = df.to_dict()
+
+    dict_df[df.columns[0]][len(df)] = &#39;Total&#39;
+    dict_df[df.columns[1]][len(df)] = 0
+    dict_df[df.columns[2]][len(df)] = df[f&#39;Collectible tax deficit for {self.headquarter_country} (€m)&#39;].sum()
+
+    df = pd.DataFrame.from_dict(dict_df)
+
+    # We either format numeric values as strings or not depending on the &#34;formatted&#34; boolean argument
+    if not formatted:
+        df.iloc[-1, 1] = &#39;..&#39;
+
+        return df.copy()
+
+    else:
+
+        df[f&#39;Collectible tax deficit for {self.headquarter_country} (€m)&#39;] = \
+            df[f&#39;Collectible tax deficit for {self.headquarter_country} (€m)&#39;].map(&#39;{:,.2f}&#39;.format)
+
+        df[&#39;Effective tax rate (%)&#39;] = df[&#39;Effective tax rate (%)&#39;].map(&#39;{:.1f}&#39;.format)
+
+        df.iloc[-1, 1] = &#39;..&#39;
+
+        return df.copy()</code></pre>
+</details>
+</dd>
+<dt id="tax_deficit_simulator.firm_level.CompanyCalculator.get_third_sentence"><code class="name flex">
+<span>def <span class="ident">get_third_sentence</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This method is used in the "app.py" file. Without requiring any specific argument, it outputs the third sentence
+displayed on the "Case study with one multinational" page.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_third_sentence(self):
+    &#34;&#34;&#34;
+    This method is used in the &#34;app.py&#34; file. Without requiring any specific argument, it outputs the third sentence
+    displayed on the &#34;Case study with one multinational&#34; page.
+    &#34;&#34;&#34;
+    s = &#39;After investigating the effect of a 25% minimum rate, the following slider allows you to select what rate,&#39;
+
+    s += &#39; between 10% and 50%, would be imposed. The table presents the implied corporate tax revenue gain for &#39;
+
+    s += f&#39;{self.headquarter_country} and its breakdown based on the location of low-taxed profits.&#39;
+
+    return s</code></pre>
+</details>
+</dd>
+<dt id="tax_deficit_simulator.firm_level.CompanyCalculator.plot_tax_revenue_gains"><code class="name flex">
+<span>def <span class="ident">plot_tax_revenue_gains</span></span>(<span>self, in_app=False)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This method is used in the "app.py" file, which lies behind the Streamlit simulator. It allows to create the bar
+chart that displays the multinational's tax deficit for the 4 benchmark minimum effective tax rates. The in_app
+argument indicates whether the method is called in or outside the simulator:</p>
+<ul>
+<li>
+<p>if the boolean argument is set to True, the method returns the figure object as required by Streamlit;</p>
+</li>
+<li>
+<p>if it is set to False (for instance if the method is called in a notebook), the chart is directly displayed.</p>
+</li>
+</ul></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def plot_tax_revenue_gains(self, in_app=False):
+    &#34;&#34;&#34;
+    This method is used in the &#34;app.py&#34; file, which lies behind the Streamlit simulator. It allows to create the bar
+    chart that displays the multinational&#39;s tax deficit for the 4 benchmark minimum effective tax rates. The in_app
+    argument indicates whether the method is called in or outside the simulator:
+
+    - if the boolean argument is set to True, the method returns the figure object as required by Streamlit;
+
+    - if it is set to False (for instance if the method is called in a notebook), the chart is directly displayed.
+    &#34;&#34;&#34;
+
+    # We create the categorical values for the x axis
+    x = np.array([15, 21, 25, 30])
+    x_cat = list(map(lambda val: str(val) + &#39;%&#39;, x))
+
+    # For each minimum effective tax rate, we compute the corresponding tax deficit, which gives the y values
+    y = np.array([self.compute_tax_revenue_gain(ETR) for ETR in x / 100])
+
+    # We instantiate the figure and the axis object
+    fig, ax = plt.subplots()
+
+    # We create the bar chart
+    ax.bar(x=x_cat, height=y, width=0.7, color=&#39;#4472C4&#39;)
+
+    # And reformat it
+    ax.set_title(
+        f&#39;Collectible tax deficit for {self.headquarter_country}&#39;
+        + &#39; depending on the minimum effective tax rate retained&#39;
+    )
+
+    ax.set_xlabel(&#39;Minimum effective tax rate&#39;)
+    ax.set_ylabel(f&#39;Collectible tax deficit for {self.headquarter_country} (€m)&#39;)
+
+    # Before returning it, depending on the in_app argument
+    if not in_app:
+        fig.show()
+
+    else:
+        return fig</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="tax_deficit_simulator" href="index.html">tax_deficit_simulator</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="tax_deficit_simulator.firm_level.CompanyCalculator" href="#tax_deficit_simulator.firm_level.CompanyCalculator">CompanyCalculator</a></code></h4>
+<ul class="">
+<li><code><a title="tax_deficit_simulator.firm_level.CompanyCalculator.check_firm_level_results" href="#tax_deficit_simulator.firm_level.CompanyCalculator.check_firm_level_results">check_firm_level_results</a></code></li>
+<li><code><a title="tax_deficit_simulator.firm_level.CompanyCalculator.compute_tax_deficits" href="#tax_deficit_simulator.firm_level.CompanyCalculator.compute_tax_deficits">compute_tax_deficits</a></code></li>
+<li><code><a title="tax_deficit_simulator.firm_level.CompanyCalculator.compute_tax_revenue_gain" href="#tax_deficit_simulator.firm_level.CompanyCalculator.compute_tax_revenue_gain">compute_tax_revenue_gain</a></code></li>
+<li><code><a title="tax_deficit_simulator.firm_level.CompanyCalculator.get_first_sentence" href="#tax_deficit_simulator.firm_level.CompanyCalculator.get_first_sentence">get_first_sentence</a></code></li>
+<li><code><a title="tax_deficit_simulator.firm_level.CompanyCalculator.get_second_sentence" href="#tax_deficit_simulator.firm_level.CompanyCalculator.get_second_sentence">get_second_sentence</a></code></li>
+<li><code><a title="tax_deficit_simulator.firm_level.CompanyCalculator.get_tax_deficit_origins_table" href="#tax_deficit_simulator.firm_level.CompanyCalculator.get_tax_deficit_origins_table">get_tax_deficit_origins_table</a></code></li>
+<li><code><a title="tax_deficit_simulator.firm_level.CompanyCalculator.get_third_sentence" href="#tax_deficit_simulator.firm_level.CompanyCalculator.get_third_sentence">get_third_sentence</a></code></li>
+<li><code><a title="tax_deficit_simulator.firm_level.CompanyCalculator.plot_tax_revenue_gains" href="#tax_deficit_simulator.firm_level.CompanyCalculator.plot_tax_revenue_gains">plot_tax_revenue_gains</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.2</a>.</p>
+</footer>
+</body>
+</html>
