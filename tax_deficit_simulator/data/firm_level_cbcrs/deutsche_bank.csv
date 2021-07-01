@@ -1,52 +1,37 @@
 ﻿Partner jurisdiction code;Partner jurisdiction;Year;Company name;Headquarter country code;Headquarter country;Revenue;Profit before tax;CIT paid;FTEs;Average ETR over 6 years;Exchange rate to EUR
-ARE;United Arab Emirates;2019;Deutsche Bank;DEU;Germany;13;3;0;198;0,145584;1
-AUS;Australia;2019;Deutsche Bank;DEU;Germany;190;-38;-17;322;0,2988728;1
-AUT;Austria;2019;Deutsche Bank;DEU;Germany;11;-3;0;83;0,1331489;1
-BEL;Belgium;2019;Deutsche Bank;DEU;Germany;173;0;0;549;0,1512038;1
-BRA;Brazil;2019;Deutsche Bank;DEU;Germany;53;24;1;128;0,2498098;1
-CAN;Canada;2019;Deutsche Bank;DEU;Germany;9;2;3;13;0,2376744;1
-CHE;Switzerland;2019;Deutsche Bank;DEU;Germany;250;-79;-19;645;0,2454789;1
-CHL;Chile;2019;Deutsche Bank;DEU;Germany;1;1;0;0;0,2176698;1
-CHN;China;2019;Deutsche Bank;DEU;Germany;195;106;26;506;0,069664;1
-CYM;Cayman Islands;2019;Deutsche Bank;DEU;Germany;4;2;0;5;0,0364767;1
-CZE;Czech Republic;2019;Deutsche Bank;DEU;Germany;14;7;1;44;0,1785487;1
-DEU;Germany;2019;Deutsche Bank;DEU;Germany;10720;949;234;40496;0,1898156;1
-ESP;Spain;2019;Deutsche Bank;DEU;Germany;506;39;12;2301;0,2370273;1
-FRA;France;2019;Deutsche Bank;DEU;Germany;89;-5;2;208;0,2502703;1
-GBR;Great Britain;2019;Deutsche Bank;DEU;Germany;2529;-2418;262;7559;0,1788404;1
-GGY;Guernsey;2019;Deutsche Bank;DEU;Germany;0;0;0;3;0,0790731;1
-GRC;Greece;2019;Deutsche Bank;DEU;Germany;0;1;0;9;0,2569511;1
-HKG;Hong Kong;2019;Deutsche Bank;DEU;Germany;750;-100;19;1035;0,0967474;1
-HUN;Hungary;2019;Deutsche Bank;DEU;Germany;16;3;1;55;0,1506169;1
-IDN;Indonesia;2019;Deutsche Bank;DEU;Germany;143;82;27;224;0,3174627;1
-IND;India;2019;Deutsche Bank;DEU;Germany;634;392;173;12052;0,3208704;1
-IRL;Ireland;2019;Deutsche Bank;DEU;Germany;15;2;1;409;0,0566144;1
-ISR;Israel;2019;Deutsche Bank;DEU;Germany;-1;2;1;8;0,3149973;1
-ITA;Italy;2019;Deutsche Bank;DEU;Germany;885;-85;13;3541;0,197409;1
-JEY;Jersey;2019;Deutsche Bank;DEU;Germany;2;-11;0;23;0,0754821;1
-JPN;Japan;2019;Deutsche Bank;DEU;Germany;270;-23;48;468;0,254679;1
-KOR;South Korea;2019;Deutsche Bank;DEU;Germany;101;27;8;216;0,1830358;1
-LKA;Sri Lanka;2019;Deutsche Bank;DEU;Germany;15;5;-1;62;0,3208704;1
-LUX;Luxembourg;2019;Deutsche Bank;DEU;Germany;983;520;76;506;0,1476581;1
-MEX;Mexico;2019;Deutsche Bank;DEU;Germany;20;-3;0;34;0,2418037;1
-MLT;Malta;2019;Deutsche Bank;DEU;Germany;7;5;1;0;0,108092;1
-MUS;Mauritius;2019;Deutsche Bank;DEU;Germany;23;21;0;0;0,0364767;1
-MYS;Malaysia;2019;Deutsche Bank;DEU;Germany;99;62;15;198;0,2392736;1
-NLD;Netherlands;2019;Deutsche Bank;DEU;Germany;302;137;-1;613;0,2316061;1
-PAK;Pakistan;2019;Deutsche Bank;DEU;Germany;14;7;3;67;0,3208704;1
-PHL;Philippines;2019;Deutsche Bank;DEU;Germany;42;24;5;1537;0,1914226;1
-POL;Poland;2019;Deutsche Bank;DEU;Germany;82;13;3;383;0,2565852;1
-PRT;Portugal;2019;Deutsche Bank;DEU;Germany;28;-22;10;45;0,147901;1
-QAT;Qatar;2019;Deutsche Bank;DEU;Germany;0;-1;0;3;0,0744601;1
-ROU;Romania;2019;Deutsche Bank;DEU;Germany;0;10;1;700;0,1354083;1
-RUS;Russian Fed.;2019;Deutsche Bank;DEU;Germany;56;39;9;1424;0,2160558;1
-SAU;Saudi Arabia;2019;Deutsche Bank;DEU;Germany;22;-7;2;57;0,0364767;1
-SGP;Singapore;2019;Deutsche Bank;DEU;Germany;768;102;24;1921;0,1257318;1
-SWE;Sweden;2019;Deutsche Bank;DEU;Germany;1;1;0;29;0,2047679;1
-THA;Thailand;2019;Deutsche Bank;DEU;Germany;40;4;1;113;0,1540888;1
-TUR;Turkey;2019;Deutsche Bank;DEU;Germany;47;29;6;115;0,1889699;1
-TWN;Taiwan;2019;Deutsche Bank;DEU;Germany;48;12;1;155;0,1015967;1
-UKR;Ukraine;2019;Deutsche Bank;DEU;Germany;6;1;0;35;0,1200848;1
-USA;USA;2019;Deutsche Bank;DEU;Germany;4487;-944;1684;8381;0,1662334;1
-VNM;Viet nam;2019;Deutsche Bank;DEU;Germany;21;10;2;65;0,1918642;1
-ZAF;South Africa;2019;Deutsche Bank;DEU;Germany;18;-6;3;57;0,2740327;1
+ARE;UAE;2019;Deutsche Bank;DEU;GERMANY;13;3;0;198;0,1430561;1
+BEL;Belgium;2019;Deutsche Bank;DEU;GERMANY;173;0;0;549;0,1577401;1
+BRA;Brazil;2019;Deutsche Bank;DEU;GERMANY;53;24;1;128;0,2444761;1
+CAN;Canada;2019;Deutsche Bank;DEU;GERMANY;9;2;3;13;0,240078;1
+CHL;Chile;2019;Deutsche Bank;DEU;GERMANY;1;1;0;0;0,2389435;1
+CHN;China;2019;Deutsche Bank;DEU;GERMANY;195;106;26;506;0,0663941;1
+CYM;Cayman Islands;2019;Deutsche Bank;DEU;GERMANY;4;2;0;5;0,0663941;1
+CZE;Czech Republic;2019;Deutsche Bank;DEU;GERMANY;14;7;1;44;0,1850446;1
+DEU;Germany;2019;Deutsche Bank;DEU;GERMANY;10720;949;234;40496;0,2248995;1
+ESP;Spain;2019;Deutsche Bank;DEU;GERMANY;506;39;12;2301;0,204783;1
+GGY;Guernsey;2019;Deutsche Bank;DEU;GERMANY;0;0;0;3;0,0862231;1
+GRC;Greece;2019;Deutsche Bank;DEU;GERMANY;0;1;0;9;0,2414578;1
+HUN;Hungary;2019;Deutsche Bank;DEU;GERMANY;16;3;1;55;0,1567981;1
+IDN;Indonesia;2019;Deutsche Bank;DEU;GERMANY;143;82;27;224;0,3069114;1
+IND;India;2019;Deutsche Bank;DEU;GERMANY;634;392;173;12052;0,3292902;1
+IRL;Ireland;2019;Deutsche Bank;DEU;GERMANY;15;2;1;409;0,0840653;1
+ISR;Israel;2019;Deutsche Bank;DEU;GERMANY;-1;2;1;8;0,3191263;1
+KOR;South Korea;2019;Deutsche Bank;DEU;GERMANY;101;27;8;216;0,1811365;1
+LKA;Sri Lanka;2019;Deutsche Bank;DEU;GERMANY;15;5;-1;62;0,3292902;1
+LUX;Luxembourg;2019;Deutsche Bank;DEU;GERMANY;983;520;76;506;0,1486482;1
+MLT;Malta;2019;Deutsche Bank;DEU;GERMANY;7;5;1;0;0,0860993;1
+MUS;Mauritius;2019;Deutsche Bank;DEU;GERMANY;23;21;0;0;0,0663941;1
+MYS;Malaysia;2019;Deutsche Bank;DEU;GERMANY;99;62;15;198;0,2472405;1
+NLD;Netherlands;2019;Deutsche Bank;DEU;GERMANY;302;137;-1;613;0,2436029;1
+PAK;Pakistan;2019;Deutsche Bank;DEU;GERMANY;14;7;3;67;0,3292902;1
+PHL;Philippines;2019;Deutsche Bank;DEU;GERMANY;42;24;5;1537;0,1852863;1
+POL;Poland;2019;Deutsche Bank;DEU;GERMANY;82;13;3;383;0,2793418;1
+ROU;Romania;2019;Deutsche Bank;DEU;GERMANY;0;10;1;700;0,1419074;1
+RUS;Russian Fed.;2019;Deutsche Bank;DEU;GERMANY;56;39;9;1424;0,216298;1
+SGP;Singapore;2019;Deutsche Bank;DEU;GERMANY;768;102;24;1921;0,1247309;1
+SWE;Sweden;2019;Deutsche Bank;DEU;GERMANY;1;1;0;29;0,2178586;1
+THA;Thailand;2019;Deutsche Bank;DEU;GERMANY;40;4;1;113;0,1478813;1
+TUR;Turkey;2019;Deutsche Bank;DEU;GERMANY;47;29;6;115;0,1981894;1
+TWN;Taiwan;2019;Deutsche Bank;DEU;GERMANY;48;12;1;155;0,1149681;1
+UKR;Ukraine;2019;Deutsche Bank;DEU;GERMANY;6;1;0;35;0,1256723;1
+VNM;Viet nam;2019;Deutsche Bank;DEU;GERMANY;21;10;2;65;0,1997686;1

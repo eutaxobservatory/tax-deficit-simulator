@@ -1,17 +1,14 @@
 ﻿Partner jurisdiction code;Partner jurisdiction;Year;Company name;Headquarter country code;Headquarter country;Revenue;Profit before tax;CIT paid;FTEs;Average ETR over 6 years;Exchange rate to EUR
-CHN;China;2019;Danske Bank;DNK;Denmark;0;-6;0;4;0,069664;0,1339
-DEU;Germany;2019;Danske Bank;DNK;Denmark;53;63;33;32;0,1898156;0,1339
-DNK;Denmark;2019;Danske Bank;DNK;Denmark;62939;6879;-2874;10970;0,1726726;0,1339
-EST;Estonia;2019;Danske Bank;DNK;Denmark;-152;-450;-83;50;0,1754738;0,1339
-FIN;Finland;2019;Danske Bank;DNK;Denmark;5083;445;-13;1843;0,2049662;0,1339
-GBR;United Kingdom;2019;Danske Bank;DNK;Denmark;2832;539;178;1373;0,1788404;0,1339
-IND;India;2019;Danske Bank;DNK;Denmark;336;49;9;1181;0,3208704;0,1339
-IRL;Ireland;2019;Danske Bank;DNK;Denmark;343;165;64;51;0,0566144;0,1339
-LTU;Lithuania;2019;Danske Bank;DNK;Denmark;59;119;29;3665;0,1266548;0,1339
-LUX;Luxembourg;2019;Danske Bank;DNK;Denmark;1142;207;44;71;0,1476581;0,1339
-LVA;Latvia;2019;Danske Bank;DNK;Denmark;50;-80;1;31;0,1339511;0,1339
-NOR;Norway;2019;Danske Bank;DNK;Denmark;9882;2961;724;1155;0,2100024;0,1339
-POL;Poland;2019;Danske Bank;DNK;Denmark;137;32;9;60;0,2565852;0,1339
-RUS;Russia;2019;Danske Bank;DNK;Denmark;93;21;7;21;0,2160558;0,1339
-SWE;Sweden;2019;Danske Bank;DNK;Denmark;5093;2844;621;1479;0,2047679;0,1339
-USA;USA;2019;Danske Bank;DNK;Denmark;313;35;2;20;0,1662334;0,1339
+DEU;Germany;2019;Danske Bank;DNK;Denmark;53;63;33;32;0,2248995;0,133939
+DNK;Denmark;2019;Danske Bank;DNK;Denmark;62939;6879;-2874;10970;0,1790541;0,133939
+FIN;Finland;2019;Danske Bank;DNK;Denmark;5083;445;-13;1843;0,2123025;0,133939
+GBR;United Kingdom;2019;Danske Bank;DNK;Denmark;2832;539;178;1373;0,1722402;0,133939
+IND;India;2019;Danske Bank;DNK;Denmark;336;49;9;1181;0,3292902;0,133939
+IRL;Ireland;2019;Danske Bank;DNK;Denmark;343;165;64;51;0,0840653;0,133939
+LTU;Lithuania;2019;Danske Bank;DNK;Denmark;59;119;29;3665;0,1563355;0,133939
+LUX;Luxembourg;2019;Danske Bank;DNK;Denmark;1142;207;44;71;0,1486482;0,133939
+NOR;Norway;2019;Danske Bank;DNK;Denmark;9882;2961;724;1155;0,2246256;0,133939
+POL;Poland;2019;Danske Bank;DNK;Denmark;137;32;9;60;0,2793418;0,133939
+RUS;Russia;2019;Danske Bank;DNK;Denmark;93;21;7;21;0,216298;0,133939
+SWE;Sweden;2019;Danske Bank;DNK;Denmark;5093;2844;621;1479;0,2178586;0,133939
+USA;USA;2019;Danske Bank;DNK;Denmark;313;35;2;20;0,163739;0,133939
