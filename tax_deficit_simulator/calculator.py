@@ -48,7 +48,7 @@ tax_haven_country_codes = list(pd.read_csv(path_to_tax_haven_list, delimiter=';'
 # Absolute paths to data files, especially useful to run the app.py file
 path_to_oecd = os.path.join(path_to_dir, 'data', 'oecd.csv')
 path_to_twz = os.path.join(path_to_dir, 'data', 'twz.csv')
-path_to_twz_domestic = os.path.join(path_to_dir, 'data', 'twz_domestic.csv')
+path_to_twz_domestic = os.path.join(path_to_dir, 'data', 'twz_domestic_bis.csv')
 path_to_twz_CIT = os.path.join(path_to_dir, 'data', 'twz_CIT.csv')
 
 
