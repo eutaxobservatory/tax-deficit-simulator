@@ -116,7 +116,7 @@ class CompanyCalculator:
         self.data = df.copy()
 
         # We define a few other useful attributes
-        headquarter_country = self.data.loc[0, 'Headquarter country']
+        headquarter_country = self.data.loc[0, 'Headquarter country'].title()
 
         if headquarter_country in ['Netherlands', 'United Kingdom']:
             headquarter_country = 'the ' + headquarter_country
