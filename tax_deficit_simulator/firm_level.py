@@ -71,8 +71,8 @@ class CompanyCalculator:
 
         # Gross growth rate of EU-28 and worldwide GDP in current EUR between 2019 and 2021
         # Extracted from benchmark computations run on Stata
-        self.multiplier_EU = 1.0184
-        self.multiplier_world = 0.9991
+        self.multiplier_EU = 1.01842772960663  # 1.0184
+        self.multiplier_world = 0.999141991138458  # 0.9991
 
         # Only a few companies are covered by the simulator and available in the data folder
         if company_name not in correspondences.keys():
