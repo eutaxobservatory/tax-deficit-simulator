@@ -1459,14 +1459,126 @@ class TaxDeficitCalculator:
 
         return carve_outs_impact[columns].copy()
 
-    def get_carve_outs_table(self):
-        output = {
-            '15% - With carve-outs': [],
-            '15% - No carve-outs': [],
-            '25% - With carve-outs': [],
-            '25% - No carve-outs': [],
-        }
+    def get_carve_outs_table(self, TWZ_countries_methodology):
+        # We need to have previously loaded and cleaned the OECD data
+        if self.oecd is None:
+            raise Exception('You first need to load clean data with the dedicated method and inplace=True.')
 
+        if TWZ_countries_methodology not in ['initial', 'new']:
+            raise Exception('The "TWZ_countries_methodology" argument only accepts two values: "initial" or "new".')
+
+        # Computing tax deficits without substance-based carve-outs
         calculator = TaxDeficitCalculator()
+
+        calculator.load_clean_data()
+
+        td_25 = calculator.get_total_tax_deficits(minimum_ETR=0.25).iloc[:-2, :]
+        td_15 = calculator.get_total_tax_deficits(minimum_ETR=0.15).iloc[:-2, :]
+
+        merged_df = td_25.merge(
+            td_15[['Parent jurisdiction (alpha-3 code)', 'tax_deficit']],
+            how='left',
+            on='Parent jurisdiction (alpha-3 code)'
+        )
+
+        merged_df['tax_deficit_y'] = merged_df['tax_deficit_y'].fillna(0)
+
+        merged_df.rename(
+            columns={
+                'tax_deficit_x': 'tax_deficit_25_no_carve_out',
+                'tax_deficit_y': 'tax_deficit_15_no_carve_out'
+            },
+            inplace=True
+        )
+
+        # Computing corresponding tax deficits with substance-based carve-outs
+        calculator = TaxDeficitCalculator(
+            carve_outs=True, carve_out_rate=0.05, adjust_tax_for_carve_out=True, depreciation_only=False
+        )
+
+        calculator.load_clean_data()
+
+        td_25 = calculator.get_total_tax_deficits(minimum_ETR=0.25).iloc[:-2]
+        td_15 = calculator.get_total_tax_deficits(minimum_ETR=0.15).iloc[:-2]
+
+        merged_df = merged_df.merge(
+            td_25[['Parent jurisdiction (alpha-3 code)', 'tax_deficit']],
+            how='left',
+            on='Parent jurisdiction (alpha-3 code)'
+        )
+
+        merged_df.rename(
+            columns={
+                'tax_deficit': 'tax_deficit_25_with_carve_out'
+            },
+            inplace=True
+        )
+
+        merged_df = merged_df.merge(
+            td_15[['Parent jurisdiction (alpha-3 code)', 'tax_deficit']],
+            how='left',
+            on='Parent jurisdiction (alpha-3 code)'
+        )
+
+        merged_df['tax_deficit'] = merged_df['tax_deficit'].fillna(0)
+
+        merged_df.rename(
+            columns={
+                'tax_deficit': 'tax_deficit_15_with_carve_out'
+            },
+            inplace=True
+        )
+
+        cbcr_reporting_countries = list(self.oecd['Parent jurisdiction (alpha-3 code)'].unique())
+
+        cbcr_reporting_countries.remove('BMU')
+        cbcr_reporting_countries.remove('SGP')
+
+        mask_eu = merged_df['Parent jurisdiction (alpha-3 code)'].isin(eu_27_country_codes)
+        mask_cbcr = merged_df['Parent jurisdiction (alpha-3 code)'].isin(cbcr_reporting_countries)
+
+        mask = np.logical_or(mask_eu, mask_cbcr)
+
+        restricted_df = merged_df[mask].copy()
+
+        restricted_df['IS_EU'] = restricted_df['Parent jurisdiction (alpha-3 code)'].isin(eu_27_country_codes) * 1
+        restricted_df['REPORTS_CbCR'] = \
+            restricted_df['Parent jurisdiction (alpha-3 code)'].isin(cbcr_reporting_countries) * 1
+
+        restricted_df.sort_values(
+            by=['IS_EU', 'Parent jurisdiction (alpha-3 code)'],
+            ascending=[False, True],
+            inplace=True
+        )
+
+        if TWZ_countries_methodology == 'initial':
+            return restricted_df.copy()
+
+        else:
+            temp = restricted_df[restricted_df['REPORTS_CbCR'] == 1].copy()
+            temp = temp[temp['Parent jurisdiction (alpha-3 code)'] != 'SWE'].copy()
+
+            self.imputation_15 = temp['tax_deficit_15_with_carve_out'].sum() / temp['tax_deficit_15_no_carve_out'].sum()
+            self.imputation_25 = temp['tax_deficit_25_with_carve_out'].sum() / temp['tax_deficit_25_no_carve_out'].sum()
+
+            restricted_df['tax_deficit_15_with_carve_out'] = restricted_df.apply(
+                (
+                    lambda row: row['tax_deficit_15_no_carve_out'] * self.imputation_15 if row['REPORTS_CbCR'] == 0 or
+                    row['Parent jurisdiction (alpha-3 code)'] == 'SWE' else row['tax_deficit_15_with_carve_out']
+                ),
+                axis=1
+            )
+
+            restricted_df['tax_deficit_25_with_carve_out'] = restricted_df.apply(
+                (
+                    lambda row: row['tax_deficit_25_no_carve_out'] * self.imputation_25 if row['REPORTS_CbCR'] == 0 or
+                    row['Parent jurisdiction (alpha-3 code)'] == 'SWE' else row['tax_deficit_25_with_carve_out']
+                ),
+                axis=1
+            )
+
+            return restricted_df.copy()
+
+
 
 
