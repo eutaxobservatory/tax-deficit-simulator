@@ -1458,3 +1458,15 @@ class TaxDeficitCalculator:
             carve_outs_impact[column] = carve_outs_impact[column].map(lambda x: round(x))
 
         return carve_outs_impact[columns].copy()
+
+    def get_carve_outs_table(self):
+        output = {
+            '15% - With carve-outs': [],
+            '15% - No carve-outs': [],
+            '25% - With carve-outs': [],
+            '25% - No carve-outs': [],
+        }
+
+        calculator = TaxDeficitCalculator()
+
+
