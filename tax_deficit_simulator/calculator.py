@@ -270,6 +270,10 @@ class TaxDeficitCalculator:
                 oecd[oecd['Is partner jurisdiction a tax haven?'] == 1]['CARVE_OUT'].sum() /
                 oecd[oecd['Is partner jurisdiction a tax haven?'] == 1]['Profit (Loss) before Income Tax'].sum()
             )
+            self.avg_carve_out_impact_domestic = (
+                oecd[oecd['Is domestic?'] == 1]['CARVE_OUT'].sum() /
+                oecd[oecd['Is domestic?'] == 1]['Profit (Loss) before Income Tax'].sum()
+            )
 
             oecd['Profit (Loss) before Income Tax'] = \
                 oecd['Profit (Loss) before Income Tax'] - oecd['CARVE_OUT']
@@ -293,7 +297,7 @@ class TaxDeficitCalculator:
             twz[column_name] = twz[column_name].astype(float) * 1000000
 
             if self.carve_outs:
-                twz[column_name] = twz[column_name] * (1 - self.avg_carve_out_impact_tax_haven)
+                twz[column_name] *= (1 - self.avg_carve_out_impact_tax_haven)
             else:
                 continue
 
@@ -311,12 +315,7 @@ class TaxDeficitCalculator:
         twz_domestic['Domestic ETR'] = twz_domestic['Domestic ETR'].map(lambda x: x.replace(',', '.')).astype(float)
 
         if self.carve_outs:
-
-            multiplier = twz_domestic['Alpha-3 country code'].isin(tax_haven_country_codes).map(
-                lambda x: (1 - self.avg_carve_out_impact_tax_haven) if x else (1 - self.avg_carve_out_impact_non_haven)
-            )
-
-            twz_domestic['Domestic profits'] *= multiplier
+            twz_domestic['Domestic profits'] *= (1 - self.avg_carve_out_impact_domestic)
 
         # --- Cleaning the TWZ CIT revenue data
 
