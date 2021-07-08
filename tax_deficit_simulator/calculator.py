@@ -1012,10 +1012,14 @@ class TaxDeficitCalculator:
 
             column_name = f'Collectible tax deficit for {country}'
 
-            # We fetch the tax deficit that could be collected from the country's own multinationals
-            output['Own tax deficit'].append(
-                df[df['Parent jurisdiction (whitespaces cleaned)'] == country][column_name].iloc[0]
-            )
+            if country in df['Parent jurisdiction (whitespaces cleaned)'].unique():
+                # We fetch the tax deficit that could be collected from the country's own multinationals
+                output['Own tax deficit'].append(
+                    df[df['Parent jurisdiction (whitespaces cleaned)'] == country][column_name].iloc[0]
+                )
+
+            else:
+                output['Own tax deficit'].append(0)
 
             # We fetch the tax deficit that could be collected from US multinationals
             if 'United States' in df['Parent jurisdiction (whitespaces cleaned)'].values:
