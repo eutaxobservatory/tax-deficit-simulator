@@ -237,10 +237,18 @@ class TaxDeficitCalculator:
             axis=1
         )
 
+        self.oecd_before_carve_outs = oecd.copy()
+
         if self.carve_outs:
             mean_wages['MONTHLY_VALUE'] = mean_wages['MONTHLY_VALUE'].map(
                 lambda x: x.replace(',', '.') if isinstance(x, str) else x
             ).astype(float)
+
+            mean_wages.drop(columns=['COUNTRY_NAME', 'FIELD_REFERENCE'], inplace=True)
+
+            mean_wages = mean_wages.groupby(['COUNTRY_CODE', 'YEAR']).mean().reset_index()
+
+            mean_wages = mean_wages[mean_wages['YEAR'] == 2016].copy()
 
             mean_wages['ANNUAL_VALUE'] = mean_wages['MONTHLY_VALUE'] * 12
 
