@@ -1586,6 +1586,107 @@ class TaxDeficitCalculator:
 
             return restricted_df.copy()
 
+    def get_carve_outs_table_2(self, output_Excel=False):
+
+        df = self.get_carve_outs_table(TWZ_countries_methodology='initial')
+
+        # Computing tax deficits without substance-based carve-outs
+        calculator = TaxDeficitCalculator()
+
+        calculator.load_clean_data()
+
+        td_21 = calculator.get_total_tax_deficits(minimum_ETR=0.21).iloc[:-2, :]
+        td_30 = calculator.get_total_tax_deficits(minimum_ETR=0.3).iloc[:-2, :]
+
+        merged_df = df.merge(
+            td_21[['Parent jurisdiction (alpha-3 code)', 'tax_deficit']],
+            how='left',
+            on='Parent jurisdiction (alpha-3 code)'
+        )
+
+        merged_df['tax_deficit'] = merged_df['tax_deficit'].fillna(0)
+
+        merged_df = merged_df.merge(
+            td_30[['Parent jurisdiction (alpha-3 code)', 'tax_deficit']],
+            how='left',
+            on='Parent jurisdiction (alpha-3 code)'
+        )
+
+        merged_df['tax_deficit_y'] = merged_df['tax_deficit_y'].fillna(0)
+
+        merged_df.rename(
+            columns={
+                'tax_deficit_x': 'tax_deficit_21_no_carve_out',
+                'tax_deficit_y': 'tax_deficit_30_no_carve_out'
+            },
+            inplace=True
+        )
+
+        # Computing corresponding tax deficits with substance-based carve-outs
+        calculator = TaxDeficitCalculator(
+            carve_outs=True, carve_out_rate=0.05, adjust_tax_for_carve_out=True, depreciation_only=False
+        )
+
+        calculator.load_clean_data()
+
+        td_21 = calculator.get_total_tax_deficits(minimum_ETR=0.21).iloc[:-2]
+        td_30 = calculator.get_total_tax_deficits(minimum_ETR=0.3).iloc[:-2]
+
+        merged_df = merged_df.merge(
+            td_21[['Parent jurisdiction (alpha-3 code)', 'tax_deficit']],
+            how='left',
+            on='Parent jurisdiction (alpha-3 code)'
+        )
+
+        merged_df['tax_deficit'] = merged_df['tax_deficit'].fillna(0)
+
+        merged_df.rename(
+            columns={
+                'tax_deficit': 'tax_deficit_21_with_carve_out'
+            },
+            inplace=True
+        )
+
+        merged_df = merged_df.merge(
+            td_30[['Parent jurisdiction (alpha-3 code)', 'tax_deficit']],
+            how='left',
+            on='Parent jurisdiction (alpha-3 code)'
+        )
+
+        merged_df['tax_deficit'] = merged_df['tax_deficit'].fillna(0)
+
+        merged_df.rename(
+            columns={
+                'tax_deficit': 'tax_deficit_30_with_carve_out'
+            },
+            inplace=True
+        )
+
+        new_columns = []
+
+        for minimum_rate in [15, 21, 25, 30]:
+            column_name_no_carve_out = f'tax_deficit_{minimum_rate}_no_carve_out'
+            column_name_with_carve_out = f'tax_deficit_{minimum_rate}_with_carve_out'
+
+            new_column_name = f'reduction_at_{minimum_rate}_minimum_rate'
+
+            merged_df[new_column_name] = (
+                (merged_df[column_name_with_carve_out] - merged_df[column_name_no_carve_out]) /
+                merged_df[column_name_no_carve_out]
+            ) * 100
+
+            new_columns.append(new_column_name)
+
+        merged_df = merged_df[
+            ['Parent jurisdiction (alpha-3 code)', 'Parent jurisdiction (whitespaces cleaned)'] + new_columns
+        ].copy()
+
+        with pd.ExcelWriter('/Users/Paul-Emmanuel/Desktop/carve_outs_table_2.xlsx', engine='xlsxwriter') as writer:
+            merged_df.to_excel(writer, sheet_name='table_2', index=False)
+
+        return merged_df.copy()
+
+
 
 
 
