@@ -1681,8 +1681,9 @@ class TaxDeficitCalculator:
             ['Parent jurisdiction (alpha-3 code)', 'Parent jurisdiction (whitespaces cleaned)'] + new_columns
         ].copy()
 
-        with pd.ExcelWriter('/Users/Paul-Emmanuel/Desktop/carve_outs_table_2.xlsx', engine='xlsxwriter') as writer:
-            merged_df.to_excel(writer, sheet_name='table_2', index=False)
+        if output_Excel:
+            with pd.ExcelWriter('/Users/Paul-Emmanuel/Desktop/carve_outs_table_2.xlsx', engine='xlsxwriter') as writer:
+                merged_df.to_excel(writer, sheet_name='table_2', index=False)
 
         return merged_df.copy()
 
