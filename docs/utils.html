@@ -41,6 +41,8 @@ It also provides various utils for the &#34;app.py&#34; file, especially to add 
 import base64
 import os
 
+import numpy as np
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 # --- Paths to files that can be downloaded from the simulator
@@ -103,26 +105,31 @@ def manage_overlap_with_domestic(row, kind):
             return row[&#39;Is partner jurisdiction a non-haven?&#39;]
 
 
-def combine_haven_tax_deficits(row):
+def impute_missing_carve_out_values(
+    row,
+    avg_carve_out_impact_non_haven, avg_carve_out_impact_tax_haven,
+    avg_carve_out_impact_domestic, avg_carve_out_impact_aggregate
+):
     &#34;&#34;&#34;
-    This function is used to compute the tax deficit of all in-sample headquarter countries in the multilateral imple-
-    mentation scenario.
-
-    For parent countries that are in both the OECD and TWZ data, we have two different sources to compute their tax-
-    haven-based tax deficit and we retain the highest of these two amounts.
-
-    Besides, for parent countries in the OECD data that do not report a fully detailed country-by-country breakdown of
-    the activity of their multinationals, we cannot distinguish their tax-haven and non-haven tax deficits. Quite arbi-
-    trarily in the Python code, we attribute everything to the non-haven tax deficit. In the Table A1 of the report,
-    these specific cases are described with the &#34;Only foreign aggregate data&#34; column.
+    This function allows to impute missing carve-out values based on two inputs: pre-tax profits and the average redu-
+    ction in pre-tax profits due to carve-outs observed in OECD data. The factor used is determined by the partner ju-
+    risdiction group in which profits are booked: tax havens, non-havens, domestic, aggregate partner jurisdictions.
     &#34;&#34;&#34;
-    if row[&#39;Parent jurisdiction (alpha-3 code)&#39;] not in (
-        COUNTRIES_WITH_MINIMUM_REPORTING + COUNTRIES_WITH_CONTINENTAL_REPORTING
-    ):
-        return max(row[&#39;tax_deficit_x_tax_haven&#39;], row[&#39;tax_deficit_x_tax_haven_TWZ&#39;])
+
+    if not np.isnan(row[&#39;CARVE_OUT&#39;]):
+        return row[&#39;CARVE_OUT&#39;]
+
+    elif row[&#39;Is domestic?&#39;] == 1:
+        return row[&#39;Profit (Loss) before Income Tax&#39;] * avg_carve_out_impact_domestic
+
+    elif row[&#39;Is partner jurisdiction a non-haven?&#39;] == 1:
+        return row[&#39;Profit (Loss) before Income Tax&#39;] * avg_carve_out_impact_non_haven
+
+    elif row[&#39;Is partner jurisdiction a tax haven?&#39;] == 1:
+        return row[&#39;Profit (Loss) before Income Tax&#39;] * avg_carve_out_impact_tax_haven
 
     else:
-        return 0
+        return row[&#39;Profit (Loss) before Income Tax&#39;] * avg_carve_out_impact_aggregate
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -265,26 +272,27 @@ def get_report_download_button():
     return href
 
 
-def get_appendix_download_button():
+def get_carve_outs_note_download_button():
     &#34;&#34;&#34;
-    Not yet used but following the same principle, this function builds the HTML code that will ultimately instantiate
-    the download button allowing the user to obtain the main and appendix tables of the study in Excel format.
+    Following the same principle, this function builds the HTML code that instantiates the download button allowing the
+    user to obtain the note on substance-based carve-outs in PDF format.
     &#34;&#34;&#34;
 
-    # We fetch and read the .xlsx file from the files folder
-    path = os.path.join(path_to_files, &#39;test.xlsx&#39;)
+    # We fetch and read the .pdf file from the files folder
+    path = os.path.join(path_to_files, &#39;carve_outs_note.pdf&#39;)
 
     with open(path, &#39;rb&#39;) as file:
-        excel_content = file.read()
+        note_content = file.read()
 
-    # We encode it in the right format
-    b64 = base64.b64encode(excel_content).decode()
+    # We encode it to the right format
+    b64 = base64.b64encode(note_content).decode()
 
+    # And we build the HTML code
     href = f&#39;&lt;a href=&#34;data:application/octet-stream;base64,{b64}&#34; download=&#34;{os.path.basename(path)}&#34;&gt;&#39;
 
-    href += &#39;&lt;input type=&#34;button&#34; value=&#34;Click here to download the appendix tables (Excel)&#34; &#39;
+    href += &#39;&lt;input type=&#34;button&#34; value=&#34;Click here to download the note on substance-based carve-outs (PDF)&#34; &#39;
 
-    href += &#39;class=&#34;download-button excel&#34;&gt;&lt;/a&gt;&#39;
+    href += &#39;class=&#34;download-button pdf&#34;&gt;&lt;/a&gt;&#39;
 
     return href</code></pre>
 </details>
@@ -296,44 +304,6 @@ def get_appendix_download_button():
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="tax_deficit_simulator.utils.combine_haven_tax_deficits"><code class="name flex">
-<span>def <span class="ident">combine_haven_tax_deficits</span></span>(<span>row)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>This function is used to compute the tax deficit of all in-sample headquarter countries in the multilateral imple-
-mentation scenario.</p>
-<p>For parent countries that are in both the OECD and TWZ data, we have two different sources to compute their tax-
-haven-based tax deficit and we retain the highest of these two amounts.</p>
-<p>Besides, for parent countries in the OECD data that do not report a fully detailed country-by-country breakdown of
-the activity of their multinationals, we cannot distinguish their tax-haven and non-haven tax deficits. Quite arbi-
-trarily in the Python code, we attribute everything to the non-haven tax deficit. In the Table A1 of the report,
-these specific cases are described with the "Only foreign aggregate data" column.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def combine_haven_tax_deficits(row):
-    &#34;&#34;&#34;
-    This function is used to compute the tax deficit of all in-sample headquarter countries in the multilateral imple-
-    mentation scenario.
-
-    For parent countries that are in both the OECD and TWZ data, we have two different sources to compute their tax-
-    haven-based tax deficit and we retain the highest of these two amounts.
-
-    Besides, for parent countries in the OECD data that do not report a fully detailed country-by-country breakdown of
-    the activity of their multinationals, we cannot distinguish their tax-haven and non-haven tax deficits. Quite arbi-
-    trarily in the Python code, we attribute everything to the non-haven tax deficit. In the Table A1 of the report,
-    these specific cases are described with the &#34;Only foreign aggregate data&#34; column.
-    &#34;&#34;&#34;
-    if row[&#39;Parent jurisdiction (alpha-3 code)&#39;] not in (
-        COUNTRIES_WITH_MINIMUM_REPORTING + COUNTRIES_WITH_CONTINENTAL_REPORTING
-    ):
-        return max(row[&#39;tax_deficit_x_tax_haven&#39;], row[&#39;tax_deficit_x_tax_haven_TWZ&#39;])
-
-    else:
-        return 0</code></pre>
-</details>
-</dd>
 <dt id="tax_deficit_simulator.utils.compute_ETRs"><code class="name flex">
 <span>def <span class="ident">compute_ETRs</span></span>(<span>row, kind)</span>
 </code></dt>
@@ -401,36 +371,37 @@ of the amount of corporate income taxes paid to profit before tax.</p>
         return effective_tax_rate</code></pre>
 </details>
 </dd>
-<dt id="tax_deficit_simulator.utils.get_appendix_download_button"><code class="name flex">
-<span>def <span class="ident">get_appendix_download_button</span></span>(<span>)</span>
+<dt id="tax_deficit_simulator.utils.get_carve_outs_note_download_button"><code class="name flex">
+<span>def <span class="ident">get_carve_outs_note_download_button</span></span>(<span>)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Not yet used but following the same principle, this function builds the HTML code that will ultimately instantiate
-the download button allowing the user to obtain the main and appendix tables of the study in Excel format.</p></div>
+<div class="desc"><p>Following the same principle, this function builds the HTML code that instantiates the download button allowing the
+user to obtain the note on substance-based carve-outs in PDF format.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_appendix_download_button():
+<pre><code class="python">def get_carve_outs_note_download_button():
     &#34;&#34;&#34;
-    Not yet used but following the same principle, this function builds the HTML code that will ultimately instantiate
-    the download button allowing the user to obtain the main and appendix tables of the study in Excel format.
+    Following the same principle, this function builds the HTML code that instantiates the download button allowing the
+    user to obtain the note on substance-based carve-outs in PDF format.
     &#34;&#34;&#34;
 
-    # We fetch and read the .xlsx file from the files folder
-    path = os.path.join(path_to_files, &#39;test.xlsx&#39;)
+    # We fetch and read the .pdf file from the files folder
+    path = os.path.join(path_to_files, &#39;carve_outs_note.pdf&#39;)
 
     with open(path, &#39;rb&#39;) as file:
-        excel_content = file.read()
+        note_content = file.read()
 
-    # We encode it in the right format
-    b64 = base64.b64encode(excel_content).decode()
+    # We encode it to the right format
+    b64 = base64.b64encode(note_content).decode()
 
+    # And we build the HTML code
     href = f&#39;&lt;a href=&#34;data:application/octet-stream;base64,{b64}&#34; download=&#34;{os.path.basename(path)}&#34;&gt;&#39;
 
-    href += &#39;&lt;input type=&#34;button&#34; value=&#34;Click here to download the appendix tables (Excel)&#34; &#39;
+    href += &#39;&lt;input type=&#34;button&#34; value=&#34;Click here to download the note on substance-based carve-outs (PDF)&#34; &#39;
 
-    href += &#39;class=&#34;download-button excel&#34;&gt;&lt;/a&gt;&#39;
+    href += &#39;class=&#34;download-button pdf&#34;&gt;&lt;/a&gt;&#39;
 
     return href</code></pre>
 </details>
@@ -533,6 +504,44 @@ following pages: "Case study with one multinational" (scenario=0), "Multilateral
     return href</code></pre>
 </details>
 </dd>
+<dt id="tax_deficit_simulator.utils.impute_missing_carve_out_values"><code class="name flex">
+<span>def <span class="ident">impute_missing_carve_out_values</span></span>(<span>row, avg_carve_out_impact_non_haven, avg_carve_out_impact_tax_haven, avg_carve_out_impact_domestic, avg_carve_out_impact_aggregate)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This function allows to impute missing carve-out values based on two inputs: pre-tax profits and the average redu-
+ction in pre-tax profits due to carve-outs observed in OECD data. The factor used is determined by the partner ju-
+risdiction group in which profits are booked: tax havens, non-havens, domestic, aggregate partner jurisdictions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def impute_missing_carve_out_values(
+    row,
+    avg_carve_out_impact_non_haven, avg_carve_out_impact_tax_haven,
+    avg_carve_out_impact_domestic, avg_carve_out_impact_aggregate
+):
+    &#34;&#34;&#34;
+    This function allows to impute missing carve-out values based on two inputs: pre-tax profits and the average redu-
+    ction in pre-tax profits due to carve-outs observed in OECD data. The factor used is determined by the partner ju-
+    risdiction group in which profits are booked: tax havens, non-havens, domestic, aggregate partner jurisdictions.
+    &#34;&#34;&#34;
+
+    if not np.isnan(row[&#39;CARVE_OUT&#39;]):
+        return row[&#39;CARVE_OUT&#39;]
+
+    elif row[&#39;Is domestic?&#39;] == 1:
+        return row[&#39;Profit (Loss) before Income Tax&#39;] * avg_carve_out_impact_domestic
+
+    elif row[&#39;Is partner jurisdiction a non-haven?&#39;] == 1:
+        return row[&#39;Profit (Loss) before Income Tax&#39;] * avg_carve_out_impact_non_haven
+
+    elif row[&#39;Is partner jurisdiction a tax haven?&#39;] == 1:
+        return row[&#39;Profit (Loss) before Income Tax&#39;] * avg_carve_out_impact_tax_haven
+
+    else:
+        return row[&#39;Profit (Loss) before Income Tax&#39;] * avg_carve_out_impact_aggregate</code></pre>
+</details>
+</dd>
 <dt id="tax_deficit_simulator.utils.manage_overlap_with_domestic"><code class="name flex">
 <span>def <span class="ident">manage_overlap_with_domestic</span></span>(<span>row, kind)</span>
 </code></dt>
@@ -629,11 +638,11 @@ not erase the "Foreign Jurisdictions Total" line. Therefore, we slightly rename 
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="tax_deficit_simulator.utils.combine_haven_tax_deficits" href="#tax_deficit_simulator.utils.combine_haven_tax_deficits">combine_haven_tax_deficits</a></code></li>
 <li><code><a title="tax_deficit_simulator.utils.compute_ETRs" href="#tax_deficit_simulator.utils.compute_ETRs">compute_ETRs</a></code></li>
-<li><code><a title="tax_deficit_simulator.utils.get_appendix_download_button" href="#tax_deficit_simulator.utils.get_appendix_download_button">get_appendix_download_button</a></code></li>
+<li><code><a title="tax_deficit_simulator.utils.get_carve_outs_note_download_button" href="#tax_deficit_simulator.utils.get_carve_outs_note_download_button">get_carve_outs_note_download_button</a></code></li>
 <li><code><a title="tax_deficit_simulator.utils.get_report_download_button" href="#tax_deficit_simulator.utils.get_report_download_button">get_report_download_button</a></code></li>
 <li><code><a title="tax_deficit_simulator.utils.get_table_download_button" href="#tax_deficit_simulator.utils.get_table_download_button">get_table_download_button</a></code></li>
+<li><code><a title="tax_deficit_simulator.utils.impute_missing_carve_out_values" href="#tax_deficit_simulator.utils.impute_missing_carve_out_values">impute_missing_carve_out_values</a></code></li>
 <li><code><a title="tax_deficit_simulator.utils.manage_overlap_with_domestic" href="#tax_deficit_simulator.utils.manage_overlap_with_domestic">manage_overlap_with_domestic</a></code></li>
 <li><code><a title="tax_deficit_simulator.utils.rename_partner_jurisdictions" href="#tax_deficit_simulator.utils.rename_partner_jurisdictions">rename_partner_jurisdictions</a></code></li>
 </ul>
