@@ -775,7 +775,6 @@ class TaxDeficitCalculator:
 
         if self.carve_outs:
 
-
             calculator = TaxDeficitCalculator()
             calculator.load_clean_data()
             _ = calculator.compute_all_tax_deficits()
@@ -964,16 +963,16 @@ class TaxDeficitCalculator:
         countries_replaced=None
     ):
         """
-        This function is used to compute the tax deficit of all in-sample headquarter countries in the multilateral imple-
-        mentation scenario.
+        This function is used to compute the tax deficit of all in-sample headquarter countries in the multilateral im-
+        plementation scenario.
 
         For parent countries that are in both the OECD and TWZ data, we have two different sources to compute their tax-
         haven-based tax deficit and we retain the highest of these two amounts.
 
-        Besides, for parent countries in the OECD data that do not report a fully detailed country-by-country breakdown of
-        the activity of their multinationals, we cannot distinguish their tax-haven and non-haven tax deficits. Quite arbi-
-        trarily in the Python code, we attribute everything to the non-haven tax deficit. In the Table A1 of the report,
-        these specific cases are described with the "Only foreign aggregate data" column.
+        Besides, for parent countries in the OECD data that do not report a fully detailed country-by-country breakdown
+        of the activity of their multinationals, we cannot distinguish their tax-haven and non-haven tax deficits. Quite
+        arbitrarily in the Python code, we attribute everything to the non-haven tax deficit. In the Table A1 of the re-
+        port, these specific cases are described with the "Only foreign aggregate data" column.
         """
         if carve_outs and countries_replaced is None:
             raise Exception(
