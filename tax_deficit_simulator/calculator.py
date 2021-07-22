@@ -529,12 +529,12 @@ class TaxDeficitCalculator:
             self.twz = twz.copy()
             self.twz_domestic = twz_domestic.copy()
             self.twz_CIT = twz_CIT.copy()
-            self.mean_wages = mean_wages.copy()
+            self.mean_wages = preprocessed_mean_wages.copy()
 
         else:
 
             if self.carve_outs:
-                return oecd.copy(), twz.copy(), twz_domestic.copy(), twz_CIT.copy(), mean_wages.copy()
+                return oecd.copy(), twz.copy(), twz_domestic.copy(), twz_CIT.copy(), preprocessed_mean_wages.copy()
 
             else:
                 return oecd.copy(), twz.copy(), twz_domestic.copy(), twz_CIT.copy()
