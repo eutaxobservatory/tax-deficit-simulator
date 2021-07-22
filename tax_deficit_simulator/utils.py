@@ -11,6 +11,8 @@ It also provides various utils for the "app.py" file, especially to add file dow
 import base64
 import os
 
+import numpy as np
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 # --- Paths to files that can be downloaded from the simulator
@@ -73,26 +75,31 @@ def manage_overlap_with_domestic(row, kind):
             return row['Is partner jurisdiction a non-haven?']
 
 
-def combine_haven_tax_deficits(row):
+def impute_missing_carve_out_values(
+    row,
+    avg_carve_out_impact_non_haven, avg_carve_out_impact_tax_haven,
+    avg_carve_out_impact_domestic, avg_carve_out_impact_aggregate
+):
     """
-    This function is used to compute the tax deficit of all in-sample headquarter countries in the multilateral imple-
-    mentation scenario.
-
-    For parent countries that are in both the OECD and TWZ data, we have two different sources to compute their tax-
-    haven-based tax deficit and we retain the highest of these two amounts.
-
-    Besides, for parent countries in the OECD data that do not report a fully detailed country-by-country breakdown of
-    the activity of their multinationals, we cannot distinguish their tax-haven and non-haven tax deficits. Quite arbi-
-    trarily in the Python code, we attribute everything to the non-haven tax deficit. In the Table A1 of the report,
-    these specific cases are described with the "Only foreign aggregate data" column.
+    This function allows to impute missing carve-out values based on two inputs: pre-tax profits and the average redu-
+    ction in pre-tax profits due to carve-outs observed in OECD data. The factor used is determined by the partner ju-
+    risdiction group in which profits are booked: tax havens, non-havens, domestic, aggregate partner jurisdictions.
     """
-    if row['Parent jurisdiction (alpha-3 code)'] not in (
-        COUNTRIES_WITH_MINIMUM_REPORTING + COUNTRIES_WITH_CONTINENTAL_REPORTING
-    ):
-        return max(row['tax_deficit_x_tax_haven'], row['tax_deficit_x_tax_haven_TWZ'])
+
+    if not np.isnan(row['CARVE_OUT']):
+        return row['CARVE_OUT']
+
+    elif row['Is domestic?'] == 1:
+        return row['Profit (Loss) before Income Tax'] * avg_carve_out_impact_domestic
+
+    elif row['Is partner jurisdiction a non-haven?'] == 1:
+        return row['Profit (Loss) before Income Tax'] * avg_carve_out_impact_non_haven
+
+    elif row['Is partner jurisdiction a tax haven?'] == 1:
+        return row['Profit (Loss) before Income Tax'] * avg_carve_out_impact_tax_haven
 
     else:
-        return 0
+        return row['Profit (Loss) before Income Tax'] * avg_carve_out_impact_aggregate
 
 
 # ----------------------------------------------------------------------------------------------------------------------
