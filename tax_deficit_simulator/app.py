@@ -11,7 +11,7 @@ import json
 # Imports from other Python files
 from calculator import TaxDeficitCalculator
 from firm_level import correspondences, CompanyCalculator
-from utils import get_table_download_button, get_report_download_button, get_appendix_download_button
+from utils import get_table_download_button, get_report_download_button, get_carve_outs_note_download_button
 
 # ----------------------------------------------------------------------------------------------------------------------
 # --- Setting the page configuration
@@ -92,10 +92,11 @@ if page == 'Description of the research':
         unsafe_allow_html=True
     )
 
-    # st.markdown(
-    #     get_appendix_download_button(),
-    #     unsafe_allow_html=True
-    # )
+    # Download button for the carve-outs note (PDF)
+    st.markdown(
+        get_carve_outs_note_download_button(),
+        unsafe_allow_html=True
+    )
 
 elif page == 'Case study with one multinational':
     # We move to the case studies

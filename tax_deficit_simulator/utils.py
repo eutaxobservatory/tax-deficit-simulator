@@ -242,25 +242,26 @@ def get_report_download_button():
     return href
 
 
-def get_appendix_download_button():
+def get_carve_outs_note_download_button():
     """
-    Not yet used but following the same principle, this function builds the HTML code that will ultimately instantiate
-    the download button allowing the user to obtain the main and appendix tables of the study in Excel format.
+    Following the same principle, this function builds the HTML code that instantiates the download button allowing the
+    user to obtain the full-text version of the study in PDF format.
     """
 
-    # We fetch and read the .xlsx file from the files folder
-    path = os.path.join(path_to_files, 'test.xlsx')
+    # We fetch and read the .pdf file from the files folder
+    path = os.path.join(path_to_files, 'carve_outs_note.pdf')
 
     with open(path, 'rb') as file:
-        excel_content = file.read()
+        note_content = file.read()
 
-    # We encode it in the right format
-    b64 = base64.b64encode(excel_content).decode()
+    # We encode it to the right format
+    b64 = base64.b64encode(note_content).decode()
 
+    # And we build the HTML code
     href = f'<a href="data:application/octet-stream;base64,{b64}" download="{os.path.basename(path)}">'
 
-    href += '<input type="button" value="Click here to download the appendix tables (Excel)" '
+    href += '<input type="button" value="Click here to download the note on substance-based carve-outs (PDF)" '
 
-    href += 'class="download-button excel"></a>'
+    href += 'class="download-button pdf"></a>'
 
     return href
