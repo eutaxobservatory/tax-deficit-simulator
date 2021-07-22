@@ -1768,13 +1768,57 @@ class TaxDeficitCalculator:
         )
 
         columns = [
-            'Parent jurisdiction (whitespaces cleaned)', 'TD_with_carve_outs', 'TD_no_carve_outs',
-            'domestic_TD_with_carve_outs', 'domestic_TD_no_carve_outs', 'non_haven_TD_with_carve_outs',
-            'non_haven_TD_no_carve_outs', 'tax_haven_TD_with_carve_outs', 'tax_haven_TD_no_carve_outs',
-            'IS_EU', 'REPORTS_CbCR'
+            'Parent jurisdiction (whitespaces cleaned)', 'Parent jurisdiction (alpha-3 code)',
+            'TD_with_carve_outs', 'TD_no_carve_outs', 'domestic_TD_with_carve_outs', 'domestic_TD_no_carve_outs',
+            'non_haven_TD_with_carve_outs', 'non_haven_TD_no_carve_outs', 'tax_haven_TD_with_carve_outs',
+            'tax_haven_TD_no_carve_outs','IS_EU', 'REPORTS_CbCR'
         ]
 
         return restricted_df[columns].copy()
+
+    def assess_carve_out_impact_formatted(self, minimum_ETR=0.25):
+        df = self.assess_carve_out_impact(minimum_ETR=minimum_ETR)
+
+        df.sort_values(
+            by='Parent jurisdiction (whitespaces cleaned)',
+            inplace=True
+        )
+
+        mask_eu = df['Parent jurisdiction (alpha-3 code)'].isin(eu_27_country_codes)
+
+        df = df[['Parent jurisdiction (whitespaces cleaned)', 'TD_no_carve_outs', 'TD_with_carve_outs']].copy()
+
+        dict_df = df.to_dict()
+
+        dict_df[df.columns[0]][len(df) + 1] = 'Total - EU27'
+        dict_df[df.columns[1]][len(df) + 1] = df[mask_eu]['TD_no_carve_outs'].sum()
+        dict_df[df.columns[2]][len(df) + 1] = df[mask_eu]['TD_with_carve_outs'].sum()
+
+        dict_df[df.columns[0]][len(df) + 2] = 'Total - Whole sample'
+        dict_df[df.columns[1]][len(df) + 2] = df['TD_no_carve_outs'].sum()
+        dict_df[df.columns[2]][len(df) + 2] = df['TD_with_carve_outs'].sum()
+
+        df = pd.DataFrame.from_dict(dict_df)
+
+        df['Change in % of revenue gains without carve-outs'] = (
+            (df['TD_with_carve_outs'] - df['TD_no_carve_outs']) / df['TD_no_carve_outs']
+        ) * 100
+
+        df.rename(
+            columns={
+                'TD_no_carve_outs': 'Collectible tax deficit without carve-outs (€m)',
+                'TD_with_carve_outs': 'Collectible tax deficit with carve-outs (€m)'
+            },
+            inplace=True
+        )
+
+        for column_name in df.columns[1:-1]:
+            df[column_name] /= 10**6
+            df[column_name] = df[column_name].map('{:,.0f}'.format)
+
+        df[df.columns[-1]] = df[df.columns[-1]].map('{:.1f}'.format)
+
+        return df.copy()
 
     def get_carve_outs_table(
         self,
