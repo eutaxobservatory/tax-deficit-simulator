@@ -245,7 +245,7 @@ def get_report_download_button():
 def get_carve_outs_note_download_button():
     """
     Following the same principle, this function builds the HTML code that instantiates the download button allowing the
-    user to obtain the full-text version of the study in PDF format.
+    user to obtain the note on substance-based carve-outs in PDF format.
     """
 
     # We fetch and read the .pdf file from the files folder
