@@ -197,7 +197,7 @@ def compute_ETRs(row, kind):
 # ----------------------------------------------------------------------------------------------------------------------
 # --- Utils for the app.py file
 
-def get_table_download_button(df, scenario, effective_tax_rate, company=None, taxing_country=None):
+def get_table_download_button(df, scenario, effective_tax_rate, company=None, taxing_country=None, carve_out_rate=None):
     &#34;&#34;&#34;
     This function is used in the &#34;app.py&#34; file to generate the HTML code that instantiates the download button on the
     following pages: &#34;Case study with one multinational&#34; (scenario=0), &#34;Multilateral implementation scenario&#34; (scenario
@@ -238,6 +238,10 @@ def get_table_download_button(df, scenario, effective_tax_rate, company=None, ta
             taxing_country = &#39;china&#39;
 
         href += f&#39; download=&#34;unilateral_scenario_{taxing_country}_{effective_tax_rate}_perc.csv&#34;&gt;&#39;
+
+    elif scenario == 4:
+        # Substance-based carve-outs page
+        href += f&#39; download=&#34;min_ETR_{effective_tax_rate}_perc_CO_rate_{carve_out_rate}_perc.csv&#34;&gt;&#39;
 
     else:
         raise Exception(&#39;Value not accepted for the scenario argument.&#39;)
@@ -442,7 +446,7 @@ user to obtain the full-text version of the study in PDF format.</p></div>
 </details>
 </dd>
 <dt id="tax_deficit_simulator.utils.get_table_download_button"><code class="name flex">
-<span>def <span class="ident">get_table_download_button</span></span>(<span>df, scenario, effective_tax_rate, company=None, taxing_country=None)</span>
+<span>def <span class="ident">get_table_download_button</span></span>(<span>df, scenario, effective_tax_rate, company=None, taxing_country=None, carve_out_rate=None)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>This function is used in the "app.py" file to generate the HTML code that instantiates the download button on the
@@ -454,7 +458,7 @@ following pages: "Case study with one multinational" (scenario=0), "Multilateral
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_table_download_button(df, scenario, effective_tax_rate, company=None, taxing_country=None):
+<pre><code class="python">def get_table_download_button(df, scenario, effective_tax_rate, company=None, taxing_country=None, carve_out_rate=None):
     &#34;&#34;&#34;
     This function is used in the &#34;app.py&#34; file to generate the HTML code that instantiates the download button on the
     following pages: &#34;Case study with one multinational&#34; (scenario=0), &#34;Multilateral implementation scenario&#34; (scenario
@@ -495,6 +499,10 @@ following pages: "Case study with one multinational" (scenario=0), "Multilateral
             taxing_country = &#39;china&#39;
 
         href += f&#39; download=&#34;unilateral_scenario_{taxing_country}_{effective_tax_rate}_perc.csv&#34;&gt;&#39;
+
+    elif scenario == 4:
+        # Substance-based carve-outs page
+        href += f&#39; download=&#34;min_ETR_{effective_tax_rate}_perc_CO_rate_{carve_out_rate}_perc.csv&#34;&gt;&#39;
 
     else:
         raise Exception(&#39;Value not accepted for the scenario argument.&#39;)

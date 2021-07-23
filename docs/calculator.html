@@ -1814,13 +1814,62 @@ class TaxDeficitCalculator:
         )
 
         columns = [
-            &#39;Parent jurisdiction (whitespaces cleaned)&#39;, &#39;TD_with_carve_outs&#39;, &#39;TD_no_carve_outs&#39;,
-            &#39;domestic_TD_with_carve_outs&#39;, &#39;domestic_TD_no_carve_outs&#39;, &#39;non_haven_TD_with_carve_outs&#39;,
-            &#39;non_haven_TD_no_carve_outs&#39;, &#39;tax_haven_TD_with_carve_outs&#39;, &#39;tax_haven_TD_no_carve_outs&#39;,
-            &#39;IS_EU&#39;, &#39;REPORTS_CbCR&#39;
+            &#39;Parent jurisdiction (whitespaces cleaned)&#39;, &#39;Parent jurisdiction (alpha-3 code)&#39;,
+            &#39;TD_with_carve_outs&#39;, &#39;TD_no_carve_outs&#39;, &#39;domestic_TD_with_carve_outs&#39;, &#39;domestic_TD_no_carve_outs&#39;,
+            &#39;non_haven_TD_with_carve_outs&#39;, &#39;non_haven_TD_no_carve_outs&#39;, &#39;tax_haven_TD_with_carve_outs&#39;,
+            &#39;tax_haven_TD_no_carve_outs&#39;, &#39;IS_EU&#39;, &#39;REPORTS_CbCR&#39;
         ]
 
         return restricted_df[columns].copy()
+
+    def assess_carve_out_impact_formatted(self, minimum_ETR=0.25):
+        &#34;&#34;&#34;
+        This method is used in the &#34;app.py&#34; file, which underlies the Streamlit simulator. It is used to produce the
+        table on the &#34;Substance-based carve-outs&#34; page. It takes as input the selected minimum ETR and widely relies on
+        the assess_carve_out_impact method defined above. It mostly consists in a series of formatting steps.
+        &#34;&#34;&#34;
+        df = self.assess_carve_out_impact(minimum_ETR=minimum_ETR)
+
+        df.sort_values(
+            by=&#39;Parent jurisdiction (whitespaces cleaned)&#39;,
+            inplace=True
+        )
+
+        mask_eu = df[&#39;Parent jurisdiction (alpha-3 code)&#39;].isin(eu_27_country_codes)
+
+        df = df[[&#39;Parent jurisdiction (whitespaces cleaned)&#39;, &#39;TD_no_carve_outs&#39;, &#39;TD_with_carve_outs&#39;]].copy()
+
+        dict_df = df.to_dict()
+
+        dict_df[df.columns[0]][len(df) + 1] = &#39;Total - EU27&#39;
+        dict_df[df.columns[1]][len(df) + 1] = df[mask_eu][&#39;TD_no_carve_outs&#39;].sum()
+        dict_df[df.columns[2]][len(df) + 1] = df[mask_eu][&#39;TD_with_carve_outs&#39;].sum()
+
+        dict_df[df.columns[0]][len(df) + 2] = &#39;Total - Whole sample&#39;
+        dict_df[df.columns[1]][len(df) + 2] = df[&#39;TD_no_carve_outs&#39;].sum()
+        dict_df[df.columns[2]][len(df) + 2] = df[&#39;TD_with_carve_outs&#39;].sum()
+
+        df = pd.DataFrame.from_dict(dict_df)
+
+        df[&#39;Change in % of revenue gains without carve-outs&#39;] = (
+            (df[&#39;TD_with_carve_outs&#39;] - df[&#39;TD_no_carve_outs&#39;]) / df[&#39;TD_no_carve_outs&#39;]
+        ) * 100
+
+        df.rename(
+            columns={
+                &#39;TD_no_carve_outs&#39;: &#39;Collectible tax deficit without carve-outs (€m)&#39;,
+                &#39;TD_with_carve_outs&#39;: &#39;Collectible tax deficit with carve-outs (€m)&#39;
+            },
+            inplace=True
+        )
+
+        for column_name in df.columns[1:-1]:
+            df[column_name] /= 10**6
+            df[column_name] = df[column_name].map(&#39;{:,.0f}&#39;.format)
+
+        df[df.columns[-1]] = df[df.columns[-1]].map(&#39;{:.1f}&#39;.format)
+
+        return df.copy()
 
     def get_carve_outs_table(
         self,
@@ -3979,13 +4028,62 @@ sumptions taken in the report.</p></div>
         )
 
         columns = [
-            &#39;Parent jurisdiction (whitespaces cleaned)&#39;, &#39;TD_with_carve_outs&#39;, &#39;TD_no_carve_outs&#39;,
-            &#39;domestic_TD_with_carve_outs&#39;, &#39;domestic_TD_no_carve_outs&#39;, &#39;non_haven_TD_with_carve_outs&#39;,
-            &#39;non_haven_TD_no_carve_outs&#39;, &#39;tax_haven_TD_with_carve_outs&#39;, &#39;tax_haven_TD_no_carve_outs&#39;,
-            &#39;IS_EU&#39;, &#39;REPORTS_CbCR&#39;
+            &#39;Parent jurisdiction (whitespaces cleaned)&#39;, &#39;Parent jurisdiction (alpha-3 code)&#39;,
+            &#39;TD_with_carve_outs&#39;, &#39;TD_no_carve_outs&#39;, &#39;domestic_TD_with_carve_outs&#39;, &#39;domestic_TD_no_carve_outs&#39;,
+            &#39;non_haven_TD_with_carve_outs&#39;, &#39;non_haven_TD_no_carve_outs&#39;, &#39;tax_haven_TD_with_carve_outs&#39;,
+            &#39;tax_haven_TD_no_carve_outs&#39;, &#39;IS_EU&#39;, &#39;REPORTS_CbCR&#39;
         ]
 
         return restricted_df[columns].copy()
+
+    def assess_carve_out_impact_formatted(self, minimum_ETR=0.25):
+        &#34;&#34;&#34;
+        This method is used in the &#34;app.py&#34; file, which underlies the Streamlit simulator. It is used to produce the
+        table on the &#34;Substance-based carve-outs&#34; page. It takes as input the selected minimum ETR and widely relies on
+        the assess_carve_out_impact method defined above. It mostly consists in a series of formatting steps.
+        &#34;&#34;&#34;
+        df = self.assess_carve_out_impact(minimum_ETR=minimum_ETR)
+
+        df.sort_values(
+            by=&#39;Parent jurisdiction (whitespaces cleaned)&#39;,
+            inplace=True
+        )
+
+        mask_eu = df[&#39;Parent jurisdiction (alpha-3 code)&#39;].isin(eu_27_country_codes)
+
+        df = df[[&#39;Parent jurisdiction (whitespaces cleaned)&#39;, &#39;TD_no_carve_outs&#39;, &#39;TD_with_carve_outs&#39;]].copy()
+
+        dict_df = df.to_dict()
+
+        dict_df[df.columns[0]][len(df) + 1] = &#39;Total - EU27&#39;
+        dict_df[df.columns[1]][len(df) + 1] = df[mask_eu][&#39;TD_no_carve_outs&#39;].sum()
+        dict_df[df.columns[2]][len(df) + 1] = df[mask_eu][&#39;TD_with_carve_outs&#39;].sum()
+
+        dict_df[df.columns[0]][len(df) + 2] = &#39;Total - Whole sample&#39;
+        dict_df[df.columns[1]][len(df) + 2] = df[&#39;TD_no_carve_outs&#39;].sum()
+        dict_df[df.columns[2]][len(df) + 2] = df[&#39;TD_with_carve_outs&#39;].sum()
+
+        df = pd.DataFrame.from_dict(dict_df)
+
+        df[&#39;Change in % of revenue gains without carve-outs&#39;] = (
+            (df[&#39;TD_with_carve_outs&#39;] - df[&#39;TD_no_carve_outs&#39;]) / df[&#39;TD_no_carve_outs&#39;]
+        ) * 100
+
+        df.rename(
+            columns={
+                &#39;TD_no_carve_outs&#39;: &#39;Collectible tax deficit without carve-outs (€m)&#39;,
+                &#39;TD_with_carve_outs&#39;: &#39;Collectible tax deficit with carve-outs (€m)&#39;
+            },
+            inplace=True
+        )
+
+        for column_name in df.columns[1:-1]:
+            df[column_name] /= 10**6
+            df[column_name] = df[column_name].map(&#39;{:,.0f}&#39;.format)
+
+        df[df.columns[-1]] = df[df.columns[-1]].map(&#39;{:.1f}&#39;.format)
+
+        return df.copy()
 
     def get_carve_outs_table(
         self,
@@ -4490,13 +4588,74 @@ citCalculator object.</p></div>
     )
 
     columns = [
-        &#39;Parent jurisdiction (whitespaces cleaned)&#39;, &#39;TD_with_carve_outs&#39;, &#39;TD_no_carve_outs&#39;,
-        &#39;domestic_TD_with_carve_outs&#39;, &#39;domestic_TD_no_carve_outs&#39;, &#39;non_haven_TD_with_carve_outs&#39;,
-        &#39;non_haven_TD_no_carve_outs&#39;, &#39;tax_haven_TD_with_carve_outs&#39;, &#39;tax_haven_TD_no_carve_outs&#39;,
-        &#39;IS_EU&#39;, &#39;REPORTS_CbCR&#39;
+        &#39;Parent jurisdiction (whitespaces cleaned)&#39;, &#39;Parent jurisdiction (alpha-3 code)&#39;,
+        &#39;TD_with_carve_outs&#39;, &#39;TD_no_carve_outs&#39;, &#39;domestic_TD_with_carve_outs&#39;, &#39;domestic_TD_no_carve_outs&#39;,
+        &#39;non_haven_TD_with_carve_outs&#39;, &#39;non_haven_TD_no_carve_outs&#39;, &#39;tax_haven_TD_with_carve_outs&#39;,
+        &#39;tax_haven_TD_no_carve_outs&#39;, &#39;IS_EU&#39;, &#39;REPORTS_CbCR&#39;
     ]
 
     return restricted_df[columns].copy()</code></pre>
+</details>
+</dd>
+<dt id="tax_deficit_simulator.calculator.TaxDeficitCalculator.assess_carve_out_impact_formatted"><code class="name flex">
+<span>def <span class="ident">assess_carve_out_impact_formatted</span></span>(<span>self, minimum_ETR=0.25)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This method is used in the "app.py" file, which underlies the Streamlit simulator. It is used to produce the
+table on the "Substance-based carve-outs" page. It takes as input the selected minimum ETR and widely relies on
+the assess_carve_out_impact method defined above. It mostly consists in a series of formatting steps.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def assess_carve_out_impact_formatted(self, minimum_ETR=0.25):
+    &#34;&#34;&#34;
+    This method is used in the &#34;app.py&#34; file, which underlies the Streamlit simulator. It is used to produce the
+    table on the &#34;Substance-based carve-outs&#34; page. It takes as input the selected minimum ETR and widely relies on
+    the assess_carve_out_impact method defined above. It mostly consists in a series of formatting steps.
+    &#34;&#34;&#34;
+    df = self.assess_carve_out_impact(minimum_ETR=minimum_ETR)
+
+    df.sort_values(
+        by=&#39;Parent jurisdiction (whitespaces cleaned)&#39;,
+        inplace=True
+    )
+
+    mask_eu = df[&#39;Parent jurisdiction (alpha-3 code)&#39;].isin(eu_27_country_codes)
+
+    df = df[[&#39;Parent jurisdiction (whitespaces cleaned)&#39;, &#39;TD_no_carve_outs&#39;, &#39;TD_with_carve_outs&#39;]].copy()
+
+    dict_df = df.to_dict()
+
+    dict_df[df.columns[0]][len(df) + 1] = &#39;Total - EU27&#39;
+    dict_df[df.columns[1]][len(df) + 1] = df[mask_eu][&#39;TD_no_carve_outs&#39;].sum()
+    dict_df[df.columns[2]][len(df) + 1] = df[mask_eu][&#39;TD_with_carve_outs&#39;].sum()
+
+    dict_df[df.columns[0]][len(df) + 2] = &#39;Total - Whole sample&#39;
+    dict_df[df.columns[1]][len(df) + 2] = df[&#39;TD_no_carve_outs&#39;].sum()
+    dict_df[df.columns[2]][len(df) + 2] = df[&#39;TD_with_carve_outs&#39;].sum()
+
+    df = pd.DataFrame.from_dict(dict_df)
+
+    df[&#39;Change in % of revenue gains without carve-outs&#39;] = (
+        (df[&#39;TD_with_carve_outs&#39;] - df[&#39;TD_no_carve_outs&#39;]) / df[&#39;TD_no_carve_outs&#39;]
+    ) * 100
+
+    df.rename(
+        columns={
+            &#39;TD_no_carve_outs&#39;: &#39;Collectible tax deficit without carve-outs (€m)&#39;,
+            &#39;TD_with_carve_outs&#39;: &#39;Collectible tax deficit with carve-outs (€m)&#39;
+        },
+        inplace=True
+    )
+
+    for column_name in df.columns[1:-1]:
+        df[column_name] /= 10**6
+        df[column_name] = df[column_name].map(&#39;{:,.0f}&#39;.format)
+
+    df[df.columns[-1]] = df[df.columns[-1]].map(&#39;{:.1f}&#39;.format)
+
+    return df.copy()</code></pre>
 </details>
 </dd>
 <dt id="tax_deficit_simulator.calculator.TaxDeficitCalculator.check_appendix_A2"><code class="name flex">
@@ -6747,6 +6906,7 @@ make the table more readable and understandable.</p></div>
 <h4><code><a title="tax_deficit_simulator.calculator.TaxDeficitCalculator" href="#tax_deficit_simulator.calculator.TaxDeficitCalculator">TaxDeficitCalculator</a></code></h4>
 <ul class="">
 <li><code><a title="tax_deficit_simulator.calculator.TaxDeficitCalculator.assess_carve_out_impact" href="#tax_deficit_simulator.calculator.TaxDeficitCalculator.assess_carve_out_impact">assess_carve_out_impact</a></code></li>
+<li><code><a title="tax_deficit_simulator.calculator.TaxDeficitCalculator.assess_carve_out_impact_formatted" href="#tax_deficit_simulator.calculator.TaxDeficitCalculator.assess_carve_out_impact_formatted">assess_carve_out_impact_formatted</a></code></li>
 <li><code><a title="tax_deficit_simulator.calculator.TaxDeficitCalculator.check_appendix_A2" href="#tax_deficit_simulator.calculator.TaxDeficitCalculator.check_appendix_A2">check_appendix_A2</a></code></li>
 <li><code><a title="tax_deficit_simulator.calculator.TaxDeficitCalculator.check_tax_deficit_computations" href="#tax_deficit_simulator.calculator.TaxDeficitCalculator.check_tax_deficit_computations">check_tax_deficit_computations</a></code></li>
 <li><code><a title="tax_deficit_simulator.calculator.TaxDeficitCalculator.check_unilateral_scenario_gain_computations" href="#tax_deficit_simulator.calculator.TaxDeficitCalculator.check_unilateral_scenario_gain_computations">check_unilateral_scenario_gain_computations</a></code></li>
