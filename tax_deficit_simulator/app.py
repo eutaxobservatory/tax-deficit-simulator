@@ -317,16 +317,37 @@ elif page == 'Unilateral implementation scenario':
 
 else:
 
-    st.header('Some explanations before you get started')
+    st.header(
+        'Some explanations before you get started',
+        anchor='carve_outs_page'
+    )
 
     st.markdown(text_content[page]["1"])
     st.markdown(text_content[page]["2"])
 
     st.markdown('---')
 
+    st.header('Let us take a simple example')
+
+    for i in range(3, 10):
+        st.markdown(text_content[page][str(i)])
+
+    st.markdown('---')
+
     st.header('Simulate the impact of carve-outs on revenue gains')
 
-    st.markdown(text_content[page]["3"])
+    st.markdown(text_content[page]["10"])
+
+    # Slider for the user to choose the minimum effective tax rate
+    slider_value = st.slider(
+        'Select the minimum Effective Tax Rate (ETR):',
+        min_value=10, max_value=50,
+        value=25,
+        step=1,
+        format="%g percent",
+    )
+
+    st.markdown(text_content[page]["11"])
 
     # Slider for the user to choose the carve-outs rate
     slider_value_co_rate = st.slider(
@@ -346,43 +367,15 @@ else:
 
     calculator_carve_out.load_clean_data()
 
-    st.markdown(text_content[page]["4"])
+    st.markdown(text_content[page]["12"])
 
-    # Slider for the user to choose the minimum effective tax rate
-    slider_value = st.slider(
-        'Select the minimum Effective Tax Rate (ETR):',
-        min_value=10, max_value=50,
-        value=25,
-        step=1,
-        format="%g percent",
+    # We compute corporate tax revenue gains with and without substance-based carve-out, as well as the % change
+    output_df = calculator_carve_out.assess_carve_out_impact_formatted(
+        minimum_ETR=slider_value / 100
     )
 
-    st.markdown(text_content[page]["5"])
-
-    comparison_checkbox = st.checkbox(
-        label='Compare with revenue gains in absence of carve-outs',
-        value=False
-    )
-
-    if not comparison_checkbox:
-
-        # We compute the corporate tax revenue gains of each headquarter country
-        output_df = calculator_carve_out.output_tax_deficits_formatted(
-            minimum_ETR=slider_value / 100
-        )
-
-        # And output the resulting table
-        st.write(output_df)
-
-    else:
-
-        # We compute corporate tax revenue gains with and without substance-based carve-out, as well as the % change
-        output_df = calculator_carve_out.assess_carve_out_impact_formatted(
-            minimum_ETR=slider_value / 100
-        )
-
-        # And output the resulting table
-        st.write(output_df)
+    # And output the resulting table
+    st.write(output_df)
 
     # Button to download the table as a .csv file
     st.markdown(
