@@ -167,7 +167,7 @@ def compute_ETRs(row, kind):
 # ----------------------------------------------------------------------------------------------------------------------
 # --- Utils for the app.py file
 
-def get_table_download_button(df, scenario, effective_tax_rate, company=None, taxing_country=None):
+def get_table_download_button(df, scenario, effective_tax_rate, company=None, taxing_country=None, carve_out_rate=None):
     """
     This function is used in the "app.py" file to generate the HTML code that instantiates the download button on the
     following pages: "Case study with one multinational" (scenario=0), "Multilateral implementation scenario" (scenario
@@ -209,6 +209,10 @@ def get_table_download_button(df, scenario, effective_tax_rate, company=None, ta
 
         href += f' download="unilateral_scenario_{taxing_country}_{effective_tax_rate}_perc.csv">'
 
+    elif scenario == 4:
+        # Substance-based carve-outs page
+        href += f' download="min_ETR_{effective_tax_rate}_perc_CO_rate_{carve_out_rate}_perc.csv">'
+
     else:
         raise Exception('Value not accepted for the scenario argument.')
 
@@ -242,25 +246,26 @@ def get_report_download_button():
     return href
 
 
-def get_appendix_download_button():
+def get_carve_outs_note_download_button():
     """
-    Not yet used but following the same principle, this function builds the HTML code that will ultimately instantiate
-    the download button allowing the user to obtain the main and appendix tables of the study in Excel format.
+    Following the same principle, this function builds the HTML code that instantiates the download button allowing the
+    user to obtain the note on substance-based carve-outs in PDF format.
     """
 
-    # We fetch and read the .xlsx file from the files folder
-    path = os.path.join(path_to_files, 'test.xlsx')
+    # We fetch and read the .pdf file from the files folder
+    path = os.path.join(path_to_files, 'carve_outs_note.pdf')
 
     with open(path, 'rb') as file:
-        excel_content = file.read()
+        note_content = file.read()
 
-    # We encode it in the right format
-    b64 = base64.b64encode(excel_content).decode()
+    # We encode it to the right format
+    b64 = base64.b64encode(note_content).decode()
 
+    # And we build the HTML code
     href = f'<a href="data:application/octet-stream;base64,{b64}" download="{os.path.basename(path)}">'
 
-    href += '<input type="button" value="Click here to download the appendix tables (Excel)" '
+    href += '<input type="button" value="Click here to download the note on substance-based carve-outs (PDF)" '
 
-    href += 'class="download-button excel"></a>'
+    href += 'class="download-button pdf"></a>'
 
     return href

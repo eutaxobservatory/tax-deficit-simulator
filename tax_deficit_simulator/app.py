@@ -11,7 +11,7 @@ import json
 # Imports from other Python files
 from calculator import TaxDeficitCalculator
 from firm_level import correspondences, CompanyCalculator
-from utils import get_table_download_button, get_report_download_button, get_appendix_download_button
+from utils import get_table_download_button, get_report_download_button, get_carve_outs_note_download_button
 
 # ----------------------------------------------------------------------------------------------------------------------
 # --- Setting the page configuration
@@ -58,7 +58,8 @@ page = st.sidebar.selectbox(
         'Case study with one multinational',
         'Multilateral implementation scenario',
         'Partial cooperation scenario',
-        'Unilateral implementation scenario'
+        'Unilateral implementation scenario',
+        'Substance-based carve-outs'
     ]
 )
 
@@ -92,10 +93,11 @@ if page == 'Description of the research':
         unsafe_allow_html=True
     )
 
-    # st.markdown(
-    #     get_appendix_download_button(),
-    #     unsafe_allow_html=True
-    # )
+    # Download button for the carve-outs note (PDF)
+    st.markdown(
+        get_carve_outs_note_download_button(),
+        unsafe_allow_html=True
+    )
 
 elif page == 'Case study with one multinational':
     # We move to the case studies
@@ -256,7 +258,7 @@ elif page == 'Partial cooperation scenario':
         unsafe_allow_html=True
     )
 
-else:
+elif page == 'Unilateral implementation scenario':
     # We first use the output_tax_deficits_formatted method to build the list of in-sample countries
     tax_deficits = calculator.output_tax_deficits_formatted()
 
@@ -309,6 +311,79 @@ else:
             scenario=3,
             effective_tax_rate=slider_value,
             taxing_country=taxing_country
+        ),
+        unsafe_allow_html=True
+    )
+
+else:
+
+    st.header(
+        'Some explanations before you get started',
+        anchor='carve_outs_page'
+    )
+
+    st.markdown(text_content[page]["1"])
+    st.markdown(text_content[page]["2"])
+
+    st.markdown('---')
+
+    st.header('Let us take a simple example')
+
+    for i in range(3, 10):
+        st.markdown(text_content[page][str(i)])
+
+    st.markdown('---')
+
+    st.header('Simulate the impact of carve-outs on revenue gains')
+
+    st.markdown(text_content[page]["10"])
+
+    # Slider for the user to choose the minimum effective tax rate
+    slider_value = st.slider(
+        'Select the minimum Effective Tax Rate (ETR):',
+        min_value=10, max_value=50,
+        value=25,
+        step=1,
+        format="%g percent",
+    )
+
+    st.markdown(text_content[page]["11"])
+
+    # Slider for the user to choose the carve-outs rate
+    slider_value_co_rate = st.slider(
+        'Select the carve-outs rate:',
+        min_value=0.0, max_value=10.0,
+        value=5.0,
+        step=0.5,
+        format="%g percent",
+    )
+
+    calculator_carve_out = TaxDeficitCalculator(
+        carve_outs=True,
+        carve_out_rate=slider_value_co_rate / 100,
+        depreciation_only=False,
+        exclude_inventories=False
+    )
+
+    calculator_carve_out.load_clean_data()
+
+    st.markdown(text_content[page]["12"])
+
+    # We compute corporate tax revenue gains with and without substance-based carve-out, as well as the % change
+    output_df = calculator_carve_out.assess_carve_out_impact_formatted(
+        minimum_ETR=slider_value / 100
+    )
+
+    # And output the resulting table
+    st.write(output_df)
+
+    # Button to download the table as a .csv file
+    st.markdown(
+        get_table_download_button(
+            output_df,
+            scenario=4,
+            effective_tax_rate=slider_value,
+            carve_out_rate=slider_value_co_rate
         ),
         unsafe_allow_html=True
     )
