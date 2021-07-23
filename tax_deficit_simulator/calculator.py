@@ -1771,12 +1771,17 @@ class TaxDeficitCalculator:
             'Parent jurisdiction (whitespaces cleaned)', 'Parent jurisdiction (alpha-3 code)',
             'TD_with_carve_outs', 'TD_no_carve_outs', 'domestic_TD_with_carve_outs', 'domestic_TD_no_carve_outs',
             'non_haven_TD_with_carve_outs', 'non_haven_TD_no_carve_outs', 'tax_haven_TD_with_carve_outs',
-            'tax_haven_TD_no_carve_outs','IS_EU', 'REPORTS_CbCR'
+            'tax_haven_TD_no_carve_outs', 'IS_EU', 'REPORTS_CbCR'
         ]
 
         return restricted_df[columns].copy()
 
     def assess_carve_out_impact_formatted(self, minimum_ETR=0.25):
+        """
+        This method is used in the "app.py" file, which underlies the Streamlit simulator. It is used to produce the
+        table on the "Substance-based carve-outs" page. It takes as input the selected minimum ETR and widely relies on
+        the assess_carve_out_impact method defined above. It mostly consists in a series of formatting steps.
+        """
         df = self.assess_carve_out_impact(minimum_ETR=minimum_ETR)
 
         df.sort_values(
