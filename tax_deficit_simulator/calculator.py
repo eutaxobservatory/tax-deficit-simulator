@@ -70,7 +70,8 @@ class TaxDeficitCalculator:
         average_ETRs=False,
         carve_outs=False,
         carve_out_rate_assets=None, carve_out_rate_payroll=None,
-        depreciation_only=None, exclude_inventories=None, payroll_premium=20
+        depreciation_only=None, exclude_inventories=None, payroll_premium=20,
+        de_minimis_exclusion=False
     ):
         """
         This is the instantiation method for the TaxDeficitCalculator class.
@@ -151,6 +152,8 @@ class TaxDeficitCalculator:
 
         self.average_ETRs_bool = average_ETRs
         self.deflator_2016_to_2017 = 1.0613823
+
+        self.de_minimis_exclusion = de_minimis_exclusion
 
         if year == 2016:
 
@@ -282,6 +285,10 @@ class TaxDeficitCalculator:
             self.carve_out_rate_payroll = None
             self.depreciation_only = None
             self.exclude_inventories = None
+
+        if self.de_minimis_exclusion:
+            self.exclusion_threshold_revenues = 10 * 10**6 / self.USD_to_EUR
+            self.exclusion_threshold_profits = 1 * 10**6 / self.USD_to_EUR
 
     def load_clean_data(
         self,
@@ -589,6 +596,15 @@ class TaxDeficitCalculator:
             axis=1
         )
 
+        # We apply - if relevant - the de minimis exclusion based on revenue and profit thresholds
+        if self.de_minimis_exclusion:
+            mask_revenues = (oecd['Total revenues'] >= self.exclusion_threshold_revenues)
+            mask_profits = (oecd['Profit (Loss) before Income Tax'] >= self.exclusion_threshold_profits)
+
+            mask_de_minimis_exclusion = np.logical_and(mask_revenues, mask_profits)
+
+            oecd = oecd[mask_de_minimis_exclusion].copy()
+
         # We need some more work on the data if we want to simulate substance-based carve-outs
         if self.carve_outs:
 
@@ -735,10 +751,25 @@ class TaxDeficitCalculator:
         # We filter out countries with 0 profits in tax havens
         twz = twz[twz['Profits in all tax havens (positive only)'] > 0].copy()
 
+        # We apply - if relevant - the de minimis exclusion based solely on the profit threshold
+        if self.de_minimis_exclusion:
+
+            if self.carve_outs:
+                twz = twz[
+                    twz['Profits in all tax havens (positive only)'] / (1 - self.avg_carve_out_impact_tax_haven)
+                    >= self.exclusion_threshold_profits
+                ].copy()
+
+            else:
+                twz = twz[twz['Profits in all tax havens (positive only)'] >= self.exclusion_threshold_profits].copy()
+
         # --- Cleaning the TWZ domestic profits data
 
         # Resulting figures are expressed in 2016 USD
         twz_domestic['Domestic profits'] *= 10**9
+
+        if self.de_minimis_exclusion:
+            twz_domestic = twz_domestic[twz_domestic['Domestic profits'] >= self.exclusion_threshold_profits].copy()
 
         if self.carve_outs:
             # If we want to simulate carve-outs, we need to downgrade TWZ domestic profits by the average reduction due
