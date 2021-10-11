@@ -69,7 +69,7 @@ class TaxDeficitCalculator:
         sweden_treatment='exclude', belgium_treatment='none', use_adjusted_profits=False,
         average_ETRs=False,
         carve_outs=False,
-        carve_out_rate=None,
+        carve_out_rate_assets=None, carve_out_rate_payroll=None,
         depreciation_only=None, exclude_inventories=None, payroll_premium=20
     ):
         """
@@ -85,8 +85,8 @@ class TaxDeficitCalculator:
 
         If the latter argument is set to True, additional arguments are required:
 
-        - the "carve_out_rate" (float between 0 and 1) determines what share of tangible assets and payroll should be
-        deduced from the pre-tax profits of multinationals;
+        - "carve_out_rate_assets" and "carve_out_rate_payroll" (floats between 0 and 1) respectively determine what sha-
+        re of tangible assets and payroll should be deduced from the pre-tax profits of multinationals;
 
         - the boolean "depreciation_only" indicates whether to only account for depreciation expenses (instead of the
         full value of tangible assets) in the tangible assets component of the carve-outs. Following the methodology of
@@ -244,13 +244,17 @@ class TaxDeficitCalculator:
         if carve_outs:
 
             # We first check whether all the required parameters were provided
-            if carve_out_rate is None or depreciation_only is None or exclude_inventories is None:
+            if (
+                carve_out_rate_assets is None or carve_out_rate_payroll is None
+                or depreciation_only is None or exclude_inventories is None
+            ):
 
                 raise Exception(
                     'If you want to simulate substance-based carve-outs, you need to indicate all the parameters.'
                 )
 
-            self.carve_out_rate = carve_out_rate
+            self.carve_out_rate_assets = carve_out_rate_assets
+            self.carve_out_rate_payroll = carve_out_rate_payroll
             self.depreciation_only = depreciation_only
             self.exclude_inventories = exclude_inventories
             self.payroll_premium = payroll_premium
@@ -274,7 +278,8 @@ class TaxDeficitCalculator:
                 self.assets_multiplier = 1
 
         else:
-            self.carve_out_rate = None
+            self.carve_out_rate_assets = None
+            self.carve_out_rate_payroll = None
             self.depreciation_only = None
             self.exclude_inventories = None
 
@@ -612,8 +617,12 @@ class TaxDeficitCalculator:
             oecd['PAYROLL'] = oecd['Number of Employees'] * oecd['ANNUAL_VALUE'] * (1 + self.payroll_premium / 100)
 
             # We compute substance-based carve-outs from both payroll and tangible assets
-            oecd['CARVE_OUT'] = self.carve_out_rate * (
-                oecd['PAYROLL'] + oecd['Tangible Assets other than Cash and Cash Equivalents'] * self.assets_multiplier
+            oecd['CARVE_OUT'] = (
+                self.carve_out_rate_payroll * oecd['PAYROLL']
+                + (
+                    self.carve_out_rate_assets *
+                    oecd['Tangible Assets other than Cash and Cash Equivalents'] * self.assets_multiplier
+                )
             )
 
             # This column will contain slightly modified carve-outs, carve-outs being replaced by pre-tax profits
@@ -1931,13 +1940,16 @@ class TaxDeficitCalculator:
         - the split between domestic, tax haven and non-haven tax deficits;
         - and the same amounts with carve-outs being applied.
 
-        Carve-outs are applied with the parameters (carve-out rate, use of the full value of tangible assets or of de-
+        Carve-outs are applied with the parameters (carve-out rates, use of the full value of tangible assets or of de-
         preciation expenses only and exclusion of inventories or not) that are defined when instantiating the TaxDefi-
         citCalculator object.
         """
 
         # If carve-out parameters have not been indicated, we cannot run the computations
-        if self.carve_out_rate is None or self.depreciation_only is None or self.exclude_inventories is None:
+        if (
+            self.carve_out_rate_assets is None or self.carve_out_rate_payroll is None
+            or self.depreciation_only is None or self.exclude_inventories is None
+        ):
             raise Exception(
                 'If you want to simulate substance-based carve-outs, you need to indicate all the parameters.'
             )
@@ -1945,7 +1957,8 @@ class TaxDeficitCalculator:
         # We instantiate a TaxDeficitCalculator object with carve-outs
         calculator = TaxDeficitCalculator(
             carve_outs=True,
-            carve_out_rate=self.carve_out_rate,
+            carve_out_rate_assets=self.carve_out_rate_assets,
+            carve_out_rate_payroll=self.carve_out_rate_payroll,
             depreciation_only=self.depreciation_only,
             exclude_inventories=self.exclude_inventories
         )
@@ -2077,7 +2090,8 @@ class TaxDeficitCalculator:
         self,
         TWZ_countries_methodology,
         depreciation_only, exclude_inventories,
-        carve_out_rate=0.05
+        carve_out_rate_assets=0.05,
+        carve_out_rate_payroll=0.05
     ):
         """
         This function takes as input:
@@ -2089,7 +2103,7 @@ class TaxDeficitCalculator:
 
         - a boolean, "exlude_inventories", indicating whether to exlude inventories from tangible assets or not;
 
-        - the carve-out rate to use (which defaults to 5%).
+        - the carve-out rates to use (which both default to 5%).
 
         It returns a DataFrame that shows, for the 15% and 25% minimum rates and for each in-sample country, the estima-
         ted revenue gains from a global minimum tax without and with carve-outs being applied.
@@ -2130,7 +2144,7 @@ class TaxDeficitCalculator:
 
         # Computing corresponding tax deficits with substance-based carve-outs
         calculator = TaxDeficitCalculator(
-            carve_outs=True, carve_out_rate=carve_out_rate,
+            carve_outs=True, carve_out_rate_assets=carve_out_rate_assets, carve_out_rate_payroll=carve_out_rate_payroll,
             depreciation_only=depreciation_only, exclude_inventories=exclude_inventories
         )
 
@@ -2265,7 +2279,8 @@ class TaxDeficitCalculator:
     def get_carve_outs_table_2(
         self,
         exclude_inventories, depreciation_only,
-        carve_out_rate=0.05,
+        carve_out_rate_assets=0.05,
+        carve_out_rate_payroll=0.05,
         output_Excel=False
     ):
         """
@@ -2276,7 +2291,7 @@ class TaxDeficitCalculator:
 
         - a boolean, "exlude_inventories", indicating whether to exlude inventories from tangible assets or not;
 
-        - the carve-out rate to use (which defaults to 5%).
+        - the carve-out rates to use (which both default to 5%).
 
         It returns a DataFrame that shows, for the different minimum effective tax rates and for each in-sample country,
         the estimated impact of substance-based carve-outs. The change is expressed as a percentage of revenue gain es-
@@ -2288,7 +2303,8 @@ class TaxDeficitCalculator:
         df = self.get_carve_outs_table(
             TWZ_countries_methodology='initial',
             exclude_inventories=exclude_inventories, depreciation_only=depreciation_only,
-            carve_out_rate=carve_out_rate
+            carve_out_rate_assets=carve_out_rate_assets,
+            carve_out_rate_payroll=carve_out_rate_payroll
         )
 
         # Computing tax deficits without substance-based carve-outs
@@ -2328,7 +2344,8 @@ class TaxDeficitCalculator:
         # Computing corresponding tax deficits with substance-based carve-outs
         calculator = TaxDeficitCalculator(
             carve_outs=True,
-            carve_out_rate=carve_out_rate,
+            carve_out_rate_assets=carve_out_rate_assets,
+            carve_out_rate_payroll=carve_out_rate_payroll,
             depreciation_only=depreciation_only,
             exclude_inventories=exclude_inventories
         )
@@ -2446,8 +2463,9 @@ class TaxDeficitCalculator:
             actual_rate = carve_out_rate / 100
 
             # We instantiate a TaxDeficitCalculator object with carve-outs at the rate considered
+            # NB: we assume that the actual_rate is applied to both payroll and tangible assets similarly
             calculator = TaxDeficitCalculator(
-                carve_outs=True, carve_out_rate=actual_rate,
+                carve_outs=True, carve_out_rate_assets=actual_rate, carve_out_rate_payroll=actual_rate,
                 depreciation_only=False, exclude_inventories=exclude_inventories
             )
             calculator.load_clean_data()
