@@ -1,0 +1,302 @@
+NAME,CODE,CONTINENT_NAME,CONTINENT_CODE
+Afghanistan,AFG,Asia,ASIA
+Africa,AFR,Africa,AFR
+Other Africa,OAFR,Africa,AFR
+Albania,ALB,Europe,EUR
+Algeria,DZA,Africa,AFR
+America,AMR,America,AMR
+Americas,AMR,America,AMR
+America (Continent),AMR,America,AMR
+Central America,CAMR,America,AMR
+Latin America,LAMR,America,AMR
+North America,NAMR,North America,NAMR
+South America,SAMR,South America,SAMR
+Other America,OAMR,America,AMR
+Other Americas,OAMR,America,AMR
+American Samoa,ASM,Oceania,OCN
+Andorra,AND,Europe,EUR
+Angola,AGO,Africa,AFR
+Anguilla,AIA,North America,NAMR
+Antarctica,ATA,Antarctica,ATC
+Antigua and Barbuda,ATG,North America,NAMR
+Argentina,ARG,South America,SAMR
+Armenia,ARM,Asia,ASIA
+Aruba,ABW,North America,NAMR
+Asia,ASIA,Asia,ASIA
+Other Asia,OASIA,Asia,ASIA
+Australia,AUS,Oceania,OCN
+Austria,AUT,Europe,EUR
+Azerbaijan,AZE,Asia,ASIA
+Bahamas,BHS,North America,NAMR
+Bahrain,BHR,Asia,ASIA
+Bangladesh,BGD,Asia,ASIA
+Barbados,BRB,North America,NAMR
+Belarus,BLR,Europe,EUR
+Belgium,BEL,Europe,EUR
+Belize,BLZ,North America,NAMR
+Benin,BEN,Africa,AFR
+Bermuda,BMU,North America,NAMR
+Bhutan,BTN,Asia,ASIA
+"Bolivia, Plurinational State of",BOL,South America,SAMR
+Bolivia,BOL,South America,SAMR
+Bonaire,BES,North America,NAMR
+Bosnia and Herzegovina,BIH,Europe,EUR
+Botswana,BWA,Africa,AFR
+Bouvet Island,BVT,Antarctica,ATC
+Brazil,BRA,South America,SAMR
+British Indian Ocean Territory,IOT,Asia,ASIA
+Brunei Darussalam,BRN,Asia,ASIA
+Brunei,BRN,Asia,ASIA
+Bulgaria,BGR,Europe,EUR
+Burkina Faso,BFA,Africa,AFR
+Burundi,BDI,Africa,AFR
+Cambodia,KHM,Asia,ASIA
+Cameroon,CMR,Africa,AFR
+Canada,CAN,North America,NAMR
+Cape Verde,CPV,Africa,AFR
+Cayman Islands,CYM,North America,NAMR
+Central African Republic,CAF,Africa,AFR
+Chad,TCD,Africa,AFR
+Chile,CHL,South America,SAMR
+China,CHN,Asia,ASIA
+China (People's Republic of),CHN,Asia,ASIA
+Christmas Island,CXR,Asia,ASIA
+Cocos (Keeling) Islands,CCK,Asia,ASIA
+Colombia,COL,South America,SAMR
+Comoros,COM,Africa,AFR
+Congo,COG,Africa,AFR
+"Congo, Republic of",COG,Africa,AFR
+Democratic Republic of the Congo,COD,Africa,AFR
+Cook Islands,COK,Oceania,OCN
+Costa Rica,CRI,North America,NAMR
+C√¥te d'Ivoire,CIV,Africa,AFR
+Côte d'Ivoire,CIV,Africa,AFR
+Ivory Coast,CIV,Africa,AFR
+Croatia,HRV,Europe,EUR
+Cuba,CUB,North America,NAMR
+Curacao,CUW,North America,NAMR
+Cyprus,CYP,Europe,EUR
+Czech Republic,CZE,Europe,EUR
+Czechia,CZE,Europe,EUR
+Denmark,DNK,Europe,EUR
+Djibouti,DJI,Africa,AFR
+Dominica,DMA,North America,NAMR
+Dominican Republic,DOM,North America,NAMR
+Ecuador,ECU,South America,SAMR
+Egypt,EGY,Africa,AFR
+El Salvador,SLV,North America,NAMR
+Equatorial Guinea,GNQ,Africa,AFR
+Eritrea,ERI,Africa,AFR
+Estonia,EST,Europe,EUR
+Eswatini,SWZ,Africa,AFR
+Ethiopia,ETH,Africa,AFR
+Europe,EUR,Europe,EUR
+Other Europe,OEUR,Europe,EUR
+Falkland Islands (Malvinas),FLK,South America,SAMR
+Faroe Islands,FRO,Europe,EUR
+Faeroe Islands,FRO,Europe,EUR
+Fiji,FJI,Oceania,OCN
+Finland,FIN,Europe,EUR
+France,FRA,Europe,EUR
+French Guiana,GUF,South America,SAMR
+French Polynesia,PYF,Oceania,OCN
+French Southern Territories,ATF,Antarctica,ATC
+Gabon,GAB,Africa,AFR
+Gambia,GMB,Africa,AFR
+Georgia,GEO,Asia,ASIA
+Germany,DEU,Europe,EUR
+Ghana,GHA,Africa,AFR
+Gibraltar,GIB,Europe,EUR
+Greece,GRC,Europe,EUR
+Greenland,GRL,North America,NAMR
+Grenada,GRD,North America,NAMR
+Guadeloupe,GLP,North America,NAMR
+Guam,GUM,Oceania,OCN
+Guatemala,GTM,North America,NAMR
+Guernsey,GGY,Europe,EUR
+Guinea,GIN,Africa,AFR
+Guinea-Bissau,GNB,Africa,AFR
+Guyana,GUY,South America,SAMR
+Haiti,HTI,North America,NAMR
+Heard Island and McDonald Islands,HMD,Antarctica,ATC
+Holy See (Vatican City State),VAT,Europe,EUR
+Honduras,HND,North America,NAMR
+Hong Kong,HKG,Asia,ASIA
+"Hong Kong, China",HKG,Asia,ASIA
+"Hong Kong, SAR",HKG,Asia,ASIA
+Hungary,HUN,Europe,EUR
+Iceland,ISL,Europe,EUR
+India,IND,Asia,ASIA
+Indonesia,IDN,Asia,ASIA
+Iran,IRN,Asia,ASIA
+Iraq,IRQ,Asia,ASIA
+Ireland,IRL,Europe,EUR
+Isle of Man,IMN,Europe,EUR
+Israel,ISR,Asia,ASIA
+Italy,ITA,Europe,EUR
+Jamaica,JAM,North America,NAMR
+Japan,JPN,Asia,ASIA
+Jersey,JEY,Europe,EUR
+Jordan,JOR,Asia,ASIA
+Kazakhstan,KAZ,Asia,ASIA
+Kenya,KEN,Africa,AFR
+Kiribati,KIR,Oceania,OCN
+"Korea, Democratic People's Republic of",PRK,Asia,ASIA
+"Korea, Republic of",KOR,Asia,ASIA
+"Korea, Rep.",KOR,Asia,ASIA
+South Korea,KOR,Asia,ASIA
+Korea,KOR,Asia,ASIA
+Kosovo,XXK,Europe,EUR
+Kuwait,KWT,Asia,ASIA
+Kyrgyzstan,KGZ,Asia,ASIA
+Lao People's Democratic Republic,LAO,Asia,ASIA
+Laos,LAO,Asia,ASIA
+Latvia,LVA,Europe,EUR
+Lebanon,LBN,Asia,ASIA
+Lesotho,LSO,Africa,AFR
+Liberia,LBR,Africa,AFR
+Libyan Arab Jamahiriya,LBY,Africa,AFR
+Libya,LBY,Africa,AFR
+Liechtenstein,LIE,Europe,EUR
+Lithuania,LTU,Europe,EUR
+Luxembourg,LUX,Europe,EUR
+Macao,MAC,Asia,ASIA
+Macau,MAC,Asia,ASIA
+"Macau, SAR",MAC,Asia,ASIA
+"Macao, SAR",MAC,Asia,ASIA
+"Macao, China",MAC,Asia,ASIA
+"Macau, China",MAC,Asia,ASIA
+Northern Macedonia,MKD,Europe,EUR
+North Macedonia,MKD,Europe,EUR
+Macedonia,MKD,Europe,EUR
+Madagascar,MDG,Africa,AFR
+Malawi,MWI,Africa,AFR
+Malaysia,MYS,Asia,ASIA
+Maldives,MDV,Asia,ASIA
+Mali,MLI,Africa,AFR
+Malta,MLT,Europe,EUR
+Marshall Islands,MHL,Oceania,OCN
+Martinique,MTQ,North America,NAMR
+Mauritania,MRT,Africa,AFR
+Mauritius,MUS,Africa,AFR
+Mayotte,MYT,Africa,AFR
+Mexico,MEX,North America,NAMR
+Micronesia,FSM,Oceania,OCN
+Moldova,MDA,Europe,EUR
+Monaco,MCO,Europe,EUR
+Mongolia,MNG,Asia,ASIA
+Montenegro,MNE,Europe,EUR
+Montserrat,MSR,North America,NAMR
+Morocco,MAR,Africa,AFR
+Mozambique,MOZ,Africa,AFR
+Myanmar,MMR,Asia,ASIA
+Burma,MMR,Asia,ASIA
+Namibia,NAM,Africa,AFR
+Nauru,NRU,Oceania,OCN
+Nepal,NPL,Asia,ASIA
+Netherlands,NLD,Europe,EUR
+Netherlands Antilles,ANT,North America,NAMR
+New Caledonia,NCL,Oceania,OCN
+New Zealand,NZL,Oceania,OCN
+Nicaragua,NIC,North America,NAMR
+Niger,NER,Africa,AFR
+Nigeria,NGA,Africa,AFR
+Niue,NIU,Oceania,OCN
+Norfolk Island,NFK,Oceania,OCN
+Northern Mariana Islands,MNP,Oceania,OCN
+Norway,NOR,Europe,EUR
+Oceania,OCN,Oceania,OCN
+Other Oceania,OOCN,Oceania,OCN
+Oman,OMN,Asia,ASIA
+Pakistan,PAK,Asia,ASIA
+Palau,PLW,Oceania,OCN
+"Palestinian Territory, Occupied",PSE,Asia,ASIA
+Panama,PAN,North America,NAMR
+Papua New Guinea,PNG,Oceania,OCN
+Paraguay,PRY,South America,SAMR
+Peru,PER,South America,SAMR
+Philippines,PHL,Asia,ASIA
+Pitcairn,PCN,Oceania,OCN
+Poland,POL,Europe,EUR
+Portugal,PRT,Europe,EUR
+Puerto Rico,PRI,North America,NAMR
+Qatar,QAT,Asia,ASIA
+R√©union,REU,Africa,AFR
+Romania,ROU,Europe,EUR
+Russian Federation,RUS,Asia,ASIA
+Russia,RUS,Asia,ASIA
+Rwanda,RWA,Africa,AFR
+"Saint Helena, Ascension and Tristan da Cunha",SHN,Africa,AFR
+Saint Kitts and Nevis,KNA,North America,NAMR
+Saint Lucia,LCA,North America,NAMR
+Saint Pierre and Miquelon,SPM,North America,NAMR
+Saint Vincent and the Grenadines,VCT,North America,NAMR
+Saint Vincent & the Grenadines,VCT,North America,NAMR
+St. Vincent and the Grenadines,VCT,North America,NAMR
+Samoa,WSM,Oceania,OCN
+San Marino,SMR,Europe,EUR
+Sao Tome and Principe,STP,Africa,AFR
+Saudi Arabia,SAU,Asia,ASIA
+Senegal,SEN,Africa,AFR
+Serbia,SRB,Europe,EUR
+Seychelles,SYC,Africa,AFR
+Sierra Leone,SLE,Africa,AFR
+Singapore,SGP,Asia,ASIA
+Sint Maarten,SXM,North America,NAMR
+"Saint-Martin, France",MAF,North America,NAMR
+Saint-Martin,MAF,North America,NAMR
+Slovakia,SVK,Europe,EUR
+Slovak Republic,SVK,Europe,EUR
+Slovenia,SVN,Europe,EUR
+Solomon Islands,SLB,Oceania,OCN
+Somalia,SOM,Africa,AFR
+South Africa,ZAF,Africa,AFR
+South Georgia and the South Sandwich Islands,SGS,Antarctica,ATC
+South Sudan,SSD,Africa,AFR
+Spain,ESP,Europe,EUR
+Sri Lanka,LKA,Asia,ASIA
+Sudan,SDN,Africa,AFR
+Suriname,SUR,South America,SAMR
+Svalbard and Jan Mayen,SJM,Europe,EUR
+Swaziland,SWZ,Africa,AFR
+Sweden,SWE,Europe,EUR
+Switzerland,CHE,Europe,EUR
+Syrian Arab Republic,SYR,Asia,ASIA
+Syria,SYR,Asia,ASIA
+"Taiwan, Province of China",TWN,Asia,ASIA
+Taiwan Province of China,TWN,Asia,ASIA
+Taiwan,TWN,Asia,ASIA
+Chinese Taipei,TWN,Asia,ASIA
+Tajikistan,TJK,Asia,ASIA
+Tanzania,TZA,Africa,AFR
+Thailand,THA,Asia,ASIA
+Timor-Leste,TLS,Asia,ASIA
+Togo,TGO,Africa,AFR
+Tokelau,TKL,Oceania,OCN
+Tonga,TON,Oceania,OCN
+Trinidad and Tobago,TTO,North America,NAMR
+Tunisia,TUN,Africa,AFR
+Turkey,TUR,Asia,ASIA
+Turkmenistan,TKM,Asia,ASIA
+Turks and Caicos Islands,TCA,North America,NAMR
+Tuvalu,TUV,Oceania,OCN
+Uganda,UGA,Africa,AFR
+Ukraine,UKR,Europe,EUR
+United Arab Emirates,ARE,Asia,ASIA
+United Kingdom,GBR,Europe,EUR
+United States,USA,North America,NAMR
+United States Minor Outlying Islands,UMI,Oceania,OCN
+Uruguay,URY,South America,SAMR
+Uzbekistan,UZB,Asia,ASIA
+Vanuatu,VUT,Oceania,OCN
+"Venezuela, Bolivarian Republic of",VEN,South America,SAMR
+Venezuela,VEN,South America,SAMR
+Viet Nam,VNM,Asia,ASIA
+Vietnam,VNM,Asia,ASIA
+British Virgin Islands,VGB,North America,NAMR
+US Virgin Islands,VIR,North America,NAMR
+Wallis and Futuna,WLF,Oceania,OCN
+Western Sahara,ESH,Africa,AFR
+Yemen,YEM,Asia,ASIA
+Zambia,ZMB,Africa,AFR
+Zimbabwe,ZWE,Africa,AFR
