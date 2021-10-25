@@ -1090,7 +1090,12 @@ class TaxDeficitCalculator:
 
         return oecd_stratified.copy()
 
-    def compute_all_tax_deficits(self, minimum_ETR=0.25, CbCR_reporting_countries_only=False, save_countries_replaced=True):
+    def compute_all_tax_deficits(
+        self,
+        minimum_ETR=0.25,
+        CbCR_reporting_countries_only=False,
+        save_countries_replaced=True
+    ):
         """
         This method encapsulates most of the computations for the multilateral agreement scenario.
 
@@ -2895,6 +2900,7 @@ class TaxDeficitCalculator:
 
         return average_ETRs.copy()
 
+
 if __name__ == '__main__':
 
     path_to_output_file = sys.argv[1]
@@ -2923,4 +2929,3 @@ if __name__ == '__main__':
     with pd.ExcelWriter(path_to_output_file, engine='xlsxwriter') as writer:
         for key, value in final_output.items():
             value.to_excel(writer, sheet_name=key, index=False)
-

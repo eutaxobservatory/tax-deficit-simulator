@@ -208,7 +208,6 @@ def rename_partner_jurisdictions(row, use_case='normal'):
             return row['JUR']
 
 
-
 def manage_overlap_with_domestic(row, kind):
     """
     When cleaning and preprocessing the OECD data, we introduce several indicator variables:
