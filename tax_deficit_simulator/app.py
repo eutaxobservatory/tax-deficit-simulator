@@ -30,7 +30,14 @@ st.set_page_config(**PAGE_CONFIG)
 # ----------------------------------------------------------------------------------------------------------------------
 # --- Instantiating the calculator and loading the data
 
-calculator = TaxDeficitCalculator()
+# We instantiate the calculator following the methodology for our benchmark estimates
+calculator = TaxDeficitCalculator(
+    year=2017,
+    sweden_treatment='adjust', belgium_treatment='none', use_adjusted_profits=True,
+    average_ETRs=True,
+    de_minimis_exclusion=False,
+    add_AUT_AUT_row=None,
+)
 
 calculator.load_clean_data()
 
@@ -99,6 +106,9 @@ if page == 'Description of the research':
         unsafe_allow_html=True
     )
 
+    # Download button for the 2017 update note (PDF)
+    # TO BE ADDED
+
 elif page == 'Case study with one multinational':
     # We move to the case studies
     st.header('Some explanations before you get started')
@@ -152,7 +162,7 @@ elif page == 'Case study with one multinational':
         slider_value = st.slider(
             'Select the minimum Effective Tax Rate (ETR):',
             min_value=10, max_value=50,
-            value=25,
+            value=15,
             step=1,
             format="%g percent",
         )
@@ -195,7 +205,7 @@ elif page == 'Multilateral implementation scenario':
     slider_value = st.slider(
         'Select the minimum Effective Tax Rate (ETR):',
         min_value=10, max_value=50,
-        value=25,
+        value=15,
         step=1,
         format="%g percent",
     )
@@ -235,7 +245,7 @@ elif page == 'Partial cooperation scenario':
     slider_value = st.slider(
         'Select the minimum Effective Tax Rate (ETR):',
         min_value=10, max_value=50,
-        value=25,
+        value=15,
         step=1,
         format="%g percent",
     )
@@ -290,7 +300,7 @@ elif page == 'Unilateral implementation scenario':
     slider_value = st.slider(
         'Select the minimum Effective Tax Rate (ETR):',
         min_value=10, max_value=50,
-        value=25,
+        value=15,
         step=1,
         format="%g percent",
     )
@@ -342,7 +352,7 @@ else:
     slider_value = st.slider(
         'Select the minimum Effective Tax Rate (ETR):',
         min_value=10, max_value=50,
-        value=25,
+        value=15,
         step=1,
         format="%g percent",
     )
@@ -350,19 +360,33 @@ else:
     st.markdown(text_content[page]["11"])
 
     # Slider for the user to choose the carve-outs rate
-    slider_value_co_rate = st.slider(
-        'Select the carve-outs rate:',
+    slider_value_co_assets_rate = st.slider(
+        'Select the tangible assets carve-out rate:',
         min_value=0.0, max_value=10.0,
-        value=5.0,
-        step=0.5,
+        value=8.0,
+        step=0.1,
+        format="%g percent",
+    )
+
+    slider_value_co_payroll_rate = st.slider(
+        'Select the payroll carve-out rate:',
+        min_value=0.0, max_value=10.0,
+        value=10.0,
+        step=0.1,
         format="%g percent",
     )
 
     calculator_carve_out = TaxDeficitCalculator(
+        year=2017,
+        sweden_treatment='adjust', belgium_treatment='none', use_adjusted_profits=True,
+        average_ETRs=True,
         carve_outs=True,
-        carve_out_rate=slider_value_co_rate / 100,
+        carve_out_rate_assets=slider_value_co_assets_rate / 100,
+        carve_out_rate_payroll=slider_value_co_payroll_rate / 100,
         depreciation_only=False,
-        exclude_inventories=False
+        exclude_inventories=False,
+        de_minimis_exclusion=True,
+        add_AUT_AUT_row=True,
     )
 
     calculator_carve_out.load_clean_data()
