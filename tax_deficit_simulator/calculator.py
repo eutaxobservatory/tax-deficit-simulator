@@ -153,6 +153,8 @@ class TaxDeficitCalculator:
         # An effective tax rate of 10% is assumed to be applied on profits registered in tax havens
         self.assumed_haven_ETR_TWZ = 0.1
 
+        self.sweden_treatment = sweden_treatment
+
         if sweden_treatment == 'exclude':
             self.sweden_exclude = True
             self.sweden_adjust = False
@@ -2105,11 +2107,19 @@ class TaxDeficitCalculator:
 
         # We instantiate a TaxDeficitCalculator object with carve-outs
         calculator = TaxDeficitCalculator(
+            year=self.year,
+            sweden_treatment=self.sweden_treatment,
+            belgium_treatment=self.belgium_treatment,
+            use_adjusted_profits=self.use_adjusted_profits,
+            average_ETRs=self.average_ETRs_bool,
             carve_outs=True,
             carve_out_rate_assets=self.carve_out_rate_assets,
             carve_out_rate_payroll=self.carve_out_rate_payroll,
             depreciation_only=self.depreciation_only,
-            exclude_inventories=self.exclude_inventories
+            exclude_inventories=self.exclude_inventories,
+            ex_post_ETRs=self.ex_post_ETRs,
+            add_AUT_AUT_row=self.add_AUT_AUT_row,
+            extended_dividends_adjustment=self.extended_dividends_adjustment
         )
 
         # We load the data
@@ -2122,7 +2132,16 @@ class TaxDeficitCalculator:
         )
 
         # We instantiate a TaxDeficitCalculator object without carve-outs
-        calculator_no_carve_out = TaxDeficitCalculator()
+        calculator_no_carve_out = TaxDeficitCalculator(
+            year=self.year,
+            sweden_treatment=self.sweden_treatment,
+            belgium_treatment=self.belgium_treatment,
+            use_adjusted_profits=self.use_adjusted_profits,
+            average_ETRs=self.average_ETRs_bool,
+            carve_outs=False,
+            add_AUT_AUT_row=self.add_AUT_AUT_row,
+            extended_dividends_adjustment=self.extended_dividends_adjustment
+        )
 
         # We load the data
         calculator_no_carve_out.load_clean_data()

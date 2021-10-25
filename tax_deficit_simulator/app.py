@@ -36,7 +36,7 @@ calculator = TaxDeficitCalculator(
     sweden_treatment='adjust', belgium_treatment='none', use_adjusted_profits=True,
     average_ETRs=True,
     de_minimis_exclusion=False,
-    add_AUT_AUT_row=None,
+    add_AUT_AUT_row=True,
 )
 
 calculator.load_clean_data()
@@ -364,7 +364,7 @@ else:
         'Select the tangible assets carve-out rate:',
         min_value=0.0, max_value=10.0,
         value=8.0,
-        step=0.1,
+        step=0.2,
         format="%g percent",
     )
 
@@ -372,7 +372,7 @@ else:
         'Select the payroll carve-out rate:',
         min_value=0.0, max_value=10.0,
         value=10.0,
-        step=0.1,
+        step=0.2,
         format="%g percent",
     )
 
@@ -383,15 +383,16 @@ else:
         carve_outs=True,
         carve_out_rate_assets=slider_value_co_assets_rate / 100,
         carve_out_rate_payroll=slider_value_co_payroll_rate / 100,
-        depreciation_only=False,
-        exclude_inventories=False,
+        depreciation_only=False, exclude_inventories=False, ex_post_ETRs=False,
         de_minimis_exclusion=True,
         add_AUT_AUT_row=True,
     )
 
-    calculator_carve_out.load_clean_data()
-
     st.markdown(text_content[page]["12"])
+
+    st.markdown(text_content[page]["13"])
+
+    calculator_carve_out.load_clean_data()
 
     # We compute corporate tax revenue gains with and without substance-based carve-out, as well as the % change
     output_df = calculator_carve_out.assess_carve_out_impact_formatted(
@@ -407,7 +408,8 @@ else:
             output_df,
             scenario=4,
             effective_tax_rate=slider_value,
-            carve_out_rate=slider_value_co_rate
+            carve_out_rate_assets=slider_value_co_assets_rate,
+            carve_out_rate_payroll=slider_value_co_payroll_rate
         ),
         unsafe_allow_html=True
     )

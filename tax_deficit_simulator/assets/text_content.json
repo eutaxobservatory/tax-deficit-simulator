@@ -2,7 +2,7 @@
     "Description of the research":{
         "1": "This simulator accompanies the report of the [EU Tax Observatory](https://taxobservatory.eu/), *Collecting the tax deficit of multinational companies: Simulations for the European Union* (June 2021), as well as the complementary notes released in July and October 2021.",
         "2": "This study estimates how much tax revenue the European Union could collect by imposing a minimum tax on the profits of multinational companies. It relies on the notion of tax deficit, defined as the difference between what multinationals currently pay in taxes, and what they would pay if they were subject to a minimum tax rate in each country. Three ways for EU countries to collect this tax deficit are considered:",
-        "3": "* an international agreement on a minimum tax of the type currently discussed within the OECD / G20 Inclusive Framework on BEPS, in which scenario a minimum tax rate of 15% could increase corporate income tax revenues in the European Union by about €80 billion in 2021;",
+        "3": "* an international agreement on a minimum tax of the type currently discussed within the OECD / G20 Inclusive Framework on BEPS, in which scenario a minimum tax rate of 15% could increase tax revenues in the European Union by about €80 billion in 2021;",
         "4": "* an incomplete international agreement in which only EU countries apply a minimum tax. Substantial corporate income tax revenue gains would then come from collecting a portion of the tax deficit of non-EU multinationals;",
         "5": "* a “first-mover” scenario, in which one country alone decides to collect the tax deficit of multinational companies. In June 2021, we estimated that on average, a first mover in the European Union would increase its corporate tax revenues by close to 70% relative to its current corporate tax collection.",
         "6": "This simulator was designed for policy makers, journalists, members of civil society, and all citizens in each EU country to assess the revenue potential from minimum taxation on both domestic and foreign firms. Each of the aforementioned scenarios can be investigated on a specific page, accessible via the left-hand sidebar, that allows to simulate corporate tax revenue gains from any minimum effective tax rate between 10% and 50%."
@@ -39,6 +39,7 @@
         "9": "*(pre-tax profits - carve-outs) x (15% - 5%) = (100 - 10) x (15% - 5%) = 90 x 10% = €9*",
         "10": "You can first choose the minimum effective tax rate imposed through the multilateral agreement. The latest joint statement has settled a minimum rate of 15%; some countries have expressed their support for a higher rate, around 21%.",
         "11": "Next, you may select the carve-out rates, i.e. the shares of tangible assets and payroll that will be deducted from pre-tax profits. The joint statement of October 8th introduces a 10-year transition period during which carve-outs, starting at 8% of tangible assets and 10% of payroll, will be more generous. The rates should progressively decrease, down to 5% for both assets and payroll in the longer run.",
-        "12": "The following table then displays the estimated revenues gains. It also allows to compare revenues with and without the application of substance-based carve-outs."
+        "12": "The following table then displays the estimated revenues gains. It also allows to compare revenues with and without the application of substance-based carve-outs.",
+        "13": "*Note that the computation may take a few seconds to run.*"
     }
 }

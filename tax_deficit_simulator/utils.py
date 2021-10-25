@@ -325,7 +325,12 @@ def compute_ETRs(row, kind):
 # ----------------------------------------------------------------------------------------------------------------------
 # --- Utils for the app.py file
 
-def get_table_download_button(df, scenario, effective_tax_rate, company=None, taxing_country=None, carve_out_rate=None):
+def get_table_download_button(
+    df,
+    scenario,
+    effective_tax_rate,
+    company=None, taxing_country=None, carve_out_rate_assets=None, carve_out_rate_payroll=None
+    ):
     """
     This function is used in the "app.py" file to generate the HTML code that instantiates the download button on the
     following pages: "Case study with one multinational" (scenario=0), "Multilateral implementation scenario" (scenario
@@ -369,7 +374,8 @@ def get_table_download_button(df, scenario, effective_tax_rate, company=None, ta
 
     elif scenario == 4:
         # Substance-based carve-outs page
-        href += f' download="min_ETR_{effective_tax_rate}_perc_CO_rate_{carve_out_rate}_perc.csv">'
+        href += f' download="min_ETR_{effective_tax_rate}_perc_CO_'
+        href += f'{str(carve_out_rate_assets)}_&_{str(carve_out_rate_payroll)}_perc.csv">'
 
     else:
         raise Exception('Value not accepted for the scenario argument.')
