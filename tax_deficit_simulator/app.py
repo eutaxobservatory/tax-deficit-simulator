@@ -146,7 +146,7 @@ elif page == 'Case study with one multinational':
         st.markdown('### Where does this tax deficit come from?')
 
         # We display the table with all details on the 25% tax deficit of the company
-        df = company.get_tax_deficit_origins_table(minimum_ETR=0.25, formatted=True)
+        df = company.get_tax_deficit_origins_table(minimum_ETR=0.15, formatted=True)
 
         st.markdown(company.get_second_sentence())
 

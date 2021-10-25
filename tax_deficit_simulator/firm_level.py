@@ -332,9 +332,9 @@ class CompanyCalculator:
         This method is used in the "app.py" file. Without requiring any specific argument, it outputs the first sentence
         displayed on the "Case study with one multinational" page.
         """
-        amount = self.compute_tax_revenue_gain(minimum_ETR=0.25)
+        amount = self.compute_tax_revenue_gain(minimum_ETR=0.15)
 
-        s = f'Should {self.headquarter_country} impose a minimum tax rate of 25% on all the profits registered by '
+        s = f'Should {self.headquarter_country} impose a minimum tax rate of 15% on all the profits registered by '
 
         s += f'{self.company_name}, it could collect an additional tax revenue of about {"{:,.0f}".format(amount)} mil'
 
@@ -347,7 +347,7 @@ class CompanyCalculator:
         This method is used in the "app.py" file. Without requiring any specific argument, it outputs the second senten-
         ce displayed on the "Case study with one multinational" page.
         """
-        df = self.compute_tax_deficits(minimum_ETR=0.25)
+        df = self.compute_tax_deficits(minimum_ETR=0.15)
 
         s = 'We now want to investigate where this tax deficit comes from, i.e. in what jurisdictions the profits taxed'
 
@@ -355,7 +355,7 @@ class CompanyCalculator:
 
         s += f'The following table provides the details of the {len(df)} countries where {self.company_name} registered'
 
-        s += ' profits that were taxed below a minimum effective tax rate of 25%.'
+        s += ' profits that were taxed below a minimum effective tax rate of 15%.'
 
         return s
 
