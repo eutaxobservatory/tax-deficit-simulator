@@ -173,8 +173,8 @@ class TaxDeficitCalculator:
 
         self.extended_dividends_adjustment = extended_dividends_adjustment
 
-        if self.extended_dividends_adjustment:
-            self.sweden_adj_ratio_2017 = (512 - 266) / 512
+        self.sweden_adj_ratio_2016 = (342 - 200) / 342
+        self.sweden_adj_ratio_2017 = (512 - 266) / 512
 
         if year == 2016:
 
@@ -2918,6 +2918,81 @@ class TaxDeficitCalculator:
         self.average_ETRs = average_ETRs.copy()
 
         return average_ETRs.copy()
+
+    def output_dividends_appendix_table(self, path_to_oecd=path_to_oecd):
+
+        # Loading the raw OECD data
+        oecd = pd.read_csv(path_to_oecd)
+
+        oecd = oecd[oecd['PAN'] == 'PANELAI'].copy()
+
+        # Instantiating the dictionary which will be transformed into a DataFrame
+        output = {
+            'Parent country': [],
+            'Year': [],
+            'Unadjusted profits before tax (€bn)': [],
+            'Adjusted profits before tax (€bn)': [],
+            'Adjustment factor (%)': []
+        }
+
+        # Sweden case
+        temp = oecd[
+            np.logical_and(
+                oecd['COU'] == 'SWE',
+                np.logical_and(
+                    oecd['JUR'] == 'SWE',
+                    oecd['CBC'] == 'PROFIT'
+                )
+            )
+        ].copy()
+
+        for year in [2016, 2017]:
+            output['Parent country'].append('Sweden')
+            output['Year'].append(year)
+
+            output['Unadjusted profits before tax (€bn)'].append(
+                temp[temp['YEA'] == year]['Value'].iloc[0] / 10**9
+            )
+
+            multiplier = self.sweden_adj_ratio_2016 if year == 2016 else self.sweden_adj_ratio_2017
+
+            output['Adjusted profits before tax (€bn)'].append(
+                temp[temp['YEA'] == year]['Value'].iloc[0] / 10**9 * multiplier
+            )
+
+            output['Adjustment factor (%)'].append(multiplier * 100)
+
+        # Countries providing adjusted profits
+        temp = oecd[oecd['CBC'] == 'PROFIT_ADJ'].copy()
+
+        for parent_country in temp['Ultimate Parent Jurisdiction'].unique():
+            output['Parent country'].append(parent_country)
+
+            temp_bis = temp[temp['Ultimate Parent Jurisdiction'] == parent_country].copy()
+
+            for year in temp_bis['YEA'].unique():
+                output['Year'].append(year)
+
+                adjusted_profits = temp_bis[temp_bis['Year'] == year]['Value'].iloc[0]
+
+                unadjusted_profits = oecd[
+                    np.logical_and(
+                        oecd['Ultimate Parent Jurisdiction'] == parent_country,
+                        np.logical_and(
+                            oecd['Partner Jurisdiction'] == parent_country,
+                            np.logical_and(
+                                oecd['YEA'] == year,
+                                oecd['CBC'] == 'PROFIT'
+                            )
+                        )
+                    )
+                ]['Value'].iloc[0]
+
+                output['Adjusted profits before tax (€bn)'].append(adjusted_profits / 10**9)
+                output['Unadjusted profits before tax (€bn)'].append(unadjusted_profits / 10**9)
+                output['Adjustment factor (%)'].append(adjusted_profits / unadjusted_profits * 100)
+
+        return pd.DataFrame(output)
 
 
 if __name__ == '__main__':
