@@ -433,3 +433,28 @@ def get_carve_outs_note_download_button():
     href += 'class="download-button pdf"></a>'
 
     return href
+
+
+def get_2017_update_download_button():
+    """
+    Following the same principle, this function builds the HTML code that instantiates the download button allowing the
+    user to obtain the October 2021 note in PDF format.
+    """
+
+    # We fetch and read the .pdf file from the files folder
+    path = os.path.join(path_to_files, 'carve_outs_note.pdf')
+
+    with open(path, 'rb') as file:
+        note_content = file.read()
+
+    # We encode it to the right format
+    b64 = base64.b64encode(note_content).decode()
+
+    # And we build the HTML code
+    href = f'<a href="data:application/octet-stream;base64,{b64}" download="{os.path.basename(path)}">'
+
+    href += '<input type="button" value="Click here to download our latest country-by-country estimates '
+
+    href += '(Oct. 2021, PDF)" class="download-button pdf"></a>'
+
+    return href

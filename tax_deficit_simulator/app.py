@@ -11,7 +11,8 @@ import json
 # Imports from other Python files
 from calculator import TaxDeficitCalculator
 from firm_level import correspondences, CompanyCalculator
-from utils import get_table_download_button, get_report_download_button, get_carve_outs_note_download_button
+from utils import get_table_download_button, get_report_download_button, get_carve_outs_note_download_button, \
+    get_2017_update_download_button
 
 # ----------------------------------------------------------------------------------------------------------------------
 # --- Setting the page configuration
@@ -63,7 +64,7 @@ page = st.sidebar.selectbox(
     [
         'Description of the research',
         'Case study with one multinational',
-        'Multilateral implementation scenario',
+        'Multilateral agreement simulation',
         'Partial cooperation scenario',
         'Unilateral implementation scenario',
         'Substance-based carve-outs'
@@ -107,7 +108,10 @@ if page == 'Description of the research':
     )
 
     # Download button for the 2017 update note (PDF)
-    # TO BE ADDED
+    st.markdown(
+        get_2017_update_download_button(),
+        unsafe_allow_html=True
+    )
 
 elif page == 'Case study with one multinational':
     # We move to the case studies
@@ -187,7 +191,7 @@ elif page == 'Case study with one multinational':
             unsafe_allow_html=True
         )
 
-elif page == 'Multilateral implementation scenario':
+elif page == 'Multilateral agreement simulation':
     # We now move to the multilateral implementation scenario
     st.header('Some explanations before you get started')
 
@@ -227,6 +231,8 @@ elif page == 'Multilateral implementation scenario':
         ),
         unsafe_allow_html=True
     )
+
+    st.markdown(text_content[page]["4"])
 
 elif page == 'Partial cooperation scenario':
     st.header('Some explanations before you get started')
