@@ -442,7 +442,7 @@ def get_2017_update_download_button():
     """
 
     # We fetch and read the .pdf file from the files folder
-    path = os.path.join(path_to_files, 'carve_outs_note.pdf')
+    path = os.path.join(path_to_files, 'Note-2-November-2021.pdf')
 
     with open(path, 'rb') as file:
         note_content = file.read()
