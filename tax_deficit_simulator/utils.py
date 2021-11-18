@@ -330,7 +330,7 @@ def get_table_download_button(
     scenario,
     effective_tax_rate,
     company=None, taxing_country=None, carve_out_rate_assets=None, carve_out_rate_payroll=None
-    ):
+):
     """
     This function is used in the "app.py" file to generate the HTML code that instantiates the download button on the
     following pages: "Case study with one multinational" (scenario=0), "Multilateral implementation scenario" (scenario
