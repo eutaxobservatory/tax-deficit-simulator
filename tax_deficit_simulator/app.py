@@ -11,7 +11,8 @@ import json
 # Imports from other Python files
 from calculator import TaxDeficitCalculator
 from firm_level import correspondences, CompanyCalculator
-from utils import get_table_download_button, get_report_download_button, get_carve_outs_note_download_button
+from utils import get_table_download_button, get_report_download_button, get_carve_outs_note_download_button, \
+    get_2017_update_download_button
 
 # ----------------------------------------------------------------------------------------------------------------------
 # --- Setting the page configuration
@@ -30,7 +31,14 @@ st.set_page_config(**PAGE_CONFIG)
 # ----------------------------------------------------------------------------------------------------------------------
 # --- Instantiating the calculator and loading the data
 
-calculator = TaxDeficitCalculator()
+# We instantiate the calculator following the methodology for our benchmark estimates
+calculator = TaxDeficitCalculator(
+    year=2017,
+    sweden_treatment='adjust', belgium_treatment='none', use_adjusted_profits=True,
+    average_ETRs=True,
+    de_minimis_exclusion=False,
+    add_AUT_AUT_row=True,
+)
 
 calculator.load_clean_data()
 
@@ -56,7 +64,7 @@ page = st.sidebar.selectbox(
     [
         'Description of the research',
         'Case study with one multinational',
-        'Multilateral implementation scenario',
+        'Multilateral agreement simulation',
         'Partial cooperation scenario',
         'Unilateral implementation scenario',
         'Substance-based carve-outs'
@@ -99,6 +107,12 @@ if page == 'Description of the research':
         unsafe_allow_html=True
     )
 
+    # Download button for the 2017 update note (PDF)
+    st.markdown(
+        get_2017_update_download_button(),
+        unsafe_allow_html=True
+    )
+
 elif page == 'Case study with one multinational':
     # We move to the case studies
     st.header('Some explanations before you get started')
@@ -136,7 +150,7 @@ elif page == 'Case study with one multinational':
         st.markdown('### Where does this tax deficit come from?')
 
         # We display the table with all details on the 25% tax deficit of the company
-        df = company.get_tax_deficit_origins_table(minimum_ETR=0.25, formatted=True)
+        df = company.get_tax_deficit_origins_table(minimum_ETR=0.15, formatted=True)
 
         st.markdown(company.get_second_sentence())
 
@@ -152,7 +166,7 @@ elif page == 'Case study with one multinational':
         slider_value = st.slider(
             'Select the minimum Effective Tax Rate (ETR):',
             min_value=10, max_value=50,
-            value=25,
+            value=15,
             step=1,
             format="%g percent",
         )
@@ -177,7 +191,7 @@ elif page == 'Case study with one multinational':
             unsafe_allow_html=True
         )
 
-elif page == 'Multilateral implementation scenario':
+elif page == 'Multilateral agreement simulation':
     # We now move to the multilateral implementation scenario
     st.header('Some explanations before you get started')
 
@@ -195,7 +209,7 @@ elif page == 'Multilateral implementation scenario':
     slider_value = st.slider(
         'Select the minimum Effective Tax Rate (ETR):',
         min_value=10, max_value=50,
-        value=25,
+        value=15,
         step=1,
         format="%g percent",
     )
@@ -218,6 +232,8 @@ elif page == 'Multilateral implementation scenario':
         unsafe_allow_html=True
     )
 
+    st.markdown(text_content[page]["4"])
+
 elif page == 'Partial cooperation scenario':
     st.header('Some explanations before you get started')
 
@@ -235,7 +251,7 @@ elif page == 'Partial cooperation scenario':
     slider_value = st.slider(
         'Select the minimum Effective Tax Rate (ETR):',
         min_value=10, max_value=50,
-        value=25,
+        value=15,
         step=1,
         format="%g percent",
     )
@@ -290,7 +306,7 @@ elif page == 'Unilateral implementation scenario':
     slider_value = st.slider(
         'Select the minimum Effective Tax Rate (ETR):',
         min_value=10, max_value=50,
-        value=25,
+        value=15,
         step=1,
         format="%g percent",
     )
@@ -342,7 +358,7 @@ else:
     slider_value = st.slider(
         'Select the minimum Effective Tax Rate (ETR):',
         min_value=10, max_value=50,
-        value=25,
+        value=15,
         step=1,
         format="%g percent",
     )
@@ -350,24 +366,39 @@ else:
     st.markdown(text_content[page]["11"])
 
     # Slider for the user to choose the carve-outs rate
-    slider_value_co_rate = st.slider(
-        'Select the carve-outs rate:',
+    slider_value_co_assets_rate = st.slider(
+        'Select the tangible assets carve-out rate:',
         min_value=0.0, max_value=10.0,
-        value=5.0,
-        step=0.5,
+        value=8.0,
+        step=0.2,
+        format="%g percent",
+    )
+
+    slider_value_co_payroll_rate = st.slider(
+        'Select the payroll carve-out rate:',
+        min_value=0.0, max_value=10.0,
+        value=10.0,
+        step=0.2,
         format="%g percent",
     )
 
     calculator_carve_out = TaxDeficitCalculator(
+        year=2017,
+        sweden_treatment='adjust', belgium_treatment='none', use_adjusted_profits=True,
+        average_ETRs=True,
         carve_outs=True,
-        carve_out_rate=slider_value_co_rate / 100,
-        depreciation_only=False,
-        exclude_inventories=False
+        carve_out_rate_assets=slider_value_co_assets_rate / 100,
+        carve_out_rate_payroll=slider_value_co_payroll_rate / 100,
+        depreciation_only=False, exclude_inventories=False, ex_post_ETRs=False,
+        de_minimis_exclusion=True,
+        add_AUT_AUT_row=True,
     )
 
-    calculator_carve_out.load_clean_data()
-
     st.markdown(text_content[page]["12"])
+
+    st.markdown(text_content[page]["13"])
+
+    calculator_carve_out.load_clean_data()
 
     # We compute corporate tax revenue gains with and without substance-based carve-out, as well as the % change
     output_df = calculator_carve_out.assess_carve_out_impact_formatted(
@@ -383,7 +414,8 @@ else:
             output_df,
             scenario=4,
             effective_tax_rate=slider_value,
-            carve_out_rate=slider_value_co_rate
+            carve_out_rate_assets=slider_value_co_assets_rate,
+            carve_out_rate_payroll=slider_value_co_payroll_rate
         ),
         unsafe_allow_html=True
     )

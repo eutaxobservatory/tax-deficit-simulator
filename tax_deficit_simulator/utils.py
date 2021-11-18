@@ -12,6 +12,7 @@ import base64
 import os
 
 import numpy as np
+import pandas as pd
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -24,12 +25,152 @@ path_to_files = os.path.join(path_to_files, 'files')
 # ----------------------------------------------------------------------------------------------------------------------
 # --- Utils for the calculator.py file
 
-
+# This list is valid for both 2016 and 2017 dataset
 COUNTRIES_WITH_MINIMUM_REPORTING = ['KOR', 'NLD', 'IRL', 'FIN']
-COUNTRIES_WITH_CONTINENTAL_REPORTING = ['AUT', 'NOR', 'SVN', 'SWE']
 
 
-def rename_partner_jurisdictions(row):
+country_name_corresp = {
+    'BVI': 'British Virgin Islands',
+    'Gribraltar': 'Gibraltar',
+    'Isle of man': 'Isle of Man',
+    'St. Kitts and Nevis': 'Saint Kitts and Nevis',
+    'St. Lucia': 'Saint Lucia',
+    'Turks and Caicos': 'Turks and Caicos Islands',
+    'Bahamas, The': 'Bahamas'
+}
+
+
+def load_and_clean_twz_main_data(path_to_excel_file, path_to_geographies):
+    geographies = pd.read_csv(path_to_geographies)
+    geographies = geographies[['NAME', 'CODE']].copy()
+
+    twz = pd.read_excel(
+        path_to_excel_file,
+        sheet_name='TableC4',
+        engine='openpyxl'
+    )
+
+    twz.drop(
+        columns=['Unnamed: 0'] + list(twz.columns[-5:]),
+        inplace=True
+    )
+
+    twz = twz.iloc[6:-3].copy()
+
+    twz = twz[['Unnamed: 1', 'Unnamed: 2'] + list(twz.columns[-11:])].copy()
+
+    column_names = list(twz.iloc[0, 1:]).copy()
+    column_names[0] = 'All havens - Excessive high risk payments'
+
+    twz.columns = ['Country'] + column_names
+
+    twz = twz.iloc[2:].copy()
+
+    twz.reset_index(drop=True, inplace=True)
+
+    twz = twz[twz.isnull().sum(axis=1) != twz.isnull().sum(axis=1).max()].copy()
+
+    twz.drop(
+        columns=['All havens - Excessive high risk payments', 'All havens', 'EU havens', 'Non-EU tax havens'],
+        inplace=True
+    )
+
+    for column in twz.columns[1:]:
+        twz[column] = twz[column].fillna(0)
+
+    twz = twz.dropna().reset_index(drop=True)
+
+    twz = twz[
+        ~twz['Country'].isin(
+            [
+                'OECD countries',
+                'Main developing countries',
+                'Non-OECD tax havens',
+                'Rest of World',
+                'Non-haven total',
+                'Additional developing countries'
+            ]
+        )
+    ].copy()
+
+    twz['Country'] = twz['Country'].map(
+        lambda country_name: country_name_corresp.get(country_name, country_name)
+    )
+
+    twz = twz.merge(
+        geographies,
+        how='left',
+        left_on='Country', right_on='NAME'
+    ).drop(columns='NAME')
+
+    twz['Profits in all tax havens'] = twz[twz.columns[1:]].sum(axis=1)
+
+    twz['Profits in all tax havens (positive only)'] = twz[twz.columns[1:]].apply(
+        lambda row: row.iloc[:-2][row.iloc[:-2] >= 0].sum(),
+        axis=1
+    )
+
+    for country_name in np.intersect1d(twz['Country'].unique(), twz.columns):
+
+        twz[f'{country_name}_temp'] = (twz['Country'] == country_name)
+
+        twz[f'{country_name}_temp'] = twz[country_name] * twz[f'{country_name}_temp']
+
+        twz['Profits in all tax havens'] -= twz[f'{country_name}_temp']
+
+        if (twz[f'{country_name}_temp'] > 0).sum() == 1:
+            twz['Profits in all tax havens (positive only)'] -= twz[f'{country_name}_temp']
+
+        twz.drop(columns=[f'{country_name}_temp'], inplace=True)
+
+    twz = twz[['Country', 'CODE', 'Profits in all tax havens', 'Profits in all tax havens (positive only)']].copy()
+
+    twz.rename(
+        columns={
+            'CODE': 'Alpha-3 country code'
+        },
+        inplace=True
+    )
+
+    if twz.isnull().sum().sum() > 0:
+        raise Exception('Missing values remain in the TWZ data on tax haven profits.')
+
+    return twz.reset_index(drop=True)
+
+
+def load_and_clean_twz_CIT(path_to_excel_file, path_to_geographies):
+    geographies = pd.read_csv(path_to_geographies)
+    geographies = geographies[['NAME', 'CODE']].copy()
+
+    twz = pd.read_excel(
+        path_to_excel_file,
+        sheet_name='Table U1',
+        engine='openpyxl'
+    )
+
+    twz = twz.iloc[6:-13][['Unnamed: 1', 'Unnamed: 3']].copy()
+
+    twz.columns = ['Country', 'CIT revenue']
+
+    twz['Country'] = twz['Country'].map(
+        lambda country_name: country_name_corresp.get(country_name, country_name)
+    )
+
+    twz = twz.merge(
+        geographies,
+        how='left',
+        left_on='Country', right_on='NAME'
+    ).drop(columns=['NAME'])
+
+    twz = twz.dropna().reset_index(drop=True)
+
+    if twz.isnull().sum().sum() > 0:
+        raise Exception('Missing values remain in the TWZ data on CIT revenues.')
+
+    return twz
+
+
+def rename_partner_jurisdictions(row, use_case='normal'):
     """
     In the OECD data, each reporting country displays a line "Foreign Jurisdictions Total", which displays the sum of
     revenues, profits, corporate income taxes paid, etc. for the parent country across all foreign partner jurisdic-
@@ -38,16 +179,33 @@ def rename_partner_jurisdictions(row):
     not erase the "Foreign Jurisdictions Total" line. Therefore, we slightly rename it for these countries.
     """
 
-    if row['Parent jurisdiction (alpha-3 code)'] in COUNTRIES_WITH_MINIMUM_REPORTING:
+    if use_case == 'normal':
+        # Works for the main use case, to preprocess the OECD data
 
-        if row['Partner jurisdiction (whitespaces cleaned)'] == 'Foreign Jurisdictions Total':
-            return 'Foreign Total'
+        if row['Parent jurisdiction (alpha-3 code)'] in COUNTRIES_WITH_MINIMUM_REPORTING:
+
+            if row['Partner jurisdiction (whitespaces cleaned)'] == 'Foreign Jurisdictions Total':
+                return 'Foreign Total'
+
+            else:
+                return row['Partner jurisdiction (whitespaces cleaned)']
 
         else:
             return row['Partner jurisdiction (whitespaces cleaned)']
 
     else:
-        return row['Partner jurisdiction (whitespaces cleaned)']
+        # Works for a secondary use case, when computing the average ETRs
+
+        if row['COU'] in COUNTRIES_WITH_MINIMUM_REPORTING:
+
+            if row['JUR'] == 'FJT':
+                return 'FJTa'
+
+            else:
+                return row['JUR']
+
+        else:
+            return row['JUR']
 
 
 def manage_overlap_with_domestic(row, kind):
@@ -167,7 +325,12 @@ def compute_ETRs(row, kind):
 # ----------------------------------------------------------------------------------------------------------------------
 # --- Utils for the app.py file
 
-def get_table_download_button(df, scenario, effective_tax_rate, company=None, taxing_country=None, carve_out_rate=None):
+def get_table_download_button(
+    df,
+    scenario,
+    effective_tax_rate,
+    company=None, taxing_country=None, carve_out_rate_assets=None, carve_out_rate_payroll=None
+):
     """
     This function is used in the "app.py" file to generate the HTML code that instantiates the download button on the
     following pages: "Case study with one multinational" (scenario=0), "Multilateral implementation scenario" (scenario
@@ -211,7 +374,8 @@ def get_table_download_button(df, scenario, effective_tax_rate, company=None, ta
 
     elif scenario == 4:
         # Substance-based carve-outs page
-        href += f' download="min_ETR_{effective_tax_rate}_perc_CO_rate_{carve_out_rate}_perc.csv">'
+        href += f' download="min_ETR_{effective_tax_rate}_perc_CO_'
+        href += f'{str(carve_out_rate_assets)}_&_{str(carve_out_rate_payroll)}_perc.csv">'
 
     else:
         raise Exception('Value not accepted for the scenario argument.')
@@ -267,5 +431,30 @@ def get_carve_outs_note_download_button():
     href += '<input type="button" value="Click here to download the note on substance-based carve-outs (PDF)" '
 
     href += 'class="download-button pdf"></a>'
+
+    return href
+
+
+def get_2017_update_download_button():
+    """
+    Following the same principle, this function builds the HTML code that instantiates the download button allowing the
+    user to obtain the October 2021 note in PDF format.
+    """
+
+    # We fetch and read the .pdf file from the files folder
+    path = os.path.join(path_to_files, 'Note-2-November-2021.pdf')
+
+    with open(path, 'rb') as file:
+        note_content = file.read()
+
+    # We encode it to the right format
+    b64 = base64.b64encode(note_content).decode()
+
+    # And we build the HTML code
+    href = f'<a href="data:application/octet-stream;base64,{b64}" download="{os.path.basename(path)}">'
+
+    href += '<input type="button" value="Click here to download our latest country-by-country estimates '
+
+    href += '(Oct. 2021, PDF)" class="download-button pdf"></a>'
 
     return href

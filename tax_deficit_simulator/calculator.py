@@ -23,10 +23,13 @@ mes, the readability of the code or anything else are very much welcome!
 import numpy as np
 import pandas as pd
 
+from scipy.stats.mstats import winsorize
+
 import os
+import sys
 
 from utils import rename_partner_jurisdictions, manage_overlap_with_domestic, COUNTRIES_WITH_MINIMUM_REPORTING, \
-    COUNTRIES_WITH_CONTINENTAL_REPORTING, impute_missing_carve_out_values
+    impute_missing_carve_out_values, load_and_clean_twz_main_data, load_and_clean_twz_CIT
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -45,13 +48,12 @@ eu_27_country_codes.remove('GBR')
 path_to_tax_haven_list = os.path.join(path_to_dir, 'data', 'tax_haven_list.csv')
 tax_haven_country_codes = list(pd.read_csv(path_to_tax_haven_list, delimiter=';')['Alpha-3 code'])
 
+path_to_geographies = os.path.join(path_to_dir, 'data', 'geographies.csv')
+
 # Absolute paths to data files, especially useful to run the app.py file
 path_to_oecd = os.path.join(path_to_dir, 'data', 'oecd.csv')
-path_to_twz = os.path.join(path_to_dir, 'data', 'twz.csv')
-path_to_twz_domestic = os.path.join(path_to_dir, 'data', 'twz_domestic.csv')
 path_to_twz_CIT = os.path.join(path_to_dir, 'data', 'twz_CIT.csv')
-path_to_preprocessed_mean_wages = os.path.join(path_to_dir, 'data', 'preprocessed_mean_wages.csv')
-path_to_statutory_rates = os.path.join(path_to_dir, 'data', 'statutory_rates.csv')
+path_to_statutory_rates = os.path.join(path_to_dir, 'data', 'statutory_rates.xlsx')
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -61,10 +63,17 @@ class TaxDeficitCalculator:
 
     def __init__(
         self,
+        year=2016,
         alternative_imputation=True,
+        sweden_treatment='exclude', belgium_treatment='none', use_adjusted_profits=False,
+        average_ETRs=False,
         carve_outs=False,
-        carve_out_rate=None,
-        depreciation_only=None, exclude_inventories=None, payroll_premium=20
+        carve_out_rate_assets=None, carve_out_rate_payroll=None,
+        depreciation_only=None, exclude_inventories=None, payroll_premium=20,
+        ex_post_ETRs=None,
+        de_minimis_exclusion=False,
+        add_AUT_AUT_row=None,
+        extended_dividends_adjustment=False
     ):
         """
         This is the instantiation method for the TaxDeficitCalculator class.
@@ -79,8 +88,8 @@ class TaxDeficitCalculator:
 
         If the latter argument is set to True, additional arguments are required:
 
-        - the "carve_out_rate" (float between 0 and 1) determines what share of tangible assets and payroll should be
-        deduced from the pre-tax profits of multinationals;
+        - "carve_out_rate_assets" and "carve_out_rate_payroll" (floats between 0 and 1) respectively determine what sha-
+        re of tangible assets and payroll should be deduced from the pre-tax profits of multinationals;
 
         - the boolean "depreciation_only" indicates whether to only account for depreciation expenses (instead of the
         full value of tangible assets) in the tangible assets component of the carve-outs. Following the methodology of
@@ -99,6 +108,35 @@ class TaxDeficitCalculator:
         The instantiation function is mainly used to define several object attributes that generally correspond to as-
         sumptions taken in the report.
         """
+        if year not in [2016, 2017]:
+            raise Exception('Only two years can be chosen for macro computations: 2016 and 2017.')
+
+        if sweden_treatment not in ['exclude', 'adjust']:
+            raise Exception(
+                'The Swedish case can only be treated in two ways: considering it as excluded from OECD CbCR data'
+                + ' ("exclude") or adjusting the domestic pre-tax profits ("adjust").'
+            )
+
+        if belgium_treatment not in ['none', 'exclude', 'adjust']:
+            raise Exception(
+                'The Belgian case can only be treated in three ways: using the OECD CbCR data as they are ("none"), '
+                + 'using TWZ data instead ("exclude") or adjusting pre-tax profits ("adjust").'
+            )
+
+        if year == 2017 and add_AUT_AUT_row is None:
+            raise Exception(
+                'If you want to analyse 2017 data, you need to indicate whether to add the AUT-AUT row from the full'
+                + ' sample (including both negative and positive profits) or not, via the "add_AUT_AUT_row" argument.'
+            )
+
+        if (sweden_treatment == 'exclude' or not use_adjusted_profits) and extended_dividends_adjustment:
+            raise Exception(
+                'The extended_dividends_adjustment is only valid if Sweden-Sweden profits before tax are adjusted and '
+                + 'if adjusted profits are used whenever they are available (when use_adjusted_profits=True is passed.)'
+            )
+
+        # Storing the chosen year
+        self.year = year
 
         # These attributes will store the data loaded with the "load_clean_data" method
         self.oecd = None
@@ -106,6 +144,7 @@ class TaxDeficitCalculator:
         self.twz_domestic = None
         self.twz_CIT = None
         self.mean_wages = None
+        self.statutory_rates = None
 
         # For non-OECD reporting countries, data are taken from TWZ 2019 appendix tables
         # An effective tax rate of 20% is assumed to be applied on profits registered in non-havens
@@ -114,39 +153,114 @@ class TaxDeficitCalculator:
         # An effective tax rate of 10% is assumed to be applied on profits registered in tax havens
         self.assumed_haven_ETR_TWZ = 0.1
 
-        # Average exchange rate over the year 2016, extracted from benchmark computations run on Stata
-        # Source: European Central Bank
-        self.USD_to_EUR_2016 = 1 / 1.1069031
+        self.sweden_treatment = sweden_treatment
 
-        # self.multiplier_EU = 1.13381004333496
-        # self.multiplier_world = 1.1330304145813
+        if sweden_treatment == 'exclude':
+            self.sweden_exclude = True
+            self.sweden_adjust = False
 
-        # Gross growth rate of worldwide GDP in current EUR between 2016 and 2021
-        # Extracted from benchmark computations run on Stata
-        self.multiplier_2021 = 1.1330304145813
+        else:
+            self.sweden_exclude = False
+            self.sweden_adjust = True
+
+        self.belgium_treatment = belgium_treatment
+        self.use_adjusted_profits = use_adjusted_profits
+
+        self.average_ETRs_bool = average_ETRs
+        self.deflator_2016_to_2017 = 1.06131553649902
+
+        self.de_minimis_exclusion = de_minimis_exclusion
+
+        self.extended_dividends_adjustment = extended_dividends_adjustment
+
+        self.sweden_adj_ratio_2016 = (342 - 200) / 342
+        self.sweden_adj_ratio_2017 = (512 - 266) / 512
+
+        if year == 2016:
+
+            # Average exchange rate over the year 2016, extracted from benchmark computations run on Stata
+            # Source: European Central Bank
+            self.USD_to_EUR = 1 / 1.1069031
+
+            # self.multiplier_EU = 1.13381004333496
+            # self.multiplier_world = 1.1330304145813
+
+            # Gross growth rate of worldwide GDP in current EUR between 2016 and 2021
+            # Extracted from benchmark computations run on Stata
+            self.multiplier_2021 = 1.14603888988495
+
+            self.COUNTRIES_WITH_CONTINENTAL_REPORTING = ['AUT', 'NOR', 'SVN', 'SWE']
+
+            # The list of countries whose tax deficit is partly collected by EU countries in the intermediary scenario
+            self.country_list_intermediary_scenario = [
+                'USA',
+                'AUS',
+                'CAN',
+                'CHL',
+                'MEX',
+                'NOR',
+                'BMU',
+                'BRA',
+                'CHN',
+                'SGP',
+                'ZAF',
+                'IDN',
+                'JPN'
+            ]
+
+            self.unilateral_scenario_non_US_imputation_ratio = 1
+            self.unilateral_scenario_correction_for_DEU = 2
+            self.intermediary_scenario_imputation_ratio = 2
+
+            if self.sweden_adjust:
+                self.sweden_adjustment_ratio = (342 - 200) / 342
+
+            else:
+                self.sweden_adjustment_ratio = 1
+
+            if self.belgium_treatment == 'adjust':
+                self.belgium_partner_for_adjustment = 'NLD'
+
+        elif year == 2017:
+
+            # Average exchange rate over the year 2016, extracted from benchmark computations run on Stata
+            # Source: European Central Bank
+            self.USD_to_EUR = 1 / 1.12968122959137
+
+            # self.multiplier_EU = 1.13381004333496
+            # self.multiplier_world = 1.1330304145813
+
+            # Gross growth rate of worldwide GDP in current EUR between 2016 and 2021
+            # Extracted from benchmark computations run on Stata
+            self.multiplier_2021 = 1.1020495891571
+
+            self.COUNTRIES_WITH_CONTINENTAL_REPORTING = ['AUT', 'GBR', 'GRC', 'IMN', 'NOR', 'SVN', 'SWE']
+
+            # The list of countries whose tax deficit is partly collected by EU countries in the intermediary scenario
+            self.country_list_intermediary_scenario = [
+                'ARG', 'AUS', 'BMU', 'BRA', 'CAN', 'CHE', 'CHL', 'CHN', 'GBR', 'IDN',
+                'IMN', 'IND', 'JPN', 'MEX', 'MYS', 'NOR', 'PER', 'SGP', 'USA', 'ZAF'
+            ]
+
+            self.unilateral_scenario_non_US_imputation_ratio = 0.25
+            self.unilateral_scenario_correction_for_DEU = 1
+            self.intermediary_scenario_imputation_ratio = 1 + 2 / 3
+
+            if self.sweden_adjust:
+                self.sweden_adjustment_ratio = (512 - 266) / 512
+
+            else:
+                self.sweden_adjustment_ratio = 1
+
+            if self.belgium_treatment == 'adjust':
+                self.belgium_partner_for_adjustment = 'GBR'
+
+            self.add_AUT_AUT_row = add_AUT_AUT_row
 
         # For rates of 0.2 or lower an alternative imputation is used to estimate the non-haven tax deficit of non-OECD
         # reporting countries; this argument allows to enable or disable this imputation
         self.alternative_imputation = alternative_imputation
         self.reference_rate_for_alternative_imputation = 0.25
-
-        # The list of countries whose tax deficit is partly collected by EU countries in the intermediary scenario
-        self.country_list_intermediary_scenario = [
-            'USA',
-            'AUS',
-            'CAN',
-            'CHL',
-            'MEX',
-            'NOR',
-            'BMU',
-            'BRA',
-            'CHN',
-            'IND',
-            'SGP',
-            'ZAF',
-            'IDN',
-            'JPN'
-        ]
 
         # This boolean indicates whether or not to apply substance-based carve-outs
         self.carve_outs = carve_outs
@@ -155,16 +269,25 @@ class TaxDeficitCalculator:
         if carve_outs:
 
             # We first check whether all the required parameters were provided
-            if carve_out_rate is None or depreciation_only is None or exclude_inventories is None:
+            if (
+                carve_out_rate_assets is None or carve_out_rate_payroll is None
+                or depreciation_only is None or exclude_inventories is None
+                or ex_post_ETRs is None
+            ):
 
                 raise Exception(
                     'If you want to simulate substance-based carve-outs, you need to indicate all the parameters.'
                 )
 
-            self.carve_out_rate = carve_out_rate
+            if ex_post_ETRs and average_ETRs:
+                raise Exception('Computing ETRs ex-post the carve-outs is not compatible with computing average ETRs.')
+
+            self.carve_out_rate_assets = carve_out_rate_assets
+            self.carve_out_rate_payroll = carve_out_rate_payroll
             self.depreciation_only = depreciation_only
             self.exclude_inventories = exclude_inventories
             self.payroll_premium = payroll_premium
+            self.ex_post_ETRs = ex_post_ETRs
 
             # This corresponds to the OECD Secretariat's simulations in its Economic Impact Assessment (Oct. 2020):
             # inventories are excluded from tangible assets and only depreciation expenses can be partly deducted
@@ -185,17 +308,20 @@ class TaxDeficitCalculator:
                 self.assets_multiplier = 1
 
         else:
-            self.carve_out_rate = None
+            self.carve_out_rate_assets = None
+            self.carve_out_rate_payroll = None
             self.depreciation_only = None
             self.exclude_inventories = None
+
+        if self.de_minimis_exclusion:
+            self.exclusion_threshold_revenues = 10 * 10**6 / self.USD_to_EUR
+            self.exclusion_threshold_profits = 1 * 10**6 / self.USD_to_EUR
 
     def load_clean_data(
         self,
         path_to_oecd=path_to_oecd,
-        path_to_twz=path_to_twz,
-        path_to_twz_domestic=path_to_twz_domestic,
+        path_to_dir=path_to_dir,
         path_to_twz_CIT=path_to_twz_CIT,
-        path_to_preprocessed_mean_wages=path_to_preprocessed_mean_wages,
         path_to_statutory_rates=path_to_statutory_rates,
         inplace=True
     ):
@@ -232,11 +358,36 @@ class TaxDeficitCalculator:
 
             # We try to read the files from the provided paths
             oecd = pd.read_csv(path_to_oecd)
-            twz = pd.read_csv(path_to_twz, delimiter=';')
-            twz_domestic = pd.read_csv(path_to_twz_domestic, delimiter=';')
-            twz_CIT = pd.read_csv(path_to_twz_CIT, delimiter=';')
-            preprocessed_mean_wages = pd.read_csv(path_to_preprocessed_mean_wages, delimiter=';')
-            statutory_rates = pd.read_csv(path_to_statutory_rates, delimiter=';')
+
+            path_to_preprocessed_mean_wages = os.path.join(path_to_dir, 'data', f'iloearn{self.year - 2000}.csv')
+
+            if self.year == 2016:
+                delimiter = ';'
+            else:
+                delimiter = ','
+
+            preprocessed_mean_wages = pd.read_csv(path_to_preprocessed_mean_wages, delimiter=delimiter)
+
+            statutory_rates = pd.read_excel(path_to_statutory_rates, engine='openpyxl')
+
+            path_to_excel_file = os.path.join(path_to_dir, 'data', 'TWZ', str(self.year), 'TWZ.xlsx')
+
+            twz = load_and_clean_twz_main_data(
+                path_to_excel_file=path_to_excel_file,
+                path_to_geographies=path_to_geographies
+            )
+
+            twz_CIT = load_and_clean_twz_CIT(
+                path_to_excel_file=path_to_excel_file,
+                path_to_geographies=path_to_geographies
+            )
+
+            path_to_twz_domestic = os.path.join(path_to_dir, 'data', 'TWZ', str(self.year), 'twz_domestic.xlsx')
+
+            twz_domestic = pd.read_excel(
+                path_to_twz_domestic,
+                engine='openpyxl'
+            )
 
         except FileNotFoundError:
 
@@ -244,6 +395,81 @@ class TaxDeficitCalculator:
             raise Exception('Are you sure these are the right paths for the source files?')
 
         # --- Cleaning the OECD data
+
+        if self.year == 2017 and self.add_AUT_AUT_row:
+            temp = oecd[
+                np.logical_and(
+                    oecd['PAN'] == 'PANELA',
+                    oecd['YEA'] == 2017
+                )
+            ].copy()
+
+            temp.drop(
+                columns=['PAN', 'Grouping', 'Flag Codes', 'Flags', 'YEA', 'Year'],
+                inplace=True
+            )
+
+            temp = temp.pivot(
+                index=['COU', 'Ultimate Parent Jurisdiction', 'JUR', 'Partner Jurisdiction'],
+                columns='Variable',
+                values='Value'
+            ).reset_index()
+
+            temp = temp[
+                np.logical_and(
+                    temp['COU'] == 'AUT',
+                    temp['JUR'] == 'AUT'
+                )
+            ].copy()
+
+            self.temp_AUT = temp.copy()
+
+        # We restrict the OECD data to the sub-sample of interest
+        oecd = oecd[oecd['PAN'] == 'PANELAI'].copy()
+
+        if self.belgium_treatment == 'adjust':
+            temp = oecd[
+                np.logical_and(
+                    oecd['COU'] == 'BEL',
+                    oecd['JUR'] == self.belgium_partner_for_adjustment
+                )
+            ].copy()
+
+            temp = temp[temp['CBC'].isin(['TOT_REV', 'PROFIT'])].copy()
+            temp = temp[temp['Year'] == (2017 if self.year == 2016 else 2016)].copy()
+
+            temp = temp[['CBC', 'Value']].set_index('CBC')
+
+            self.belgium_ratio_for_adjustment = (temp.loc['PROFIT'] / temp.loc['TOT_REV'])['Value']
+
+        if self.extended_dividends_adjustment:
+            temp = oecd[
+                np.logical_and(
+                    oecd['COU'] == oecd['JUR'],
+                    oecd['Year'] == 2017
+                )
+            ].copy()
+
+            sweden_profits = temp[
+                np.logical_and(
+                    temp['COU'] == 'SWE',
+                    temp['CBC'] == 'PROFIT'
+                )
+            ]['Value'].iloc[0]
+            adj_sweden_profits = sweden_profits * self.sweden_adj_ratio_2017
+
+            adj_profits = temp[temp['CBC'] == 'PROFIT_ADJ']['Value'].sum()
+            self.adj_profits_countries = temp[temp['CBC'] == 'PROFIT_ADJ']['COU'].unique()
+            profits = temp[
+                np.logical_and(
+                    temp['COU'].isin(self.adj_profits_countries),
+                    temp['CBC'] == 'PROFIT'
+                )
+            ]['Value'].sum()
+
+            self.extended_adjustment_ratio = (adj_sweden_profits + adj_profits) / (sweden_profits + profits)
+
+        oecd = oecd[oecd['Year'] == self.year].copy()
 
         # We drop a few irrelevant columns from country-by-country data
         oecd.drop(
@@ -257,6 +483,12 @@ class TaxDeficitCalculator:
             columns='Variable',
             values='Value'
         ).reset_index()
+
+        if self.year == 2017 and self.add_AUT_AUT_row:
+            oecd = pd.concat(
+                [oecd, self.temp_AUT],
+                axis=0
+            ).reset_index(drop=True)
 
         # We rename some columns to match the code that has been written before modifying how OECD data are loaded
         oecd.rename(
@@ -273,7 +505,7 @@ class TaxDeficitCalculator:
         # that only report a domestic / foreign breakdown in their CbCR
         oecd['Partner jurisdiction (whitespaces cleaned)'] = oecd.apply(rename_partner_jurisdictions, axis=1)
 
-        # We eliminate stateless entities and the "Foreign Jurisdictions Total" filds
+        # We eliminate stateless entities and the "Foreign Jurisdictions Total" fields
         oecd = oecd[
             ~oecd['Partner jurisdiction (whitespaces cleaned)'].isin(['Foreign Jurisdictions Total', 'Stateless'])
         ].copy()
@@ -290,9 +522,47 @@ class TaxDeficitCalculator:
         )
 
         # We clean the statutory corporate income tax rate dataset
-        statutory_rates['statrate'] = statutory_rates['statrate'].map(
-            lambda x: x.replace(',', '.') if isinstance(x, str) else x
-        ).astype(float)
+        # extract = statutory_rates[['country_code', 'Partner country', 'missing data']].dropna()
+        # statutory_rates = statutory_rates[['CODE', 'Country', self.year]].copy()
+
+        # statutory_rates['CODE'] = statutory_rates['CODE'].map(
+        #     lambda x: 'BES' if isinstance(x, float) and np.isnan(x) else x
+        # )
+        # statutory_rates[self.year] = statutory_rates[self.year].map(
+        #     lambda x: np.nan if isinstance(x, str) and x == '-' else x
+        # )
+
+        # extract = extract[extract['missing data'] != '.'].copy()
+        # extract.drop(columns=['Partner country'], inplace=True)
+        # extract = extract.set_index('country_code').to_dict()
+
+        # statutory_rates[self.year] = statutory_rates[self.year].map(
+        #     lambda x: extract.get(x, x) if np.isnan(x) else x
+        # )
+
+        # statutory_rates.rename(
+        #     columns={
+        #         'CODE': 'partner',
+        #         self.year: 'statrate'
+        #     },
+        #     inplace=True
+        # )
+
+        # statutory_rates['statrate'] /= 100
+
+        # We clean the statutory corporate income tax rates
+        column_of_interest = f'statrate{self.year - 2000}'
+        statutory_rates = statutory_rates[['Country code', column_of_interest]].copy()
+
+        statutory_rates.rename(
+            columns={
+                'Country code': 'partner',
+                column_of_interest: 'statrate'
+            },
+            inplace=True
+        )
+
+        self.statutory_rates = statutory_rates.copy()
 
         # And we merge it with country-by-country data, on partner jurisdiction alpha-3 codes
         oecd = oecd.merge(
@@ -315,9 +585,69 @@ class TaxDeficitCalculator:
 
         oecd.drop(columns=['statrate'], inplace=True)
 
-        # ETR computation (using tax paid as the numerator)
-        oecd['ETR'] = oecd['Income Tax Paid (on Cash Basis)'] / oecd['Profit (Loss) before Income Tax']
-        oecd['ETR'] = oecd['ETR'].map(lambda x: 0 if x < 0 else x)
+        # We adjust the domestic pre-tax profits for Sweden (with a neutral factor if "exclude" was chosen)
+        oecd['Profit (Loss) before Income Tax'] = oecd.apply(
+            (
+                lambda row: row['Profit (Loss) before Income Tax'] * self.sweden_adjustment_ratio
+                if row['Parent jurisdiction (alpha-3 code)'] == 'SWE'
+                and row['Partner jurisdiction (alpha-3 code)'] == 'SWE'
+                else row['Profit (Loss) before Income Tax']
+            ),
+            axis=1
+        )
+
+        # We adjust the pre-tax profits of Belgian multinationals if the "adjust" option has been chosen
+        if self.belgium_treatment == 'adjust':
+            oecd['Profit (Loss) before Income Tax'] = oecd.apply(
+                (
+                    lambda row: row['Total Revenues'] * self.belgium_ratio_for_adjustment
+                    if row['Parent jurisdiction (alpha-3 code)'] == 'BEL'
+                    and row['Partner jurisdiction (alpha-3 code)'] == self.belgium_partner_for_adjustment
+                    else row['Profit (Loss) before Income Tax']
+                ),
+                axis=1
+            )
+
+        # If we prioritarily use adjusted pre-tax profits, we make the required adjustment
+        if self.use_adjusted_profits and self.year == 2017:
+            oecd['Profit (Loss) before Income Tax'] = oecd.apply(
+                (
+                    lambda row: row['Adjusted Profit (Loss) before Income Tax']
+                    if not np.isnan(row['Adjusted Profit (Loss) before Income Tax'])
+                    else row['Profit (Loss) before Income Tax']
+                ),
+                axis=1
+            )
+
+        if self.extended_dividends_adjustment:
+            multiplier = np.logical_and(
+                oecd['Parent jurisdiction (alpha-3 code)'] == oecd['Partner jurisdiction (alpha-3 code)'],
+                ~oecd['Parent jurisdiction (alpha-3 code)'].isin(['SWE'] + list(self.adj_profits_countries))
+            ) * 1
+
+            multiplier = multiplier.map(
+                {0: 1, 1: self.extended_adjustment_ratio}
+            )
+
+            oecd['Profit (Loss) before Income Tax'] *= multiplier
+
+        if not self.average_ETRs_bool:
+
+            # ETR computation (using tax paid as the numerator)
+            oecd['ETR'] = oecd['Income Tax Paid (on Cash Basis)'] / oecd['Profit (Loss) before Income Tax']
+            oecd['ETR'] = oecd['ETR'].map(lambda x: 0 if x < 0 else x)
+            oecd['ETR'] = oecd['ETR'].fillna(0)
+
+        else:
+            # We compute ETRs over both 2016 and 2017 fiscal years
+            average_ETRs_df = self.get_average_CbCR_ETRs(method='theresa')
+
+            # We input these average ETRs into our dataset
+            oecd = oecd.merge(
+                average_ETRs_df,
+                how='left',
+                on=['Parent jurisdiction (alpha-3 code)', 'Partner jurisdiction (alpha-3 code)']
+            )
 
         # Adding an indicator variable for domestic profits (rows with the same parent and partner jurisdiction)
         oecd['Is domestic?'] = oecd.apply(
@@ -342,8 +672,10 @@ class TaxDeficitCalculator:
                     row['Parent jurisdiction (alpha-3 code)'] in COUNTRIES_WITH_MINIMUM_REPORTING
                     and row['Partner jurisdiction (alpha-3 code)'] == 'FJT'
                 ) or (
-                    row['Parent jurisdiction (alpha-3 code)'] in COUNTRIES_WITH_CONTINENTAL_REPORTING
-                    and row['Partner jurisdiction (alpha-3 code)'] in ['GRPS', 'AFRIC', 'AMER', 'ASIAT', 'EUROP']
+                    row['Parent jurisdiction (alpha-3 code)'] in self.COUNTRIES_WITH_CONTINENTAL_REPORTING
+                    and row['Partner jurisdiction (alpha-3 code)'] in [
+                        'GRPS', 'AFRIC', 'AMER', 'ASIAT', 'EUROP', 'OAM', 'OTE', 'OAS', 'OAF'
+                    ]
                 ) or (
                     row['Is domestic?'] == 1
                 )
@@ -374,6 +706,17 @@ class TaxDeficitCalculator:
             axis=1
         )
 
+        self.oecd_temp_ext = oecd.copy()
+
+        # We apply - if relevant - the de minimis exclusion based on revenue and profit thresholds
+        if self.de_minimis_exclusion:
+            mask_revenues = (oecd['Total Revenues'] >= self.exclusion_threshold_revenues)
+            mask_profits = (oecd['Profit (Loss) before Income Tax'] >= self.exclusion_threshold_profits)
+
+            mask_de_minimis_exclusion = np.logical_or(mask_revenues, mask_profits)
+
+            oecd = oecd[mask_de_minimis_exclusion].copy()
+
         # We need some more work on the data if we want to simulate substance-based carve-outs
         if self.carve_outs:
 
@@ -402,8 +745,12 @@ class TaxDeficitCalculator:
             oecd['PAYROLL'] = oecd['Number of Employees'] * oecd['ANNUAL_VALUE'] * (1 + self.payroll_premium / 100)
 
             # We compute substance-based carve-outs from both payroll and tangible assets
-            oecd['CARVE_OUT'] = self.carve_out_rate * (
-                oecd['PAYROLL'] + oecd['Tangible Assets other than Cash and Cash Equivalents'] * self.assets_multiplier
+            oecd['CARVE_OUT'] = (
+                self.carve_out_rate_payroll * oecd['PAYROLL']
+                + (
+                    self.carve_out_rate_assets *
+                    oecd['Tangible Assets other than Cash and Cash Equivalents'] * self.assets_multiplier
+                )
             )
 
             # This column will contain slightly modified carve-outs, carve-outs being replaced by pre-tax profits
@@ -470,6 +817,8 @@ class TaxDeficitCalculator:
             # Some missing values remain whenever profits before tax are missing
             oecd = oecd[~oecd['CARVE_OUT'].isnull()].copy()
 
+            oecd['UNCARVED_PROFITS'] = oecd['Profit (Loss) before Income Tax'].values
+
             # We remove substance-based carve-outs from pre-tax profits
             oecd['Profit (Loss) before Income Tax'] = oecd.apply(
                 (
@@ -480,21 +829,40 @@ class TaxDeficitCalculator:
                 axis=1
             )
 
+            if self.ex_post_ETRs:
+                oecd['ETR'] = oecd['Income Tax Paid (on Cash Basis)'] / oecd['Profit (Loss) before Income Tax']
+                oecd['ETR'] = oecd['ETR'].map(lambda x: 0 if x < 0 else x)
+                oecd['ETR'] = oecd['ETR'].fillna(0)
+
         # --- Cleaning the TWZ tax haven profits data
 
-        # Adding an indicator variable for OECD reporting - We do not consider the Swedish CbCR
-        twz['Is parent in OECD data?'] = twz['Alpha-3 country code'].map(
-            lambda x: x in oecd['Parent jurisdiction (alpha-3 code)'].unique() if x != 'SWE' else False
-        ) * 1
+        # Adding an indicator variable for OECD reporting - We do not consider the Swedish CbCR if "exclude" was chosen
+        if self.sweden_exclude and self.belgium_treatment == 'exclude':
+            twz['Is parent in OECD data?'] = twz['Alpha-3 country code'].map(
+                lambda x: x in oecd['Parent jurisdiction (alpha-3 code)'].unique() if x in ['SWE', 'BEL'] else False
+            ) * 1
 
-        # We reformat numeric columns - Resulting figures are expressed in 2016 USD
+        elif self.sweden_exclude and self.belgium_treatment != 'exclude':
+            twz['Is parent in OECD data?'] = twz['Alpha-3 country code'].map(
+                lambda x: x in oecd['Parent jurisdiction (alpha-3 code)'].unique() if x != 'SWE' else False
+            ) * 1
+
+        elif not self.sweden_exclude and self.belgium_treatment == 'exclude':
+            twz['Is parent in OECD data?'] = twz['Alpha-3 country code'].map(
+                lambda x: x in oecd['Parent jurisdiction (alpha-3 code)'].unique() if x != 'BEL' else False
+            ) * 1
+
+        else:
+            twz['Is parent in OECD data?'] = twz['Alpha-3 country code'].map(
+                lambda x: x in oecd['Parent jurisdiction (alpha-3 code)'].unique()
+            ) * 1
+
+        # If we want to simulate carve-outs, we need to downgrade TWZ tax haven profits by the average reduction due to
+        # carve-outs that is observed for tax haven profits in the OECD data
         for column_name in ['Profits in all tax havens', 'Profits in all tax havens (positive only)']:
-            twz[column_name] = twz[column_name].map(lambda x: x.replace(',', '.'))
-            twz[column_name] = twz[column_name].astype(float) * 1000000
+            twz[column_name] *= 10**6
 
             if self.carve_outs:
-                # If we want to simulate carve-outs, we need to downgrade TWZ tax haven profits by the average reduction
-                # due to carve-outs that is observed for tax haven profits in the OECD data
                 twz[column_name] *= (1 - self.avg_carve_out_impact_tax_haven)
             else:
                 continue
@@ -504,13 +872,8 @@ class TaxDeficitCalculator:
 
         # --- Cleaning the TWZ domestic profits data
 
-        # Reformatting the profits column - Resulting figures are expressed in 2016 USD
-        twz_domestic['Domestic profits'] = twz_domestic['Domestic profits']\
-            .map(lambda x: x.replace(',', '.'))\
-            .astype(float) * 1000000000
-
-        # Reformatting the ETR column
-        twz_domestic['Domestic ETR'] = twz_domestic['Domestic ETR'].map(lambda x: x.replace(',', '.')).astype(float)
+        # Resulting figures are expressed in 2016 USD
+        twz_domestic['Domestic profits'] *= 10**9
 
         if self.carve_outs:
             # If we want to simulate carve-outs, we need to downgrade TWZ domestic profits by the average reduction due
@@ -520,9 +883,7 @@ class TaxDeficitCalculator:
         # --- Cleaning the TWZ CIT revenue data
 
         # Reformatting the CIT revenue column - Resulting figures are expressed in 2016 USD
-        twz_CIT['CIT revenue'] = twz_CIT['CIT revenue']\
-            .map(lambda x: x.replace(',', '.'))\
-            .astype(float) * 1000000000
+        twz_CIT['CIT revenue'] = twz_CIT['CIT revenue'] * 10**9
 
         if inplace:
             self.oecd = oecd.copy()
@@ -569,7 +930,7 @@ class TaxDeficitCalculator:
             mask_non_haven = ~oecd['Parent jurisdiction (alpha-3 code)'].isin(tax_haven_country_codes)
             # - And report a detailed country by country breakdown in their CbCR
             mask_minimum_reporting_countries = ~oecd['Parent jurisdiction (alpha-3 code)'].isin(
-                COUNTRIES_WITH_MINIMUM_REPORTING + COUNTRIES_WITH_CONTINENTAL_REPORTING
+                COUNTRIES_WITH_MINIMUM_REPORTING + self.COUNTRIES_WITH_CONTINENTAL_REPORTING
             )
 
             # We combine the boolean indexing masks
@@ -648,7 +1009,7 @@ class TaxDeficitCalculator:
         # We exclude countries whose CbCR breakdown does not allow to distinguish tax-haven and non-haven profits
         df_restricted = oecd_stratified[
             ~oecd_stratified['Parent jurisdiction (alpha-3 code)'].isin(
-                COUNTRIES_WITH_CONTINENTAL_REPORTING + COUNTRIES_WITH_MINIMUM_REPORTING
+                self.COUNTRIES_WITH_CONTINENTAL_REPORTING + COUNTRIES_WITH_MINIMUM_REPORTING
             )
         ].copy()
 
@@ -661,7 +1022,7 @@ class TaxDeficitCalculator:
         # We exclude countries whose CbCR breakdown does not allow to distinguish tax-haven and non-haven profits
         df_restricted = oecd_stratified[
             ~oecd_stratified['Parent jurisdiction (alpha-3 code)'].isin(
-                COUNTRIES_WITH_CONTINENTAL_REPORTING + COUNTRIES_WITH_MINIMUM_REPORTING
+                self.COUNTRIES_WITH_CONTINENTAL_REPORTING + COUNTRIES_WITH_MINIMUM_REPORTING
             )
         ].copy()
 
@@ -694,8 +1055,10 @@ class TaxDeficitCalculator:
         # We compute the ETR differential for all low-taxed profits
         oecd['ETR_differential'] = oecd['ETR'].map(lambda x: minimum_ETR - x)
 
-        # And deduce the tax deficit generated by each Parent / Partner jurisidiction pair
+        # And deduce the tax deficit generated by each Parent / Partner jurisdiction pair
         oecd['tax_deficit'] = oecd['ETR_differential'] * oecd['Profit (Loss) before Income Tax']
+
+        self.oecd_temp_extract = oecd.copy()
 
         # Using the aforementioned indicator variables allows to breakdown this tax deficit
         oecd['tax_deficit_x_domestic'] = oecd['tax_deficit'] * oecd['Is domestic?']
@@ -729,7 +1092,12 @@ class TaxDeficitCalculator:
 
         return oecd_stratified.copy()
 
-    def compute_all_tax_deficits(self, minimum_ETR=0.25, CbCR_reporting_countries_only=False):
+    def compute_all_tax_deficits(
+        self,
+        minimum_ETR=0.25,
+        CbCR_reporting_countries_only=False,
+        save_countries_replaced=True
+    ):
         """
         This method encapsulates most of the computations for the multilateral agreement scenario.
 
@@ -757,7 +1125,7 @@ class TaxDeficitCalculator:
         # --- Managing countries in both OECD and TWZ data
 
         # We focus on parent countries which are in both the OECD and TWZ data
-        # NB: recall that we do not consider the Swedish CbCR
+        # NB: recall that we do not consider the Swedish CbCR if "exclude" was chosen
         twz_in_oecd = twz[twz['Is parent in OECD data?'].astype(bool)].copy()
 
         # We merge the two DataFrames on country codes
@@ -771,13 +1139,14 @@ class TaxDeficitCalculator:
         # For countries that are in the OECD data but not in TWZ, we impute a tax-haven-based tax deficit from TWZ of 0
         merged_df['tax_deficit_x_tax_haven_TWZ'] = merged_df['tax_deficit_x_tax_haven_TWZ'].fillna(0)
 
-        self.countries_replaced = []
+        if save_countries_replaced:
+            self.countries_replaced = []
 
         if self.carve_outs:
 
-            calculator = TaxDeficitCalculator()
+            calculator = TaxDeficitCalculator(year=self.year, add_AUT_AUT_row=True, average_ETRs=self.average_ETRs_bool)
             calculator.load_clean_data()
-            _ = calculator.compute_all_tax_deficits()
+            _ = calculator.compute_all_tax_deficits(minimum_ETR=minimum_ETR)
 
             countries_replaced = calculator.countries_replaced.copy()
 
@@ -785,7 +1154,9 @@ class TaxDeficitCalculator:
                 lambda row: self.combine_haven_tax_deficits(
                     row,
                     carve_outs=self.carve_outs,
-                    countries_replaced=countries_replaced),
+                    countries_replaced=countries_replaced,
+                    save_countries_replaced=save_countries_replaced
+                ),
                 axis=1
             )
 
@@ -793,14 +1164,15 @@ class TaxDeficitCalculator:
             merged_df['tax_deficit_x_tax_haven_merged'] = merged_df.apply(
                 lambda row: self.combine_haven_tax_deficits(
                     row,
-                    carve_outs=self.carve_outs
+                    carve_outs=self.carve_outs,
+                    save_countries_replaced=save_countries_replaced
                 ),
                 axis=1
             )
 
-        self.countries_replaced = merged_df[
-            merged_df['tax_deficit_x_tax_haven_merged'] == merged_df['tax_deficit_x_tax_haven_TWZ']
-        ]['Parent jurisdiction (alpha-3 code)'].unique()
+        # self.countries_replaced = merged_df[
+        #     merged_df['tax_deficit_x_tax_haven_merged'] > merged_df['tax_deficit_x_tax_haven']
+        # ]['Parent jurisdiction (alpha-3 code)'].unique()
 
         merged_df.drop(columns=['tax_deficit_x_tax_haven', 'tax_deficit_x_tax_haven_TWZ'], inplace=True)
 
@@ -819,7 +1191,7 @@ class TaxDeficitCalculator:
         # --- Countries only in the TWZ data
 
         # We now focus on countries that are absent from the OECD data
-        # NB: recall that we do not consider the Swedish CbCR
+        # NB: recall that we do not consider the Swedish CbCR if "exclude" was chosen
         twz_not_in_oecd = twz[~twz['Is parent in OECD data?'].astype(bool)].copy()
 
         twz_not_in_oecd.drop(
@@ -883,8 +1255,20 @@ class TaxDeficitCalculator:
 
         twz_not_in_oecd.drop(columns=['Is parent in OECD data?'], inplace=True)
 
-        # We exclude Sweden from the OECD-drawn results, as we do not consider its CbCR
-        merged_df = merged_df[merged_df['Parent jurisdiction (alpha-3 code)'] != 'SWE'].copy()
+        if self.sweden_exclude and self.belgium_treatment == 'exclude':
+            # We exclude Sweden and Belgium from the OECD-drawn results, as we do not consider their CbCR
+            merged_df = merged_df[~merged_df['Parent jurisdiction (alpha-3 code)'].isin(['SWE', 'BEL'])].copy()
+
+        elif self.sweden_exclude and self.belgium_treatment != 'exclude':
+            # We exclude Sweden from the OECD-drawn results, as we do not consider its CbCR
+            merged_df = merged_df[merged_df['Parent jurisdiction (alpha-3 code)'] != 'SWE'].copy()
+
+        elif not self.sweden_exclude and self.belgium_treatment == 'exclude':
+            # We exclude Belgium from the OECD-drawn results, as we do not consider its CbCR
+            merged_df = merged_df[merged_df['Parent jurisdiction (alpha-3 code)'] != 'BEL'].copy()
+
+        else:
+            pass
 
         # We eventually concatenate the two DataFrames
         merged_df = pd.concat(
@@ -896,7 +1280,7 @@ class TaxDeficitCalculator:
 
         # We convert 2016 USD results in 2016 EUR and extraprolate them to 2021 EUR
         for column_name in merged_df.columns[2:]:
-            merged_df[column_name] = merged_df[column_name] * self.USD_to_EUR_2016 * self.multiplier_2021
+            merged_df[column_name] = merged_df[column_name] * self.USD_to_EUR * self.multiplier_2021
 
         # --- Managing the case where the minimum ETR is 20% or below for TWZ countries
 
@@ -908,16 +1292,31 @@ class TaxDeficitCalculator:
 
             # We compute all tax deficits at the reference rate (25% in the report)
             df = self.compute_all_tax_deficits(
-                minimum_ETR=self.reference_rate_for_alternative_imputation
+                minimum_ETR=self.reference_rate_for_alternative_imputation,
+                save_countries_replaced=False
             )
 
-            # We only consider countries that are absent from the OECD data, except Sweden as usual
-            oecd_reporting_countries_but_SWE = self.oecd[
-                self.oecd['Parent jurisdiction (alpha-3 code)'] != 'SWE'
-            ]['Parent jurisdiction (alpha-3 code)'].unique()
+            # What is the set of countries not concerned by this alternative imputation?
+            if self.sweden_exclude and self.belgium_treatment == 'exclude':
+                set_of_countries = self.oecd[
+                    ~self.oecd['Parent jurisdiction (alpha-3 code)'].isin(['SWE', 'BEL'])
+                ]['Parent jurisdiction (alpha-3 code)'].unique()
+
+            elif self.sweden_exclude and self.belgium_treatment != 'exclude':
+                set_of_countries = self.oecd[
+                    self.oecd['Parent jurisdiction (alpha-3 code)'] != 'SWE'
+                ]['Parent jurisdiction (alpha-3 code)'].unique()
+
+            elif not self.sweden_exclude and self.belgium_treatment == 'exclude':
+                set_of_countries = self.oecd[
+                    self.oecd['Parent jurisdiction (alpha-3 code)'] != 'BEL'
+                ]['Parent jurisdiction (alpha-3 code)'].unique()
+
+            else:
+                set_of_countries = self.oecd['Parent jurisdiction (alpha-3 code)'].unique()
 
             df = df[
-                ~df['Parent jurisdiction (alpha-3 code)'].isin(oecd_reporting_countries_but_SWE)
+                ~df['Parent jurisdiction (alpha-3 code)'].isin(set_of_countries)
             ].copy()
 
             # For these countries, we multiply the non-haven tax deficit at the reference rate by the multiplying factor
@@ -959,8 +1358,9 @@ class TaxDeficitCalculator:
     def combine_haven_tax_deficits(
         self,
         row,
+        save_countries_replaced,
         carve_outs=False,
-        countries_replaced=None
+        countries_replaced=None,
     ):
         """
         This function is used to compute the tax deficit of all in-sample headquarter countries in the multilateral im-
@@ -980,12 +1380,13 @@ class TaxDeficitCalculator:
             )
 
         if row['Parent jurisdiction (alpha-3 code)'] not in (
-            COUNTRIES_WITH_MINIMUM_REPORTING + COUNTRIES_WITH_CONTINENTAL_REPORTING
+            COUNTRIES_WITH_MINIMUM_REPORTING + self.COUNTRIES_WITH_CONTINENTAL_REPORTING
         ):
             if countries_replaced is None:
 
                 if row['tax_deficit_x_tax_haven_TWZ'] > row['tax_deficit_x_tax_haven']:
-                    self.countries_replaced.append(row['Parent jurisdiction (alpha-3 code)'])
+                    if save_countries_replaced:
+                        self.countries_replaced.append(row['Parent jurisdiction (alpha-3 code)'])
                     return row['tax_deficit_x_tax_haven_TWZ']
 
                 else:
@@ -996,7 +1397,8 @@ class TaxDeficitCalculator:
                     row['tax_deficit_x_tax_haven_TWZ'] > row['tax_deficit_x_tax_haven']
                     and row['Parent jurisdiction (alpha-3 code)'] in countries_replaced
                 ):
-                    self.countries_replaced.append(row['Parent jurisdiction (alpha-3 code)'])
+                    if save_countries_replaced:
+                        self.countries_replaced.append(row['Parent jurisdiction (alpha-3 code)'])
                     return row['tax_deficit_x_tax_haven_TWZ']
 
                 else:
@@ -1087,7 +1489,7 @@ class TaxDeficitCalculator:
         ).drop(columns=['Country', 'Country (alpha-3 code)'])
 
         # We bring back the tax deficit estimated to 2016 USD (from 2021 EUR)
-        merged_df['tax_deficit_15'] /= (merged_df['CIT revenue'] * self.multiplier_2021 * self.USD_to_EUR_2016 / 100)
+        merged_df['tax_deficit_15'] /= (merged_df['CIT revenue'] * self.multiplier_2021 * self.USD_to_EUR / 100)
 
         # For the 3 other rates considered in the output table
         for rate in [0.21, 0.25, 0.3]:
@@ -1112,7 +1514,7 @@ class TaxDeficitCalculator:
 
             # And we bring it back to 2016 USD
             merged_df[f'tax_deficit_{int(rate * 100)}'] /= (
-                merged_df['CIT revenue'] * self.multiplier_2021 * self.USD_to_EUR_2016 / 100
+                merged_df['CIT revenue'] * self.multiplier_2021 * self.USD_to_EUR / 100
             )
 
         # We want to also verify the EU-27 average and restrict the DataFrame to these countries
@@ -1319,11 +1721,11 @@ class TaxDeficitCalculator:
         # We therefore double the tax deficit collected from non-US foreign countries
         imputation = tax_deficits[
             ~tax_deficits['Parent jurisdiction (whitespaces cleaned)'].isin([taxing_country, 'United States'])
-        ][f'Collectible tax deficit for {taxing_country}'].sum()
+        ][f'Collectible tax deficit for {taxing_country}'].sum() * self.unilateral_scenario_non_US_imputation_ratio
 
         # Except for Germany, for which we add back only half of the tax deficit collected from non-US foreign countries
         if taxing_country_code == 'DEU':
-            imputation /= 2
+            imputation /= self.unilateral_scenario_correction_for_DEU
 
         tax_deficits.reset_index(drop=True, inplace=True)
 
@@ -1551,7 +1953,9 @@ class TaxDeficitCalculator:
 
             # We sum all these and multiply the total by 2 to estimate the total tax deficit that the EU-27 country
             # could collect from non-EU multinationals
-            additional_revenue_gains[eu_country] = td_df['Collectible tax deficit'].sum() * 2
+            additional_revenue_gains[eu_country] = (
+                td_df['Collectible tax deficit'].sum() * self.intermediary_scenario_imputation_ratio
+            )
 
             # NB: the multiplication by 2 corresponds to the imputation strategy defined in Appendix C of the report
 
@@ -1578,7 +1982,7 @@ class TaxDeficitCalculator:
 
                 # We do not consider the "Other Europe" field in the US CbCR as it probably does not correspond to
                 # activities operated in EU-27 countries (sufficient country-by-country breakdown to exclude this)
-                if country == 'USA':
+                if country in ['USA', 'IMN']:
                     attribution_ratios[country] = 0
 
                     continue
@@ -1596,6 +2000,9 @@ class TaxDeficitCalculator:
             td_df['Attribution ratios'] = td_df['Parent jurisdiction (alpha-3 code)'].map(attribution_ratios)
 
             td_df['Collectible tax deficit'] = td_df['Attribution ratios'] * td_df['tax_deficit']
+
+            if aggregate == 'Other Europe':
+                self.intermediary_scenario_temp = td_df.copy()
 
             additional_revenue_gains[aggregate] = td_df['Collectible tax deficit'].sum()
 
@@ -1683,23 +2090,36 @@ class TaxDeficitCalculator:
         - the split between domestic, tax haven and non-haven tax deficits;
         - and the same amounts with carve-outs being applied.
 
-        Carve-outs are applied with the parameters (carve-out rate, use of the full value of tangible assets or of de-
+        Carve-outs are applied with the parameters (carve-out rates, use of the full value of tangible assets or of de-
         preciation expenses only and exclusion of inventories or not) that are defined when instantiating the TaxDefi-
         citCalculator object.
         """
 
         # If carve-out parameters have not been indicated, we cannot run the computations
-        if self.carve_out_rate is None or self.depreciation_only is None or self.exclude_inventories is None:
+        if (
+            self.carve_out_rate_assets is None or self.carve_out_rate_payroll is None
+            or self.depreciation_only is None or self.exclude_inventories is None
+            or self.ex_post_ETRs is None
+        ):
             raise Exception(
                 'If you want to simulate substance-based carve-outs, you need to indicate all the parameters.'
             )
 
         # We instantiate a TaxDeficitCalculator object with carve-outs
         calculator = TaxDeficitCalculator(
+            year=self.year,
+            sweden_treatment=self.sweden_treatment,
+            belgium_treatment=self.belgium_treatment,
+            use_adjusted_profits=self.use_adjusted_profits,
+            average_ETRs=self.average_ETRs_bool,
             carve_outs=True,
-            carve_out_rate=self.carve_out_rate,
+            carve_out_rate_assets=self.carve_out_rate_assets,
+            carve_out_rate_payroll=self.carve_out_rate_payroll,
             depreciation_only=self.depreciation_only,
-            exclude_inventories=self.exclude_inventories
+            exclude_inventories=self.exclude_inventories,
+            ex_post_ETRs=self.ex_post_ETRs,
+            add_AUT_AUT_row=self.add_AUT_AUT_row,
+            extended_dividends_adjustment=self.extended_dividends_adjustment
         )
 
         # We load the data
@@ -1712,7 +2132,16 @@ class TaxDeficitCalculator:
         )
 
         # We instantiate a TaxDeficitCalculator object without carve-outs
-        calculator_no_carve_out = TaxDeficitCalculator()
+        calculator_no_carve_out = TaxDeficitCalculator(
+            year=self.year,
+            sweden_treatment=self.sweden_treatment,
+            belgium_treatment=self.belgium_treatment,
+            use_adjusted_profits=self.use_adjusted_profits,
+            average_ETRs=self.average_ETRs_bool,
+            carve_outs=False,
+            add_AUT_AUT_row=self.add_AUT_AUT_row,
+            extended_dividends_adjustment=self.extended_dividends_adjustment
+        )
 
         # We load the data
         calculator_no_carve_out.load_clean_data()
@@ -1829,7 +2258,8 @@ class TaxDeficitCalculator:
         self,
         TWZ_countries_methodology,
         depreciation_only, exclude_inventories,
-        carve_out_rate=0.05
+        carve_out_rate_assets=0.05,
+        carve_out_rate_payroll=0.05
     ):
         """
         This function takes as input:
@@ -1841,7 +2271,7 @@ class TaxDeficitCalculator:
 
         - a boolean, "exlude_inventories", indicating whether to exlude inventories from tangible assets or not;
 
-        - the carve-out rate to use (which defaults to 5%).
+        - the carve-out rates to use (which both default to 5%).
 
         It returns a DataFrame that shows, for the 15% and 25% minimum rates and for each in-sample country, the estima-
         ted revenue gains from a global minimum tax without and with carve-outs being applied.
@@ -1882,7 +2312,7 @@ class TaxDeficitCalculator:
 
         # Computing corresponding tax deficits with substance-based carve-outs
         calculator = TaxDeficitCalculator(
-            carve_outs=True, carve_out_rate=carve_out_rate,
+            carve_outs=True, carve_out_rate_assets=carve_out_rate_assets, carve_out_rate_payroll=carve_out_rate_payroll,
             depreciation_only=depreciation_only, exclude_inventories=exclude_inventories
         )
 
@@ -1951,27 +2381,62 @@ class TaxDeficitCalculator:
         else:
             # If we have chosen the "new" methodology, we have a bit more work!
 
-            # We create a temporary copy of the DataFrame, restricted to CbCR-reporting countries (excluding Sweden)
+            # We create a temporary copy of the DataFrame, restricted to CbCR-reporting countries
             temp = restricted_df[restricted_df['REPORTS_CbCR'] == 1].copy()
-            temp = temp[temp['Parent jurisdiction (alpha-3 code)'] != 'SWE'].copy()
+
+            if self.sweden_exclude and self.belgium_treatment == 'exclude':
+                temp = temp[~temp['Parent jurisdiction (alpha-3 code)'].isin(['SWE', 'BEL'])].copy()
+
+            elif self.sweden_exclude and self.belgium_treatment != 'exclude':
+                temp = temp[temp['Parent jurisdiction (alpha-3 code)'] != 'SWE'].copy()
+
+            elif not self.sweden_exclude and self.belgium_treatment == 'exclude':
+                temp = temp[temp['Parent jurisdiction (alpha-3 code)'] != 'BEL'].copy()
+
+            else:
+                pass
 
             # We deduce the average reduction factors to apply to the collectible tax deficits of TWZ countries
             self.imputation_15 = temp['tax_deficit_15_with_carve_out'].sum() / temp['tax_deficit_15_no_carve_out'].sum()
             self.imputation_25 = temp['tax_deficit_25_with_carve_out'].sum() / temp['tax_deficit_25_no_carve_out'].sum()
 
+            if self.sweden_exclude and self.belgium_treatment == 'exclude':
+                restricted_df['REPORTS_CbCR'] = restricted_df.apply(
+                    (
+                        lambda row: 0 if row['Parent jurisdiction (alpha-3 code)'] in ['SWE', 'BEL']
+                        else row['REPORTS_CbCR']
+                    ),
+                    axis=1
+                )
+
+            elif self.sweden_exclude and self.belgium_treatment != 'exclude':
+                restricted_df['REPORTS_CbCR'] = restricted_df.apply(
+                    lambda row: 0 if row['Parent jurisdiction (alpha-3 code)'] == 'SWE' else row['REPORTS_CbCR'],
+                    axis=1
+                )
+
+            elif not self.sweden_exclude and self.belgium_treatment == 'exclude':
+                restricted_df['REPORTS_CbCR'] = restricted_df.apply(
+                    lambda row: 0 if row['Parent jurisdiction (alpha-3 code)'] == 'BEL' else row['REPORTS_CbCR'],
+                    axis=1
+                )
+
+            else:
+                pass
+
             # We apply the two downgrade factors to tax deficits without carve-outs
             restricted_df['tax_deficit_15_with_carve_out'] = restricted_df.apply(
                 (
-                    lambda row: row['tax_deficit_15_no_carve_out'] * self.imputation_15 if row['REPORTS_CbCR'] == 0 or
-                    row['Parent jurisdiction (alpha-3 code)'] == 'SWE' else row['tax_deficit_15_with_carve_out']
+                    lambda row: row['tax_deficit_15_no_carve_out'] * self.imputation_15
+                    if row['REPORTS_CbCR'] == 0 else row['tax_deficit_15_with_carve_out']
                 ),
                 axis=1
             )
 
             restricted_df['tax_deficit_25_with_carve_out'] = restricted_df.apply(
                 (
-                    lambda row: row['tax_deficit_25_no_carve_out'] * self.imputation_25 if row['REPORTS_CbCR'] == 0 or
-                    row['Parent jurisdiction (alpha-3 code)'] == 'SWE' else row['tax_deficit_25_with_carve_out']
+                    lambda row: row['tax_deficit_25_no_carve_out'] * self.imputation_25
+                    if row['REPORTS_CbCR'] == 0 else row['tax_deficit_25_with_carve_out']
                 ),
                 axis=1
             )
@@ -1982,7 +2447,8 @@ class TaxDeficitCalculator:
     def get_carve_outs_table_2(
         self,
         exclude_inventories, depreciation_only,
-        carve_out_rate=0.05,
+        carve_out_rate_assets=0.05,
+        carve_out_rate_payroll=0.05,
         output_Excel=False
     ):
         """
@@ -1993,7 +2459,7 @@ class TaxDeficitCalculator:
 
         - a boolean, "exlude_inventories", indicating whether to exlude inventories from tangible assets or not;
 
-        - the carve-out rate to use (which defaults to 5%).
+        - the carve-out rates to use (which both default to 5%).
 
         It returns a DataFrame that shows, for the different minimum effective tax rates and for each in-sample country,
         the estimated impact of substance-based carve-outs. The change is expressed as a percentage of revenue gain es-
@@ -2005,7 +2471,8 @@ class TaxDeficitCalculator:
         df = self.get_carve_outs_table(
             TWZ_countries_methodology='initial',
             exclude_inventories=exclude_inventories, depreciation_only=depreciation_only,
-            carve_out_rate=carve_out_rate
+            carve_out_rate_assets=carve_out_rate_assets,
+            carve_out_rate_payroll=carve_out_rate_payroll
         )
 
         # Computing tax deficits without substance-based carve-outs
@@ -2045,7 +2512,8 @@ class TaxDeficitCalculator:
         # Computing corresponding tax deficits with substance-based carve-outs
         calculator = TaxDeficitCalculator(
             carve_outs=True,
-            carve_out_rate=carve_out_rate,
+            carve_out_rate_assets=carve_out_rate_assets,
+            carve_out_rate_payroll=carve_out_rate_payroll,
             depreciation_only=depreciation_only,
             exclude_inventories=exclude_inventories
         )
@@ -2163,8 +2631,9 @@ class TaxDeficitCalculator:
             actual_rate = carve_out_rate / 100
 
             # We instantiate a TaxDeficitCalculator object with carve-outs at the rate considered
+            # NB: we assume that the actual_rate is applied to both payroll and tangible assets similarly
             calculator = TaxDeficitCalculator(
-                carve_outs=True, carve_out_rate=actual_rate,
+                carve_outs=True, carve_out_rate_assets=actual_rate, carve_out_rate_payroll=actual_rate,
                 depreciation_only=False, exclude_inventories=exclude_inventories
             )
             calculator.load_clean_data()
@@ -2213,3 +2682,344 @@ class TaxDeficitCalculator:
 
         # And eventually return the DataFrame
         return restricted_df.copy()
+
+    def get_average_CbCR_ETRs(
+        self,
+        path_to_oecd=path_to_oecd,
+        method='initial'
+    ):
+        if self.statutory_rates is None:
+            raise Exception('You first need to load clean data with the dedicated method and inplace=True.')
+
+        if method not in ['initial', 'theresa']:
+            raise Exception('The "method" argument accepts two values only: "initial" and "theresa".')
+
+        oecd = pd.read_csv(path_to_oecd)
+
+        statutory_rates = self.statutory_rates.copy()
+
+        # statutory_rates = pd.read_excel(path_to_statutory_rates, engine='openpyxl')
+        # column_of_interest = 'statrate16'
+        # statutory_rates = statutory_rates[['Country code', column_of_interest]].copy()
+
+        # statutory_rates.rename(
+        #     columns={
+        #         'Country code': 'partner',
+        #         column_of_interest: 'statrate'
+        #     },
+        #     inplace=True
+        # )
+
+        # Focusing on the positive profits sub-sample
+        oecd = oecd[oecd['PAN'] == 'PANELAI'].copy()
+
+        oecd.drop(
+            columns=[
+                'PAN', 'Grouping', 'Flag Codes', 'Flags', 'Year',
+                'Ultimate Parent Jurisdiction', 'Partner Jurisdiction'
+            ],
+            inplace=True
+        )
+
+        # Moving from a long to a wide dataset
+        oecd = oecd.pivot(
+            index=['COU', 'JUR', 'YEA'],
+            columns='Variable',
+            values='Value'
+        ).reset_index()
+
+        # Keeping only columns of interest
+        oecd = oecd[
+            [
+                'COU', 'JUR', 'YEA', 'Profit (Loss) before Income Tax',
+                'Income Tax Paid (on Cash Basis)', 'Income Tax Accrued - Current Year',
+                'Adjusted Profit (Loss) before Income Tax'
+            ]
+        ].copy()
+
+        # Eliminating Foreign Jurisdictions Totals and Stateless Entities when they are not needed
+        oecd['JUR'] = oecd.apply(
+            lambda row: rename_partner_jurisdictions(row, use_case='specific'),
+            axis=1
+        )
+
+        # We eliminate stateless entities and the "Foreign Jurisdictions Total" fields
+        oecd = oecd[
+            ~oecd['JUR'].isin(['FJT', 'STA'])
+        ].copy()
+
+        oecd['JUR'] = oecd['JUR'].map(lambda x: 'FJT' if x == 'FJTa' else x)
+
+        # Replacing, if relevant, unadjusted profits by the adjusted ones
+        if self.use_adjusted_profits:
+            oecd['Profit (Loss) before Income Tax'] = oecd.apply(
+                (
+                    lambda row: row['Adjusted Profit (Loss) before Income Tax']
+                    if not np.isnan(row['Adjusted Profit (Loss) before Income Tax'])
+                    else row['Profit (Loss) before Income Tax']
+                ),
+                axis=1
+            )
+
+        if self.sweden_adjust:
+            sweden_adj_ratios = {
+                year: TaxDeficitCalculator(
+                    year=year, sweden_treatment='adjust', add_AUT_AUT_row=False
+                ).sweden_adjustment_ratio
+                for year in [2016, 2017]
+            }
+
+            oecd['Profit (Loss) before Income Tax'] = oecd.apply(
+                (
+                    lambda row: row['Profit (Loss) before Income Tax'] * sweden_adj_ratios[row['YEA']]
+                    if row['COU'] == 'SWE' and row['JUR'] == 'SWE' else row['Profit (Loss) before Income Tax']
+                ),
+                axis=1
+            )
+
+        if self.extended_dividends_adjustment:
+            multiplier = np.logical_and(
+                oecd['COU'] == oecd['JUR'],
+                ~oecd['COU'].isin(['SWE'] + list(self.adj_profits_countries))
+            ) * 1
+
+            multiplier = multiplier.map(
+                {0: 1, 1: self.extended_adjustment_ratio}
+            )
+
+            oecd['Profit (Loss) before Income Tax'] *= multiplier
+
+        oecd.drop(columns=['Adjusted Profit (Loss) before Income Tax'], inplace=True)
+
+        # Replacing missing income tax paid values by income tax accrued and adding statutory rates
+        oecd['Income Tax Paid (on Cash Basis)'] = oecd.apply(
+            (
+                lambda row: row['Income Tax Paid (on Cash Basis)']
+                if row['Income Tax Paid (on Cash Basis)'] >= 0
+                and not np.isnan(row['Income Tax Paid (on Cash Basis)'])
+                else row['Income Tax Accrued - Current Year']
+            ),
+            axis=1
+        )
+
+        oecd.drop(columns=['Income Tax Accrued - Current Year'], inplace=True)
+
+        oecd = oecd.merge(
+            statutory_rates,
+            how='left',
+            left_on='JUR', right_on='partner'
+        )
+
+        oecd.drop(columns=['partner'], inplace=True)
+
+        # We apply the deflation of profits and income taxes paid
+        deflators = {
+            2016: self.deflator_2016_to_2017,
+            2017: 1
+        }
+
+        oecd['deflators'] = oecd['YEA'].map(deflators)
+
+        oecd['Profit (Loss) before Income Tax'] *= oecd['deflators']
+        oecd['Income Tax Paid (on Cash Basis)'] *= oecd['deflators']
+
+        oecd.drop(columns=['deflators'], inplace=True)
+
+        # We eliminate the rows that lack both profits and income taxes paid
+        oecd = oecd[
+            ~np.logical_and(
+                oecd['Profit (Loss) before Income Tax'].isnull(),
+                oecd['Income Tax Paid (on Cash Basis)'].isnull()
+            )
+        ].copy()
+
+        # After these preprocessing steps, moving to the computation of average ETRs
+
+        # We exclude from the computation rows for which either profits or income taxes paid are missing
+        oecd_temp = oecd[
+            ~np.logical_or(
+                oecd['Profit (Loss) before Income Tax'].isnull(),
+                oecd['Income Tax Paid (on Cash Basis)'].isnull()
+            )
+        ].copy()
+
+        oecd_temp = oecd_temp[
+            ~np.logical_and(
+                oecd_temp['Profit (Loss) before Income Tax'] == 0,
+                oecd_temp['Income Tax Paid (on Cash Basis)'] == 0
+            )
+        ].copy()
+
+        if method == 'theresa':
+            # Theresa excludes from the computation the rows for which income taxes paid are negative
+            oecd_temp = oecd_temp[
+                oecd_temp['Income Tax Paid (on Cash Basis)'] >= 0
+            ].copy()
+
+        average_ETRs = oecd_temp.groupby(['COU', 'JUR']).sum()[
+            ['Profit (Loss) before Income Tax', 'Income Tax Paid (on Cash Basis)']
+        ].reset_index()
+
+        average_ETRs['ETR'] = (
+            average_ETRs['Income Tax Paid (on Cash Basis)'] / average_ETRs['Profit (Loss) before Income Tax']
+        )
+
+        average_ETRs['ETR'] = average_ETRs.apply(
+            (
+                lambda row: 0 if row['Income Tax Paid (on Cash Basis)'] == 0
+                and row['Profit (Loss) before Income Tax'] == 0 else row['ETR']
+            ),
+            axis=1
+        )
+
+        average_ETRs = average_ETRs[['COU', 'JUR', 'ETR']].copy()
+
+        oecd = oecd.merge(
+            average_ETRs,
+            on=['COU', 'JUR'],
+            how='left'
+        )
+
+        if method == 'theresa':
+
+            oecd['ETR'] = oecd.apply(
+                lambda row: row['statrate'] if np.isnan(row['ETR']) else row['ETR'],
+                axis=1
+            )
+
+            self.temp = oecd.copy()
+
+            # oecd['ETR'] = winsorize(oecd['ETR'].values, limits=[0.04, 0.04], nan_policy='omit')
+
+            quantile = oecd['ETR'].quantile(q=0.96, interpolation='nearest')
+            oecd['ETR'] = oecd['ETR'].map(lambda x: quantile if not np.isnan(x) and x > quantile else x)
+
+        else:
+
+            oecd['ETR'] = oecd.apply(
+                lambda row: row['statrate'] if np.isnan(row['ETR']) else row['ETR'],
+                axis=1
+            )
+
+            oecd['ETR'] = oecd['ETR'].map(lambda x: 0 if x < 0 else x)
+
+            oecd['ETR'] = oecd['ETR'].fillna(0)
+
+        average_ETRs = oecd.groupby(['COU', 'JUR']).mean()['ETR'].reset_index()
+
+        average_ETRs.rename(
+            columns={
+                'COU': 'Parent jurisdiction (alpha-3 code)',
+                'JUR': 'Partner jurisdiction (alpha-3 code)'
+            },
+            inplace=True
+        )
+
+        self.average_ETRs = average_ETRs.copy()
+
+        return average_ETRs.copy()
+
+    def output_dividends_appendix_table(self, path_to_oecd=path_to_oecd):
+
+        # Loading the raw OECD data
+        oecd = pd.read_csv(path_to_oecd)
+
+        oecd = oecd[oecd['PAN'] == 'PANELAI'].copy()
+
+        # Instantiating the dictionary which will be transformed into a DataFrame
+        output = {
+            'Parent country': [],
+            'Year': [],
+            'Unadjusted profits before tax (€bn)': [],
+            'Adjusted profits before tax (€bn)': [],
+            'Adjustment factor (%)': []
+        }
+
+        # Sweden case
+        temp = oecd[
+            np.logical_and(
+                oecd['COU'] == 'SWE',
+                np.logical_and(
+                    oecd['JUR'] == 'SWE',
+                    oecd['CBC'] == 'PROFIT'
+                )
+            )
+        ].copy()
+
+        for year in [2016, 2017]:
+            output['Parent country'].append('Sweden')
+            output['Year'].append(year)
+
+            output['Unadjusted profits before tax (€bn)'].append(
+                temp[temp['YEA'] == year]['Value'].iloc[0] / 10**9
+            )
+
+            multiplier = self.sweden_adj_ratio_2016 if year == 2016 else self.sweden_adj_ratio_2017
+
+            output['Adjusted profits before tax (€bn)'].append(
+                temp[temp['YEA'] == year]['Value'].iloc[0] / 10**9 * multiplier
+            )
+
+            output['Adjustment factor (%)'].append(multiplier * 100)
+
+        # Countries providing adjusted profits
+        temp = oecd[oecd['CBC'] == 'PROFIT_ADJ'].copy()
+
+        for parent_country in temp['Ultimate Parent Jurisdiction'].unique():
+            output['Parent country'].append(parent_country)
+
+            temp_bis = temp[temp['Ultimate Parent Jurisdiction'] == parent_country].copy()
+
+            for year in temp_bis['YEA'].unique():
+                output['Year'].append(year)
+
+                adjusted_profits = temp_bis[temp_bis['Year'] == year]['Value'].iloc[0]
+
+                unadjusted_profits = oecd[
+                    np.logical_and(
+                        oecd['Ultimate Parent Jurisdiction'] == parent_country,
+                        np.logical_and(
+                            oecd['Partner Jurisdiction'] == parent_country,
+                            np.logical_and(
+                                oecd['YEA'] == year,
+                                oecd['CBC'] == 'PROFIT'
+                            )
+                        )
+                    )
+                ]['Value'].iloc[0]
+
+                output['Adjusted profits before tax (€bn)'].append(adjusted_profits / 10**9)
+                output['Unadjusted profits before tax (€bn)'].append(unadjusted_profits / 10**9)
+                output['Adjustment factor (%)'].append(adjusted_profits / unadjusted_profits * 100)
+
+        return pd.DataFrame(output)
+
+
+if __name__ == '__main__':
+
+    path_to_output_file = sys.argv[1]
+
+    final_output = {}
+
+    for year in [2016, 2017]:
+        calculator = TaxDeficitCalculator(year=year)
+        calculator.load_clean_data()
+
+        for rate in [15, 21, 25, 30]:
+            key = f'total_TD_{rate}%_{year}'
+            value = calculator.get_total_tax_deficits(minimum_ETR=rate / 100)
+
+            final_output[key] = value.copy()
+
+        for rate in [15, 21, 25, 30]:
+            key = f'decomposed_{rate}%_{year}'
+            value = calculator.compute_all_tax_deficits(minimum_ETR=rate / 100)
+
+            final_output[key] = value.copy()
+
+        final_output[f'unilateral_25%_{year}'] = calculator.check_unilateral_scenario_gain_computations()
+        final_output[f'partial_25%_{year}'] = calculator.compute_intermediary_scenario_gain()
+
+    with pd.ExcelWriter(path_to_output_file, engine='xlsxwriter') as writer:
+        for key, value in final_output.items():
+            value.to_excel(writer, sheet_name=key, index=False)

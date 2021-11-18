@@ -1,0 +1,200 @@
+partner,partner1,partner2,earn
+"AD","Andorra","AND",25777.77
+"AE","United Arab Emirates","ARE",11474.77
+"AF","Afghanistan","AFG",11474.77
+"AFRIC","Africa","AFRIC",3066.384
+"AL","Albania","ALB",4933.68
+"AM","Armenia","ARM",2574
+"AMER","America (Continent)","AMER",30092.01
+"AN","Netherlands Antilles","ANT",30092.01
+"AO","Angola","AGO",3066.384
+"AR","Argentina","ARG",10499.76
+"AS","American Samoa","ASM",21053.11
+"ASIAT","Asia","ASIAT",11474.77
+"AT","Austria","AUT",36452.52
+"AU","Australia","AUS",51918.36
+"AW","Aruba","ABW",30092.01
+"AZ","Azerbaijan","AZE",3684.72
+"BA","Bosnia and Herzegovina","BIH",5188.08
+"BB","Barbados","BRB",30092.01
+"BD","Bangladesh","BGD",1792.56
+"BE","Belgium","BEL",42634.2
+"BF","Burkina Faso","BFA",3066.384
+"BG","Bulgaria","BGR",7170.48
+"BH","Bahrain","BHR",26712.72
+"BJ","Benin","BEN",3066.384
+"BM","Bermuda","BMU",30092.01
+"BN","Brunei Darussalam","BRN",11474.77
+"BO","Bolivia","BOL",11377.56
+"BR","Brazil","BRA",8172.72
+"BS","Bahamas","BHS",30092.01
+"BT","Bhutan","BTN",11474.77
+"BV","Bouvet Island","BVT",25777.77
+"BW","Botswana","BWA",3066.384
+"BY","Belarus","BLR",5982.12
+"BZ","Belize","BLZ",7188.72
+"CA","Canada","CAN",38263.8
+"CD","Democratic Republic of the Congo","COD",3066.384
+"CF","Central African Republic","CAF",3066.384
+"CG","Congo","COG",3066.384
+"CH","Switzerland","CHE",25777.77
+"CI","Côte d'Ivoire","CIV",2280.84
+"CL","Chile","CHL",13995.84
+"CM","Cameroon","CMR",3066.384
+"CN","China (People's Republic of)","CHN",11474.77
+"CO","Colombia","COL",4785.12
+"CR","Costa Rica","CRI",10938.48
+"CV","Cabo Verde","CPV",3066.384
+"CW","Curacao","CUW",25777.77
+"CY","Cyprus","CYP",25648.32
+"CZ","Czech Republic","CZE",15969.48
+"DE","Germany","DEU",56244.6
+"DK","Denmark","DNK",25777.77
+"DO","Dominican Republic","DOM",3550.92
+"DZ","Algeria","DZA",3066.384
+"EC","Ecuador","ECU",6002.4
+"EE","Estonia","EST",16552.08
+"EG","Egypt","EGY",3068.04
+"ES","Spain","ESP",26719.2
+"ET","Ethiopia","ETH",3066.384
+"EUROP","Europe","EUROP",25777.77
+"FI","Finland","FIN",41414.16
+"FJ","Fiji","FJI",21053.11
+"FJT","Foreign Jurisdictions Total","FJT",21053.11
+"FM","Micronesia","FSM",21053.11
+"FO","Faeroe Islands","FRO",25777.77
+"FR","France","FRA",41807.28
+"GA","Gabon","GAB",3066.384
+"GB","United Kingdom","GBR",36155.52
+"GE","Georgia","GEO",4777.56
+"GG","Guernsey","GGY",25777.77
+"GH","Ghana","GHA",1899.48
+"GI","Gibraltar","GIB",20049.72
+"GL","Greenland","GRL",30092.01
+"GN","Guinea","GIN",3066.384
+"GQ","Equatorial Guinea","GNQ",3066.384
+"GR","Greece","GRC",11901
+"GRPS","Other Groups","GRPS",21053.11
+"GT","Guatemala","GTM",4249.44
+"GU","Guam","GUM",21053.11
+"GY","Guyana","GUY",30092.01
+"HK","Hong Kong, China","HKG",11474.77
+"HN","Honduras","HND",3513
+"HR","Croatia","HRV",25777.77
+"HU","Hungary","HUN",14237.04
+"ID","Indonesia","IDN",2182.56
+"IE","Ireland","IRL",43207.08
+"IL","Israel","ISR",32877.9
+"IM","Isle of Man","IMN",
+"IN","India","IND",11474.77
+"IOT","British Indian Ocean Territory","IOT",
+"IQ","Iraq","IRQ",11474.77
+"IR","Iran","IRN",11474.77
+"IS","Iceland","ISL",79970.4
+"IT","Italy","ITA",29023.8
+"JM","Jamaica","JAM",30092.01
+"JO","Jordan","JOR",6133.08
+"JP","Japan","JPN",32555.28
+"JY","Jersey","JEY",25777.77
+"KE","Kenya","KEN",3066.384
+"KH","Cambodia","KHM",2837.76
+"KP","Democratic People's Republic of Korea","PRK",11474.77
+"KR","Korea","KOR",36580.92
+"KW","Kuwait","KWT",11474.77
+"KY","Cayman Islands","CYM",30092.01
+"KZ","Kazakhstan","KAZ",5551.92
+"LA","Lao People's Democratic Republic","LAO",3426.72
+"LB","Lebanon","LBN",11474.77
+"LI","Liechtenstein","LIE",25777.77
+"LK","Sri Lanka","LKA",2337.24
+"LR","Liberia","LBR",3066.384
+"LS","Lesotho","LSO",3066.384
+"LT","Lithuania","LTU",11392.56
+"LU","Luxembourg","LUX",66727.32
+"LV","Latvia","LVA",11990.28
+"MA","Morocco","MAR",3066.384
+"MC","Monaco","MCO",25777.77
+"MD","Moldova","MDA",302.04
+"ME","Montenegro","MNE",10370.52
+"MG","Madagascar","MDG",3066.384
+"MH","Marshall Islands","MHL",21053.11
+"MK","North Macedonia","MKD",25777.77
+"ML","Mali","MLI",1438.32
+"MM","Myanmar","MMR",1604.28
+"MN","Mongolia","MNG",4645.68
+"MO","Macau, China","MAC",22427.16
+"MT","Malta","MLT",25777.77
+"MU","Mauritius","MUS",7386.72
+"MV","Maldives","MDV",8607.56
+"MW","Malawi","MWI",3066.384
+"MX","Mexico","MEX",30092.01
+"MY","Malaysia","MYS",8033.64
+"MZ","Mozambique","MOZ",3066.384
+"NA","Namibia","NAM",6105.18
+"NC","New Caledonia","NCL",21053.11
+"NE","Niger","NER",3066.384
+"NG","Nigeria","NGA",3066.384
+"NI","Nicaragua","NIC",30092.01
+"NL","Netherlands","NLD",25777.77
+"NO","Norway","NOR",64282.08
+"NP","Nepal","NPL",2044.68
+"NZ","New Zealand","NZL",40585.2
+"OAF","Other Africa","OAF",3066.384
+"OAM","Other Americas","OAM",30092.01
+"OAS","Other Asia","OAS",11474.77
+"OM","Oman","OMN",11474.77
+"OTE","Other Europe","OTE",25777.77
+"PA","Panama","PAN",10258.44
+"PE","Peru","PER",8395.08
+"PF","French Polynesia","PYF",21053.11
+"PG","Papua New Guinea","PNG",11474.77
+"PH","Philippines","PHL",3010.68
+"PK","Pakistan","PAK",2142.36
+"PL","Poland","POL",13601.52
+"PR","Puerto Rico","PRI",30092.01
+"PT","Portugal","PRT",11604.12
+"PW","Palau","PLW",21053.11
+"PY","Paraguay","PRY",4646.28
+"QA","Qatar","QAT",36590.16
+"RE","Réunion","REU",3066.384
+"RO","Romania","ROU",10784.34
+"RS","Serbia","SRB",8727.72
+"RU","Russia","RUS",7941.12
+"RW","Rwanda","RWA",817.8
+"SA","Saudi Arabia","SAU",19497.6
+"SB","Solomon Islands","SLB",21053.11
+"SC","Seychelles","SYC",3066.384
+"SD","Sudan","SDN",3066.384
+"SE","Sweden","SWE",47304.6
+"SG","Singapore","SGP",36775.32
+"SI","Slovenia","SVN",23795.88
+"SK","Slovak Republic","SVK",14931.96
+"SL","Sierra Leone","SLE",3066.384
+"SN","Senegal","SEN",3066.384
+"SO","Somalia","SOM",3066.384
+"SS","South Sudan ","SSD",3066.384
+"SV","El Salvador","SLV",3822.6
+"SZ","Eswatini","SWZ",3066.384
+"TD","Chad","TCD",3066.384
+"TG","Togo","TGO",1845.12
+"TH","Thailand","THA",4593.756
+"TL","Timor-Leste","TLS",11474.77
+"TN","Tunisia","TUN",3066.384
+"TR","Turkey","TUR",10412.13
+"TT","Trinidad and Tobago","TTO",30092.01
+"TW","Chinese Taipei","TWN",11474.77
+"TZ","Tanzania","TZA",3066.384
+"UA","Ukraine","UKR",3205.2
+"UG","Uganda","UGA",1274.28
+"US","United States","USA",47462.16
+"UY","Uruguay","URY",12660.48
+"VE","Venezuela","VEN",30092.01
+"VG","British Virgin Islands","VGB",30092.01
+"VI","United States Virgin Islands","VIR",30092.01
+"VN","Viet Nam","VNM",2881.56
+"VU","Vanuatu","VUT",21053.11
+"WS","Samoa","WSM",6004.56
+"YE","Yemen","YEM",11474.77
+"ZA","South Africa","ZAF",3152.28
+"ZM","Zambia","ZMB",5064.12
+"ZW","Zimbabwe","ZWE",3066.384
