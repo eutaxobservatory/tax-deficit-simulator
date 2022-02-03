@@ -2994,6 +2994,20 @@ class TaxDeficitCalculator:
 
         return pd.DataFrame(output)
 
+    def compute_qdmtt_revenue_gains(
+        self, minimum_ETR=0.15
+    ):
+
+        # We need to have previously loaded and cleaned the OECD and TWZ data
+        if self.oecd is None or self.twz is None:
+            raise Exception('You first need to load clean data with the dedicated method and inplace=True.')
+
+        oecd = self.oecd.copy()
+
+        twz = self.twz.copy()
+
+        return oecd.copy(), twz.copy()
+
 
 if __name__ == '__main__':
 
