@@ -371,10 +371,12 @@ class TaxDeficitCalculator:
             statutory_rates = pd.read_excel(path_to_statutory_rates, engine='openpyxl')
 
             path_to_excel_file = os.path.join(path_to_dir, 'data', 'TWZ', str(self.year), 'TWZ.xlsx')
+            self.path_to_excel_file = path_to_excel_file
 
             twz = load_and_clean_twz_main_data(
                 path_to_excel_file=path_to_excel_file,
-                path_to_geographies=path_to_geographies
+                path_to_geographies=path_to_geographies,
+                qdmtt_output=False
             )
 
             twz_CIT = load_and_clean_twz_CIT(
@@ -1047,7 +1049,7 @@ class TaxDeficitCalculator:
 
         oecd = self.oecd.copy()
 
-        # We only profits taxed at an effective tax rate above the minimum ETR
+        # We only consider profits taxed at an effective tax rate above the minimum ETR
         oecd = oecd[oecd['ETR'] < minimum_ETR].copy()
 
         # We compute the ETR differential for all low-taxed profits
@@ -3000,9 +3002,91 @@ class TaxDeficitCalculator:
 
         oecd = self.oecd.copy()
 
-        twz = self.twz.copy()
+        # Saving the full list of partner countries before eliminating some rows with high ETRs
+        temp = oecd[
+            ['Partner jurisdiction (alpha-3 code)', 'Partner jurisdiction (whitespaces cleaned)']
+        ].drop_duplicates()
 
-        return oecd.copy(), twz.copy()
+        ### Step common to OECD and TWZ data
+
+        # Depending on the chosen treatment of Belgian and Swedish CbCRs, we have to adapt the OECD data and therefore
+        # the list of parent countries to consider in TWZ data
+        unique_parent_countries = oecd['Parent jurisdiction (alpha-3 code)'].unique()
+
+        if self.sweden_exclude and self.belgium_treatment == 'exclude':
+            oecd = oecd[~oecd['Parent jurisdiction (alpha-3 code)'].isin(['BEL', 'SWE'])].copy()
+
+            unique_parent_countries = list(
+                unique_parent_countries[
+                    ~unique_parent_countries.isin(['BEL', 'SWE'])
+                ]
+            )
+
+        elif self.sweden_exclude and self.belgium_treatment != 'exclude':
+            oecd = oecd[oecd['Parent jurisdiction (alpha-3 code)'] != 'SWE'].copy()
+
+            unique_parent_countries = list(
+                unique_parent_countries[unique_parent_countries != 'SWE'].copy()
+            )
+
+        elif not self.sweden_exclude and self.belgium_treatment == 'exclude':
+            oecd = oecd[oecd['Parent jurisdiction (alpha-3 code)'] != 'BEL'].copy()
+
+            unique_parent_countries = list(
+                unique_parent_countries[unique_parent_countries != 'BEL'].copy()
+            )
+
+        else:
+            unique_parent_countries = list(unique_parent_countries)
+
+        ### From the OECD's CbCR data
+
+        # Computing tax deficits
+        oecd = oecd[oecd['ETR'] < minimum_ETR].copy()
+        oecd['ETR_differential'] = oecd['ETR'].map(lambda x: minimum_ETR - x)
+        oecd['tax_deficit'] = oecd['ETR_differential'] * oecd['Profit (Loss) before Income Tax']
+
+        # Attributing the tax deficits to partner jurisdictions
+        tax_deficits = oecd.groupby(
+            ['Partner jurisdiction (alpha-3 code)']
+        ).agg(
+            {
+                'tax_deficit': 'sum'
+            }
+        ).reset_index()
+
+        # Merging with the temp DataFrame to retrieve the partner countries with 0 low-ETR observation
+        tax_deficits = temp.merge(
+            tax_deficits,
+            on='Partner jurisdiction (alpha-3 code)',
+            how='left'
+        )
+        tax_deficits['tax_deficit'] = tax_deficits['tax_deficit'].fillna(0)
+
+        ### From TWZ data
+
+        # We load the data thanks to the dedicated function defined in utils.py
+        twz = load_and_clean_twz_main_data(
+            path_to_excel_file=self.path_to_excel_file,
+            path_to_geographies=path_to_geographies,
+            qdmtt_output=True,
+            countries_to_exclude=unique_parent_countries
+        )
+
+        # We convert millions of dollars into dollars and apply the average impact of carve-outs in tax havens
+        for column_name in ['Total profits', 'Total profits (positive only)']:
+            twz[column_name] *= 10**6
+
+            if self.carve_outs:
+                twz[column_name] *= (1 - self.avg_carve_out_impact_tax_haven)
+            else:
+                continue
+
+        # We compute the resulting tax deficits
+        twz['ETR_differential'] = max(minimum_ETR - self.assumed_haven_ETR_TWZ, 0)
+        twz['tax_deficit_TWZ'] = twz['Total profits (positive only)'] * twz['ETR_differential']
+
+        return tax_deficits.copy(), twz.copy()
 
 
 if __name__ == '__main__':

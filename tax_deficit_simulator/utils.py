@@ -40,7 +40,16 @@ country_name_corresp = {
 }
 
 
-def load_and_clean_twz_main_data(path_to_excel_file, path_to_geographies):
+def load_and_clean_twz_main_data(
+    path_to_excel_file, path_to_geographies, qdmtt_output, countries_to_exclude=None
+    ):
+
+    if qdmtt_output and countries_to_exclude is None:
+        raise Exception(
+            "If you want to prepare the TWZ data for the domestic minimum tax scenario,"
+            + "you must indicate which countries are treated based on the OECD's data and should thus be excluded."
+        )
+
     geographies = pd.read_csv(path_to_geographies)
     geographies = geographies[['NAME', 'CODE']].copy()
 
@@ -103,40 +112,68 @@ def load_and_clean_twz_main_data(path_to_excel_file, path_to_geographies):
         left_on='Country', right_on='NAME'
     ).drop(columns='NAME')
 
-    twz['Profits in all tax havens'] = twz[twz.columns[1:]].sum(axis=1)
+    if not qdmtt_output:
+        twz['Profits in all tax havens'] = twz[twz.columns[1:]].sum(axis=1)
 
-    twz['Profits in all tax havens (positive only)'] = twz[twz.columns[1:]].apply(
-        lambda row: row.iloc[:-2][row.iloc[:-2] >= 0].sum(),
-        axis=1
-    )
+        twz['Profits in all tax havens (positive only)'] = twz[twz.columns[1:]].apply(
+            lambda row: row.iloc[:-2][row.iloc[:-2] >= 0].sum(),
+            axis=1
+        )
 
-    for country_name in np.intersect1d(twz['Country'].unique(), twz.columns):
+        for country_name in np.intersect1d(twz['Country'].unique(), twz.columns):
 
-        twz[f'{country_name}_temp'] = (twz['Country'] == country_name)
+            twz[f'{country_name}_temp'] = (twz['Country'] == country_name)
 
-        twz[f'{country_name}_temp'] = twz[country_name] * twz[f'{country_name}_temp']
+            twz[f'{country_name}_temp'] = twz[country_name] * twz[f'{country_name}_temp']
 
-        twz['Profits in all tax havens'] -= twz[f'{country_name}_temp']
+            twz['Profits in all tax havens'] -= twz[f'{country_name}_temp']
 
-        if (twz[f'{country_name}_temp'] > 0).sum() == 1:
-            twz['Profits in all tax havens (positive only)'] -= twz[f'{country_name}_temp']
+            if (twz[f'{country_name}_temp'] > 0).sum() == 1:
+                twz['Profits in all tax havens (positive only)'] -= twz[f'{country_name}_temp']
 
-        twz.drop(columns=[f'{country_name}_temp'], inplace=True)
+            twz.drop(columns=[f'{country_name}_temp'], inplace=True)
 
-    twz = twz[['Country', 'CODE', 'Profits in all tax havens', 'Profits in all tax havens (positive only)']].copy()
+        twz = twz[['Country', 'CODE', 'Profits in all tax havens', 'Profits in all tax havens (positive only)']].copy()
 
-    twz.rename(
-        columns={
-            'CODE': 'Alpha-3 country code'
-        },
-        inplace=True
-    )
+        twz.rename(
+            columns={
+                'CODE': 'Alpha-3 country code'
+            },
+            inplace=True
+        )
 
-    if twz.isnull().sum().sum() > 0:
-        raise Exception('Missing values remain in the TWZ data on tax haven profits.')
+        if twz.isnull().sum().sum() > 0:
+            raise Exception('Missing values remain in the TWZ data on tax haven profits.')
 
-    return twz.reset_index(drop=True)
+        return twz.reset_index(drop=True)
 
+    else:
+
+        twz = twz[~twz['CODE'].isin(countries_to_exclude)].copy()
+        twz = twz.drop(columns='CODE')
+
+        twz = twz.set_index('Country').T.reset_index()
+
+        twz = twz.merge(
+            geographies,
+            how='left',
+            left_on='index', right_on='NAME'
+        ).dropna(
+            subset=['NAME', 'CODE']
+        ).drop(
+            columns='index'
+        )
+
+        twz['Total profits'] = twz[twz.columns[:-2]].sum(axis=1)
+        twz['Total profits (positive only)'] = twz[twz.columns[:-3]].applymap(
+            lambda x: max(0, x)
+        ).sum(axis=1)
+
+        twz = twz[
+            ['NAME', 'CODE', 'Total profits', 'Total profits (positive only)']
+        ].copy()
+
+        return twz.copy()
 
 def load_and_clean_twz_CIT(path_to_excel_file, path_to_geographies):
     geographies = pd.read_csv(path_to_geographies)
