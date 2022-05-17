@@ -12,3 +12,4 @@ groupama/data/base_pno.*
 notebooks/
 *.ipynb
 __pycache__/
+*.egg-info
