@@ -10,10 +10,10 @@ It also provides various utils for the "app.py" file, especially to add file dow
 
 import base64
 import os
+import json
 
 import numpy as np
 import pandas as pd
-
 
 # ----------------------------------------------------------------------------------------------------------------------
 # --- Paths to files that can be downloaded from the simulator
@@ -21,14 +21,13 @@ import pandas as pd
 path_to_files = os.path.dirname(os.path.abspath(__file__))
 path_to_files = os.path.join(path_to_files, 'files')
 
-
 # ----------------------------------------------------------------------------------------------------------------------
 # --- Utils for the calculator.py file
 
 # This list is valid for both 2016 and 2017 dataset
 COUNTRIES_WITH_MINIMUM_REPORTING = ['KOR', 'NLD', 'IRL', 'FIN']
 
-
+# Correspondences between the country names used in TWZ data files and in our own set of country codes
 country_name_corresp = {
     'BVI': 'British Virgin Islands',
     'Gribraltar': 'Gibraltar',
@@ -39,16 +38,22 @@ country_name_corresp = {
     'Bahamas, The': 'Bahamas'
 }
 
+# Opening the JSON file with the paths to the data files stored online
+with open('data/online_data_paths.json') as file:
+    online_data_paths = json.load(file)
+
 
 def load_and_clean_twz_main_data(
-    path_to_excel_file, path_to_geographies, qdmtt_output, countries_to_exclude=None
-    ):
-
-    if qdmtt_output and countries_to_exclude is None:
-        raise Exception(
-            "If you want to prepare the TWZ data for the domestic minimum tax scenario,"
-            + "you must indicate which countries are treated based on the OECD's data and should thus be excluded."
-        )
+    path_to_excel_file,
+    path_to_geographies
+):
+    """
+    This function is used to load and preprocess the data compiled by TWZ on the profits booked by multinational compa-
+    nies in tax havens. It simply takes as arguments the paths to the Excel file with TWZ data and to the CSV file with
+    all the country codes. It returns a DataFrame that displays, for each headquarter country in TWZ' sample, the total
+    amount of pre-tax profits booked in tax havens and the sum of positive profits only. Compared with the function
+    "load_and_clean_bilateral_twz_data" defined below, it does not preserve the bilateral structure of the data source.
+    """
 
     geographies = pd.read_csv(path_to_geographies)
     geographies = geographies[['NAME', 'CODE']].copy()
@@ -112,70 +117,152 @@ def load_and_clean_twz_main_data(
         left_on='Country', right_on='NAME'
     ).drop(columns='NAME')
 
-    if not qdmtt_output:
-        twz['Profits in all tax havens'] = twz[twz.columns[1:]].sum(axis=1)
+    twz['Profits in all tax havens'] = twz[twz.columns[1:]].sum(axis=1)
 
-        twz['Profits in all tax havens (positive only)'] = twz[twz.columns[1:]].apply(
-            lambda row: row.iloc[:-2][row.iloc[:-2] >= 0].sum(),
-            axis=1
+    twz['Profits in all tax havens (positive only)'] = twz[twz.columns[1:]].apply(
+        lambda row: row.iloc[:-2][row.iloc[:-2] >= 0].sum(),
+        axis=1
+    )
+
+    for country_name in np.intersect1d(twz['Country'].unique(), twz.columns):
+
+        twz[f'{country_name}_temp'] = (twz['Country'] == country_name)
+
+        twz[f'{country_name}_temp'] = twz[country_name] * twz[f'{country_name}_temp']
+
+        twz['Profits in all tax havens'] -= twz[f'{country_name}_temp']
+
+        if (twz[f'{country_name}_temp'] > 0).sum() == 1:
+            twz['Profits in all tax havens (positive only)'] -= twz[f'{country_name}_temp']
+
+        twz.drop(columns=[f'{country_name}_temp'], inplace=True)
+
+    twz = twz[['Country', 'CODE', 'Profits in all tax havens', 'Profits in all tax havens (positive only)']].copy()
+
+    twz.rename(
+        columns={
+            'CODE': 'Alpha-3 country code'
+        },
+        inplace=True
+    )
+
+    if twz.isnull().sum().sum() > 0:
+        raise Exception('Missing values remain in the TWZ data on tax haven profits.')
+
+    return twz.reset_index(drop=True)
+
+
+def load_and_clean_bilateral_twz_data(
+    path_to_excel_file, path_to_geographies
+):
+    """
+    This function is called when computing revenue gains under the QDMTT scenario, to preprocess the TWZ data on the
+    profits booked in tax havens. Compared with the "load_and_clean_twz_main_data" function defined above, it preserves
+    the bilateral structure of the data (to then attribute top-up taxes to the source / partner jurisdiction). It simply
+    takes as arguments the paths to the Excel file with TWZ data and to the CSV file with all the country codes.
+    """
+    geographies = pd.read_csv(path_to_geographies)
+    geographies = geographies[['NAME', 'CODE']].copy()
+
+    twz = pd.read_excel(
+        path_to_excel_file,
+        sheet_name='TableC4',
+        engine='openpyxl'
+    )
+
+    twz.drop(
+        columns=['Unnamed: 0'] + list(twz.columns[-5:]),
+        inplace=True
+    )
+
+    twz = twz.iloc[6:-3].copy()
+
+    twz = twz[['Unnamed: 1', 'Unnamed: 2'] + list(twz.columns[-11:])].copy()
+
+    column_names = list(twz.iloc[0, 1:]).copy()
+    column_names[0] = 'All havens - Excessive high risk payments'
+
+    twz.columns = ['Country'] + column_names
+
+    twz = twz.iloc[2:].copy()
+
+    twz.reset_index(drop=True, inplace=True)
+
+    twz = twz[twz.isnull().sum(axis=1) != twz.isnull().sum(axis=1).max()].copy()
+
+    twz.drop(
+        columns=['All havens - Excessive high risk payments', 'All havens', 'EU havens', 'Non-EU tax havens'],
+        inplace=True
+    )
+
+    for column in twz.columns[1:]:
+        twz[column] = twz[column].fillna(0)
+
+    twz = twz.dropna().reset_index(drop=True)
+
+    twz = twz[
+        ~twz['Country'].isin(
+            [
+                'OECD countries',
+                'Main developing countries',
+                'Non-OECD tax havens',
+                'Rest of World',
+                'Non-haven total',
+                'Additional developing countries'
+            ]
         )
+    ].copy()
 
-        for country_name in np.intersect1d(twz['Country'].unique(), twz.columns):
+    twz['Country'] = twz['Country'].map(
+        lambda country_name: country_name_corresp.get(country_name, country_name)
+    )
 
-            twz[f'{country_name}_temp'] = (twz['Country'] == country_name)
+    twz_reformatted = twz[['Country', 'Belgium']].copy()
+    twz_reformatted['PARTNER_COUNTRY_NAME'] = 'Belgium'
+    twz_reformatted = twz_reformatted.rename(columns={'Belgium': 'PROFITS'})
 
-            twz[f'{country_name}_temp'] = twz[country_name] * twz[f'{country_name}_temp']
+    for column in twz.columns[2:]:
+        restricted_df = twz[['Country', column]].copy()
+        restricted_df['PARTNER_COUNTRY_NAME'] = column
+        restricted_df = restricted_df.rename(columns={column: 'PROFITS'})
 
-            twz['Profits in all tax havens'] -= twz[f'{country_name}_temp']
+        twz_reformatted = pd.concat([twz_reformatted, restricted_df], axis=0)
 
-            if (twz[f'{country_name}_temp'] > 0).sum() == 1:
-                twz['Profits in all tax havens (positive only)'] -= twz[f'{country_name}_temp']
+    twz_reformatted = twz_reformatted.merge(
+        geographies,
+        how='left',
+        left_on='Country', right_on='NAME'
+    ).drop(
+        columns='NAME'
+    ).rename(
+        columns={
+            'Country': 'PARENT_COUNTRY_NAME',
+            'CODE': 'PARENT_COUNTRY_CODE'
+        }
+    )
 
-            twz.drop(columns=[f'{country_name}_temp'], inplace=True)
+    twz_reformatted = twz_reformatted.merge(
+        geographies,
+        how='left',
+        left_on='PARTNER_COUNTRY_NAME', right_on='NAME'
+    ).drop(
+        columns='NAME'
+    ).rename(
+        columns={
+            'CODE': 'PARTNER_COUNTRY_CODE'
+        }
+    )
 
-        twz = twz[['Country', 'CODE', 'Profits in all tax havens', 'Profits in all tax havens (positive only)']].copy()
+    twz_reformatted['PARTNER_COUNTRY_CODE'] = twz_reformatted['PARTNER_COUNTRY_CODE'].fillna('REST')
 
-        twz.rename(
-            columns={
-                'CODE': 'Alpha-3 country code'
-            },
-            inplace=True
-        )
+    return twz_reformatted.copy()
 
-        if twz.isnull().sum().sum() > 0:
-            raise Exception('Missing values remain in the TWZ data on tax haven profits.')
-
-        return twz.reset_index(drop=True)
-
-    else:
-
-        twz = twz[~twz['CODE'].isin(countries_to_exclude)].copy()
-        twz = twz.drop(columns='CODE')
-
-        twz = twz.set_index('Country').T.reset_index()
-
-        twz = twz.merge(
-            geographies,
-            how='left',
-            left_on='index', right_on='NAME'
-        ).dropna(
-            subset=['NAME', 'CODE']
-        ).drop(
-            columns='index'
-        )
-
-        twz['Total profits'] = twz[twz.columns[:-2]].sum(axis=1)
-        twz['Total profits (positive only)'] = twz[twz.columns[:-3]].applymap(
-            lambda x: max(0, x)
-        ).sum(axis=1)
-
-        twz = twz[
-            ['NAME', 'CODE', 'Total profits', 'Total profits (positive only)']
-        ].copy()
-
-        return twz.copy()
 
 def load_and_clean_twz_CIT(path_to_excel_file, path_to_geographies):
+    """
+    This function is used to load and clean the data compiled by Tørsløv et al. on countries' current corporate income
+    tax revenues. It requires as arguments the paths to the TWZ Excel file and to the CSV file with country codes.
+    """
     geographies = pd.read_csv(path_to_geographies)
     geographies = geographies[['NAME', 'CODE']].copy()
 
@@ -295,6 +382,117 @@ def impute_missing_carve_out_values(
 
     else:
         return row['Profit (Loss) before Income Tax'] * avg_carve_out_impact_aggregate
+
+
+def get_avg_of_available_years(row, reference_year, variable):
+    restricted_row = row[
+        row.index[
+            list(
+                map(
+                    lambda col: col.startswith(variable),
+                    row.index
+                )
+            )
+        ]
+    ]
+
+    available_values = restricted_row[~restricted_row.isnull()]
+
+    if available_values.empty:
+        return np.nan
+
+    else:
+
+        available_vars = restricted_row[~restricted_row.isnull()].index
+
+        available_years = pd.Series(
+            [
+                int(available_var[-4:]) for available_var in available_vars
+            ]
+        )
+
+        if reference_year in available_years:
+            return row[variable + f'{str(reference_year)}']
+
+        else:
+            return available_values.mean()
+
+
+def find_closest_year_available(row, reference_year, variable):
+    restricted_row = row[
+        row.index[
+            list(
+                map(
+                    lambda col: col.startswith(variable),
+                    row.index
+                )
+            )
+        ]
+    ]
+
+    available_values = restricted_row[~restricted_row.isnull()].copy()
+
+    if available_values.empty:
+        return np.nan
+
+    else:
+        available_vars = available_values.index
+
+        available_years = pd.Series(
+            [
+                int(available_var[-4:]) for available_var in available_vars
+            ]
+        )
+
+        distance_to_reference_year = np.abs(available_years - reference_year)
+        closest_available_year = available_years[
+            distance_to_reference_year.idxmin()
+        ]
+
+        return closest_available_year
+
+
+def apply_upgrade_factor(row, reference_year, variable, upgrade_factors):
+    available_year_column = 'AVAILABLE_YEAR_' + variable
+    available_year = row[available_year_column]
+
+    if np.isnan(available_year):
+        return np.nan
+
+    else:
+        available_year = int(available_year)
+
+    if available_year > reference_year:
+        column_name = f'uprusd{available_year - 2000}{reference_year - 2000}'
+        try:
+            factor = upgrade_factors.loc[
+                'European Union', column_name
+            ]
+        except:
+            print(column_name)
+            factor = 1
+
+        available_value = row[variable + str(available_year)]
+
+        return available_value / factor
+
+    elif available_year < reference_year:
+        column_name = f'uprusd{reference_year - 2000}{available_year - 2000}'
+        try:
+            factor = upgrade_factors.loc[
+                'European Union', column_name
+            ]
+        except:
+            print(column_name)
+            factor = 1
+
+        available_value = row[variable + str(available_year)]
+
+        return available_value * factor
+
+    else:
+        available_value = row[variable + str(available_year)]
+        return available_value
 
 
 # ----------------------------------------------------------------------------------------------------------------------
