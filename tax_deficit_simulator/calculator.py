@@ -61,6 +61,11 @@ class TaxDeficitCalculator:
         de_minimis_exclusion=True,
         add_AUT_AUT_row=True,
         extended_dividends_adjustment=False,
+        behavioral_responses=False,
+        behavioral_responses_method=None,
+        behavioral_responses_TH_elasticity=None,
+        behavioral_responses_non_TH_elasticity=None,
+        behavioral_responses_attribution_formula=None,
         fetch_data_online=False
     ):
         """
@@ -189,6 +194,40 @@ class TaxDeficitCalculator:
             raise Exception(
                 'The extended_dividends_adjustment is only valid if Sweden-Sweden profits before tax are adjusted and '
                 + 'if adjusted profits are used whenever they are available (when use_adjusted_profits=True is passed.)'
+            )
+
+        if behavioral_responses and carve_outs:
+            raise Exception(
+                'Behavioral responses can only be used without the substance-based carve-outs.'
+            )
+
+        if behavioral_responses and (
+            behavioral_responses_method is None or behavioral_responses_method not in [
+                'linear_elasticity', 'bratta_et_al'
+            ]
+        ):
+            raise Exception(
+                "If you want to include firms's behavioral responses in the simulation, you must indicate which method"
+                + ' should be used (either "linear_elasticity" or "bratta_et_al" for the cubic functional form).'
+            )
+
+        if behavioral_responses and behavioral_responses_method == 'linear_elasticity' and (
+            behavioral_responses_TH_elasticity is None or behavioral_responses_non_TH_elasticity is None
+        ):
+            raise Exception(
+                "If you want to include firms' behavioral responses in the simulation using the 'linear_elasticity'"
+                + ", you must indicate the elasticity that should be used for tax havens and for non-havens."
+            )
+
+        if behavioral_responses and (
+            behavioral_responses_attribution_formula is None or behavioral_responses_attribution_formula not in [
+                'optimistic', 'pessimistic'
+            ]
+        ):
+            raise Exception(
+                "If you want to include firms' behavioral responses in the simulation, you must specify the attribution"
+                + ' that should be used (either "optimistic" or "pessimistic"). These are detailed in the associated'
+                + ' PDF file.'
             )
 
         self.fetch_data_online = fetch_data_online
@@ -441,6 +480,31 @@ class TaxDeficitCalculator:
         if self.de_minimis_exclusion:
             self.exclusion_threshold_revenues = 10 * 10**6 / self.USD_to_EUR
             self.exclusion_threshold_profits = 1 * 10**6 / self.USD_to_EUR
+
+        self.behavioral_responses = behavioral_responses
+
+        if self.behavioral_responses:
+            self.behavioral_responses_method = behavioral_responses_method
+
+            self.carve_out_rate_assets = 0.05
+            self.carve_out_rate_payroll = 0.05
+            self.depreciation_only = False
+            self.exclude_inventories = False
+            self.payroll_premium = 20
+            self.ex_post_ETRs = False
+            self.assets_multiplier = 1
+
+            if self.behavioral_responses_method == 'linear_elasticity':
+                self.behavioral_responses_TH_elasticity = behavioral_responses_TH_elasticity
+                self.behavioral_responses_non_TH_elasticity = behavioral_responses_non_TH_elasticity
+
+            else:
+                self.behavioral_responses_beta_1 = -3.916
+                self.behavioral_responses_beta_2 = 11.11
+                self.behavioral_responses_beta_3 = -11.58
+
+            self.behavioral_responses_attribution_formula = behavioral_responses_attribution_formula
+            self.behavioral_responses_problematic_parents = []
 
     def load_clean_data(
         self,
@@ -889,7 +953,7 @@ class TaxDeficitCalculator:
             oecd = oecd[mask_de_minimis_exclusion].copy()
 
         # We need some more work on the data if we want to simulate substance-based carve-outs
-        if self.carve_outs:
+        if self.carve_outs or self.behavioral_responses:
 
             # We merge earnings data with country-by-country data on partner jurisdiction codes
             oecd = oecd.merge(
@@ -1004,6 +1068,142 @@ class TaxDeficitCalculator:
                 oecd['ETR'] = oecd['Income Tax Paid (on Cash Basis)'] / oecd['Profit (Loss) before Income Tax']
                 oecd['ETR'] = oecd['ETR'].map(lambda x: 0 if x < 0 else x)
                 oecd['ETR'] = oecd['ETR'].fillna(0)
+
+        if self.behavioral_responses:
+            # Determining the unshifting rate for each observation
+            # Note that it is systematically 0 when the ETR is at least 15% and for domestic observations
+            if self.behavioral_responses_method == 'linear_elasticity':
+                oecd['ELASTICITY'] = (
+                    # Foreign non-havens and regional aggregates
+                    oecd['Is partner jurisdiction a non-haven?'] * self.behavioral_responses_non_TH_elasticity
+
+                    # Tax havens
+                    + oecd['Is partner jurisdiction a tax haven?'] * self.behavioral_responses_TH_elasticity
+                )
+
+                oecd['UNSHIFTING_RATE'] = oecd['ELASTICITY'] * oecd['ETR'].map(lambda x: max(15 - x * 100, 0))
+                # Before computing 15 - ETR, I multiply the ETR by 100 as it is otherwise comprised between 0 and 1
+
+            else:
+                multiplier = np.logical_and(
+                    oecd['ETR'] < 0.15,
+                    oecd['Parent jurisdiction (alpha-3 code)'] != oecd['Partner jurisdiction (alpha-3 code)']
+                ) * 1
+
+                # If we instead assume that profits booked domestically can also be unshifted
+                # multiplier = (oecd['ETR'] < 0.15) * 1
+
+                # We apply the formula obtained in "behavioral_responses.pdf"
+                oecd['UNSHIFTING_RATE'] = (
+                    1 - np.exp(
+                        self.behavioral_responses_beta_1 * 0.15
+                        + self.behavioral_responses_beta_2 * 0.15**2
+                        + self.behavioral_responses_beta_3 * 0.15**3
+                        - self.behavioral_responses_beta_1 * oecd['ETR']
+                        - self.behavioral_responses_beta_2 * oecd['ETR']**2
+                        - self.behavioral_responses_beta_3 * oecd['ETR']**3
+                    )
+                ) * multiplier
+
+            # We deduce the unshifted profits
+            oecd['UNSHIFTED_PROFITS'] = oecd['UNCARVED_PROFITS'] * oecd['UNSHIFTING_RATE']
+            oecd['NEW_PROFITS'] = oecd['UNCARVED_PROFITS'] - oecd['UNSHIFTED_PROFITS']
+
+            # We isolate the profits that must be distributed with the relevant country codes
+            to_be_distributed = oecd[
+                [
+                    'Parent jurisdiction (alpha-3 code)',
+                    'Partner jurisdiction (alpha-3 code)',
+                    'UNSHIFTED_PROFITS']
+            ].copy()
+            to_be_distributed = to_be_distributed[to_be_distributed['UNSHIFTED_PROFITS'] > 0].copy()
+
+            # We iterate over the country pairs for which there is a positive amount of unshifted profits to allocate
+            for _, row in to_be_distributed.iterrows():
+
+                parent_country = row['Parent jurisdiction (alpha-3 code)']   # Country i in the formula
+                low_tax_country = row['Partner jurisdiction (alpha-3 code)']   # Country k in the formula
+                unshifted_profits = row['UNSHIFTED_PROFITS']   # U_{i,k} in the LaTeX file
+
+                # We get the corresponding ETR (ETR_{i,k}) in the preprocessed OECD data
+                etr_ik = oecd[
+                    np.logical_and(
+                        oecd['Parent jurisdiction (alpha-3 code)'] == parent_country,
+                        oecd['Partner jurisdiction (alpha-3 code)'] == low_tax_country
+                    )
+                ]['ETR'].iloc[0]
+
+                # multiplier will contain a dummy indicating whether or not a country pair is eligible
+                # to get some of the unshifted profits
+
+                # Eligibility first requires to have country i as parent country
+                is_parent_country = (oecd['Parent jurisdiction (alpha-3 code)'] == parent_country) * 1
+
+                # And the ETR must be at least 15% (1_{\{ETR_{i, j} \geq 15\%\} in the LaTeX file)
+                is_ETR_above_15 = (oecd['ETR'] >= 0.15) * 1
+
+                # We interact the two conditions
+                multiplier = is_parent_country * is_ETR_above_15
+
+                # This condition is satisfied if we find at least one eligible destination for the unshifted profits
+                if multiplier.sum() > 0:
+
+                    # We compute the ETR differential (oecd['ETR'] stands for ETR_{i,j})
+                    # Multiplying by the multiplier dummy ensures that we have 0 for all the ineligible country pairs
+                    oecd['ETR_differential_ijk'] = (oecd['ETR'] - etr_ik) * multiplier
+
+                    # There should be no negative ETR differentials since eligibility requires ETR_{i,j} to be above 15%
+                    # and profits are unshifted only from country pairs with an ETR below 15%, but we can still check
+                    if (oecd['ETR_differential_ijk'] < 0).sum() > 0:
+                        raise Exception('Weird stuff with negative ETR differentials.')
+
+                    # We deduce the numerator depending on the attribution formula retained
+                    if self.behavioral_responses_attribution_formula == 'optimistic':
+                        oecd['numerator_ijk'] = (
+                            oecd['PAYROLL'] + oecd['Tangible Assets other than Cash and Cash Equivalents']
+                        ) * oecd['ETR_differential_ijk']   # Multiplying by the ETR differential
+
+                    else:
+                        oecd['numerator_ijk'] = (
+                            oecd['PAYROLL'] + oecd['Tangible Assets other than Cash and Cash Equivalents']
+                        ) / oecd['ETR_differential_ijk']   # Dividing by the ETR differential
+
+                    # In both cases, denominator is obtained by summing the numerator
+                    denominator = oecd['numerator_ijk'].sum()
+
+                    # And we eventually deduce the share of unshifted profits attributable to country j
+                    oecd['varphi_ijk'] = oecd['numerator_ijk'] / denominator
+
+                # If there is no eligible obs, we re-attribute profits to the pair from which they were unshifted
+                else:
+                    is_partner_country = (oecd['Partner jurisdiction (alpha-3 code)'] == low_tax_country) * 1
+                    multiplier = is_parent_country * is_partner_country
+
+                    oecd['varphi_ijk'] = multiplier
+
+                    self.behavioral_responses_problematic_parents.append(parent_country)
+
+                # In these last steps, we actually attribute the unshifted profits
+                oecd['attributed_ijk'] = unshifted_profits * oecd['varphi_ijk']
+                oecd['NEW_PROFITS'] += oecd['attributed_ijk']
+
+            # Dropping the variables that are not relevant anymore
+            oecd = oecd.drop(columns=['ETR_differential_ijk', 'numerator_ijk', 'varphi_ijk', 'attributed_ijk'])
+
+            # We deduce the change in CIT revenues involved by the recomposition of profits
+            oecd['DELTA_CIT_j'] = (oecd['NEW_PROFITS'] - oecd['UNCARVED_PROFITS']) * oecd['ETR']
+
+            # We can sum these changes by partner jurisdictions and save them as an attribute of the calculator
+            self.behavioral_responses_Delta_CIT_j = oecd.groupby(
+                ['Partner jurisdiction (whitespaces cleaned)', 'Partner jurisdiction (alpha-3 code)']
+            ).sum(
+            )[
+                'DELTA_CIT_j'
+            ].reset_index()
+
+            # Eventually, we replace the pre-tax profits by the recomposed profits
+            # Note that although we went through the carve-out computations, we end up with pre-carve-out profits
+            oecd['Profit (Loss) before Income Tax'] = oecd['NEW_PROFITS'].values
 
         # --- Cleaning the TWZ tax haven profits data
 
