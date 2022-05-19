@@ -13,3 +13,4 @@ notebooks/
 *.ipynb
 __pycache__/
 *.egg-info
+tax_deficit_simulator/data/large_scale_purely_domestic_groups.xlsx

@@ -3789,81 +3789,80 @@ class TaxDeficitCalculator:
         df = df.iloc[1:, 1:].copy()
 
         # We execute the additional filtering steps required by the final extract if relevant
-        if file == 4:
-            df['Company name Latin alphabet'] = df['Company name Latin alphabet'].ffill()
+        df['Company name Latin alphabet'] = df['Company name Latin alphabet'].ffill()
 
-            if verbose:
-                print('Number of unique firms in the unfiltered sample:', df['Company name Latin alphabet'].nunique())
+        if verbose:
+            print('Number of unique firms in the unfiltered sample:', df['Company name Latin alphabet'].nunique())
 
-            extract = df[
-                [
-                    'Company name Latin alphabet', 'Country ISO code',
-                    'Subsidiary - Country ISO code', 'CSH - Type'
-                ]
-            ].copy()
-
-            # Filtering based on the types of controlling shareholders
-            to_be_excluded_CSH = extract[
-                extract['CSH - Type'].isin(
-                    [
-                        'Public authority, state, government', 'Bank', 'Corporate',
-                        'Foundation, research Institute', 'Financial company'
-                    ]
-                )
-            ]['Company name Latin alphabet'].unique()
-
-            extract = extract[
-                ~extract['Company name Latin alphabet'].isin(to_be_excluded_CSH)
-            ].copy()
-            extract = extract.drop(columns=['CSH - Type'])
-            extract = extract.dropna(subset=['Subsidiary - Country ISO code']).copy()
-
-            # Filtering based on the location of direct and indirect subsidiaries
-            extract['Country ISO code'] = extract['Country ISO code'].ffill()
-
-            to_be_excluded_subsidiaries = extract[
-                np.logical_and(
-                    extract['Country ISO code'] != extract['Subsidiary - Country ISO code'],
-                    extract['Subsidiary - Country ISO code'] != 'No data fulfill your filter criteria'
-                )
-            ]['Company name Latin alphabet'].unique()
-
-            # Gathering the two filters
-            to_be_excluded = list(to_be_excluded_CSH) + list(to_be_excluded_subsidiaries)
-
-            if verbose:
-                print('----------------')
-                print('Number of firms excluded because of controlling shareholders:', len(to_be_excluded_CSH))
-                print('Number of firms excluded because of foreign subsidiaries:', len(to_be_excluded_subsidiaries))
-                print('Firms excluded for either of these two reasons:', len(np.unique(to_be_excluded)))
-                print('----------------')
-
-            excluded_manually = [
-                'JOHN DEERE MEXICO S.A R.L.',
-                'SEAGATE TECHNOLOGY HOLDINGS PUBLIC LIMITED COMPANY'
+        extract = df[
+            [
+                'Company name Latin alphabet', 'Country ISO code',
+                'Subsidiary - Country ISO code', 'CSH - Type'
             ]
-            to_be_excluded += excluded_manually
+        ].copy()
 
-            # Excluding some firms manually
-            if verbose:
-                print('Number of firms excluded manually:', len(excluded_manually))
-                print('----------------')
-
-            df = df[~df['Company name Latin alphabet'].isin(to_be_excluded)].copy()
-            df = df.dropna(subset=['Country ISO code']).copy()
-
-            # Eventually, removing duplicates
-            df = df.drop_duplicates(subset=['Company name Latin alphabet']).copy()
-
-            df = df.drop(
-                columns=[
-                    'Inactive', 'Quoted', 'Branch', 'OwnData', 'Woco', 'Type of entity',
-                    'NACE Rev. 2, core code (4 digits)', 'BvD ID number', 'European VAT number',
-                    'Subsidiary - Name', 'Subsidiary - BvD ID number', 'Subsidiary - Country ISO code',
-                    'CSH - Name', 'CSH - BvD ID number', 'CSH - Type', 'CSH - Level', 'CSH - Direct %',
-                    'CSH - Total %', 'Headquarters\nName', 'Headquarters\nBvD ID number', 'Headquarters\nType'
+        # Filtering based on the types of controlling shareholders
+        to_be_excluded_CSH = extract[
+            extract['CSH - Type'].isin(
+                [
+                    'Public authority, state, government', 'Bank', 'Corporate',
+                    'Foundation, research Institute', 'Financial company'
                 ]
             )
+        ]['Company name Latin alphabet'].unique()
+
+        extract = extract[
+            ~extract['Company name Latin alphabet'].isin(to_be_excluded_CSH)
+        ].copy()
+        extract = extract.drop(columns=['CSH - Type'])
+        extract = extract.dropna(subset=['Subsidiary - Country ISO code']).copy()
+
+        # Filtering based on the location of direct and indirect subsidiaries
+        extract['Country ISO code'] = extract['Country ISO code'].ffill()
+
+        to_be_excluded_subsidiaries = extract[
+            np.logical_and(
+                extract['Country ISO code'] != extract['Subsidiary - Country ISO code'],
+                extract['Subsidiary - Country ISO code'] != 'No data fulfill your filter criteria'
+            )
+        ]['Company name Latin alphabet'].unique()
+
+        # Gathering the two filters
+        to_be_excluded = list(to_be_excluded_CSH) + list(to_be_excluded_subsidiaries)
+
+        if verbose:
+            print('----------------')
+            print('Number of firms excluded because of controlling shareholders:', len(to_be_excluded_CSH))
+            print('Number of firms excluded because of foreign subsidiaries:', len(to_be_excluded_subsidiaries))
+            print('Firms excluded for either of these two reasons:', len(np.unique(to_be_excluded)))
+            print('----------------')
+
+        excluded_manually = [
+            'JOHN DEERE MEXICO S.A R.L.',
+            'SEAGATE TECHNOLOGY HOLDINGS PUBLIC LIMITED COMPANY'
+        ]
+        to_be_excluded += excluded_manually
+
+        # Excluding some firms manually
+        if verbose:
+            print('Number of firms excluded manually:', len(excluded_manually))
+            print('----------------')
+
+        df = df[~df['Company name Latin alphabet'].isin(to_be_excluded)].copy()
+        df = df.dropna(subset=['Country ISO code']).copy()
+
+        # Eventually, removing duplicates
+        df = df.drop_duplicates(subset=['Company name Latin alphabet']).copy()
+
+        df = df.drop(
+            columns=[
+                'Inactive', 'Quoted', 'Branch', 'OwnData', 'Woco', 'Type of entity',
+                'NACE Rev. 2, core code (4 digits)', 'BvD ID number', 'European VAT number',
+                'Subsidiary - Name', 'Subsidiary - BvD ID number', 'Subsidiary - Country ISO code',
+                'CSH - Name', 'CSH - BvD ID number', 'CSH - Type', 'CSH - Level', 'CSH - Direct %',
+                'CSH - Total %', 'Headquarters\nName', 'Headquarters\nBvD ID number', 'Headquarters\nType'
+            ]
+        )
 
         # Missing values are designated as character strings "n.a."
         # We replace all of these by the usual object for missing values in Python
@@ -3872,11 +3871,7 @@ class TaxDeficitCalculator:
         )
 
         # We constitute a list of the relevant financial variables
-        if file in [1, 2, 4]:
-            i = 5
-        else:
-            i = 6
-        financial_variables = df.columns[i:].copy()
+        financial_variables = df.columns[5:].copy()
 
         # And we convert them in a numeric format
         for column in financial_variables:
@@ -3913,8 +3908,7 @@ class TaxDeficitCalculator:
                 'Taxation\nm USD ', 'Number of employees\n', 'Tangible fixed assets\nm USD '
             ]
 
-            if file == 4:
-                variables += ['Costs of employees\nm USD ']
+            variables += ['Costs of employees\nm USD ']
 
             for variable in variables:
 
@@ -3946,8 +3940,7 @@ class TaxDeficitCalculator:
                 'Taxation\nm USD ', 'Number of employees\n', 'Tangible fixed assets\nm USD '
             ]
 
-            if file == 4:
-                variables += ['Costs of employees\nm USD ']
+            variables += ['Costs of employees\nm USD ']
 
             for variable in variables:
 
@@ -4033,18 +4026,14 @@ class TaxDeficitCalculator:
         if not average_ETRs:
             subset += ['RELEVANT_Taxation\nm USD ']
 
-        if file != 4:
-            subset += ['RELEVANT_Number of employees\n']
-
         restricted_df = restricted_df.dropna(subset=subset).copy()
 
-        if file == 4:
-            restricted_df = restricted_df[
-                ~np.logical_and(
-                    restricted_df['RELEVANT_Number of employees\n'].isnull(),
-                    restricted_df['RELEVANT_Costs of employees\nm USD '].isnull()
-                )
-            ].copy()
+        restricted_df = restricted_df[
+            ~np.logical_and(
+                restricted_df['RELEVANT_Number of employees\n'].isnull(),
+                restricted_df['RELEVANT_Costs of employees\nm USD '].isnull()
+            )
+        ].copy()
 
         # --- Applying carve-outs if relevant
 
@@ -4066,22 +4055,16 @@ class TaxDeficitCalculator:
                 * (1 + self.payroll_premium / 100)
             )
 
-            if file == 4:
-
-                restricted_df['PAYROLL'] = restricted_df[
-                    ['PAYROLL_PROXY', 'RELEVANT_Costs of employees\nm USD ']
-                ].apply(
-                    (
-                        lambda row: row['PAYROLL_PROXY']
-                        if np.isnan(row['RELEVANT_Costs of employees\nm USD '])
-                        else row['RELEVANT_Costs of employees\nm USD ']
-                    ),
-                    axis=1
-                )
-
-            else:
-
-                restricted_df['PAYROLL'] = restricted_df['PAYROLL_PROXY']
+            restricted_df['PAYROLL'] = restricted_df[
+                ['PAYROLL_PROXY', 'RELEVANT_Costs of employees\nm USD ']
+            ].apply(
+                (
+                    lambda row: row['PAYROLL_PROXY']
+                    if np.isnan(row['RELEVANT_Costs of employees\nm USD '])
+                    else row['RELEVANT_Costs of employees\nm USD ']
+                ),
+                axis=1
+            )
 
             restricted_df['CARVE_OUT'] = (
                 self.carve_out_rate_payroll * restricted_df['PAYROLL']
