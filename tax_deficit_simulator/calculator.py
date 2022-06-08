@@ -242,6 +242,12 @@ class TaxDeficitCalculator:
             # URL to country codes
             self.path_to_geographies = online_data_paths['path_to_geographies']
 
+            # Local path to the GDP growth rates
+            self.path_to_GDP_growth_rates = 'https://github.com/eutaxobservatory/tax-deficit-simulator/blob/domestic_min_tax/tax_deficit_simulator/data/gdpgrowth.xlsx?raw=true'
+
+            # Local path to the USD-EUR exchange rates
+            self.path_to_usdeur_xrate = 'https://github.com/eutaxobservatory/tax-deficit-simulator/blob/domestic_min_tax/tax_deficit_simulator/data/usdeur_xrate.xlsx?raw=true'
+
         else:
             # Local path to the list of EU-28 and EU-27 country codes from a .csv file in the data folder
             path_to_eu_countries = os.path.join(path_to_dir, 'data', 'listofeucountries_csv.csv')
