@@ -32,7 +32,7 @@ import sys
 from tax_deficit_simulator.utils import rename_partner_jurisdictions, manage_overlap_with_domestic, \
     COUNTRIES_WITH_MINIMUM_REPORTING, impute_missing_carve_out_values, load_and_clean_twz_main_data, \
     load_and_clean_twz_CIT, load_and_clean_bilateral_twz_data, get_avg_of_available_years, find_closest_year_available,\
-    apply_upgrade_factor, online_data_paths
+    apply_upgrade_factor, online_data_paths, get_growth_rates
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -3744,6 +3744,7 @@ class TaxDeficitCalculator:
         output_Excel=False,
         output_sample=False,
         verbose=False,
+        exclude_COVID_years=False
     ):
         """
         This method is used to preprocess the ORBIS data on EU large-scale purely domestic groups and deduce estimates
@@ -3790,6 +3791,11 @@ class TaxDeficitCalculator:
 
         # Opening the Excel file
         df = pd.read_excel(path_to_data, engine='openpyxl', sheet_name='Results')
+
+        # Excluding COVID years if relevant
+        if exclude_COVID_years:
+            columns_to_drop = list(df.columns[df.columns.map(lambda x: x.endswith('2020') or x.endswith('2021'))])
+            df = df.drop(columns=columns_to_drop)
 
         # We exclude the first row, only made of the Orbis codes of the variables, and the first column with indices
         df = df.iloc[1:, 1:].copy()
@@ -3883,7 +3889,7 @@ class TaxDeficitCalculator:
         for column in financial_variables:
             df[column] = df[column].astype(float)
 
-        # We also conver the column with the last year of data available
+        # We also convert the column with the last year of data available
         df['Last avail. year'] = df['Last avail. year'].astype(int)
 
         # Adding ISO alpha-3 country codes
@@ -3896,7 +3902,21 @@ class TaxDeficitCalculator:
         if average_ETRs:
 
             self.purely_dom_firms_df = df.copy()
-            firm_level_average_ETRs = self.get_firm_level_average_ETRs()
+            firm_level_average_ETRs = self.get_firm_level_average_ETRs(exclude_COVID_years=exclude_COVID_years)
+
+        # --- Computing the average growth rates of turnover for each firm
+
+        df['GROWTH_RATE'] = df.apply(get_growth_rates, axis=1)
+
+        if verbose:
+            print('Number of firms for which we lack a proper growth rate:', df['GROWTH_RATE'].isnull().sum())
+            print('----------------')
+
+        annual_growth_rates = df[
+            ['Company name Latin alphabet', 'GROWTH_RATE']
+        ].set_index(
+            'Company name Latin alphabet'
+        ).to_dict()['GROWTH_RATE']
 
         # --- Imputation of missing values
 
@@ -3987,7 +4007,13 @@ class TaxDeficitCalculator:
                 column_name = 'RELEVANT_' + variable
 
                 data[column_name] = data.apply(
-                    lambda row: apply_upgrade_factor(row, reference_year, variable, upgrade_factors),
+                    lambda row: apply_upgrade_factor(
+                        row,
+                        reference_year,
+                        variable,
+                        upgrade_factors,
+                        annual_growth_rates
+                    ),
                     axis=1
                 )
 
@@ -4179,7 +4205,7 @@ class TaxDeficitCalculator:
         else:
             return tax_deficits.copy()
 
-    def get_firm_level_average_ETRs(self, verbose=False):
+    def get_firm_level_average_ETRs(self, exclude_COVID_years, verbose=False):
         """
         This method, mobilized in the "compute_tds_from_purely_domestic_firms" method defined above, allows to estimate
         each large-scale purely domestic group's average ETR, considering all the income years for which it has recor-
@@ -4195,7 +4221,8 @@ class TaxDeficitCalculator:
         valid_ETR_columns = {}
         pos_taxes_dummy_columns = {}
 
-        for year in range(2016, 2022):
+        range_temp = range(2016, 2022) if not exclude_COVID_years else range(2016, 2020)
+        for year in range_temp:
             # Variables indicating whether the ETR can be computed
             ETR_dummy_column = f'IS_ETR_{year}_COMPLETE'
 
@@ -4269,7 +4296,8 @@ class TaxDeficitCalculator:
             * upgrade_factors.loc['European Union', 'uprusd2116'] * restricted_df['IS_ETR_2016_VALID']
         )
 
-        for year in range(2017, 2022):
+        range_temp = range(2017, 2022) if not exclude_COVID_years else range(2017, 2020)
+        for year in range_temp:
             upgrade_factor = upgrade_factors.loc['European Union', f'uprusd21{year - 2000}']
 
             restricted_df['DENOMINATOR'] += (

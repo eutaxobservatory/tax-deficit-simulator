@@ -432,6 +432,29 @@ def get_avg_of_available_years(row, reference_year, variable):
             return available_values.mean()
 
 
+def get_growth_rates(row):
+    ser = row[row.index.map(lambda x: x.startswith('Operating'))]
+
+    ser = ser[~ser.isnull()].copy()
+
+    ser = ser[ser > 0].copy()
+
+    if ser.empty or len(ser) == 1:
+        return np.nan
+
+    last_year = int(ser.index[0][-4:])
+    first_year = int(ser.index[-1][-4:])
+
+    n_years = last_year - first_year
+
+    cagr = (ser.iloc[0] / ser.iloc[-1])**(1 / n_years) - 1
+
+    if cagr < -0.75 or cagr > 0.75:
+        return np.nan
+
+    return cagr + 1
+
+
 def find_closest_year_available(row, reference_year, variable):
     restricted_row = row[
         row.index[
@@ -466,7 +489,52 @@ def find_closest_year_available(row, reference_year, variable):
         return closest_available_year
 
 
-def apply_upgrade_factor(row, reference_year, variable, upgrade_factors):
+# def apply_upgrade_factor(row, reference_year, variable, upgrade_factors):
+#     available_year_column = 'AVAILABLE_YEAR_' + variable
+#     available_year = row[available_year_column]
+
+#     if np.isnan(available_year):
+#         return np.nan
+
+#     else:
+#         available_year = int(available_year)
+
+#     if available_year > reference_year:
+#         column_name = f'uprusd{available_year - 2000}{reference_year - 2000}'
+#         try:
+#             factor = upgrade_factors.loc[
+#                 'European Union', column_name
+#             ]
+#         except:
+#             print(column_name)
+#             factor = 1
+
+#         available_value = row[variable + str(available_year)]
+
+#         return available_value / factor
+
+#     elif available_year < reference_year:
+#         column_name = f'uprusd{reference_year - 2000}{available_year - 2000}'
+#         try:
+#             factor = upgrade_factors.loc[
+#                 'European Union', column_name
+#             ]
+#         except:
+#             print(column_name)
+#             factor = 1
+
+#         available_value = row[variable + str(available_year)]
+
+#         return available_value * factor
+
+#     else:
+#         available_value = row[variable + str(available_year)]
+#         return available_value
+
+
+def apply_upgrade_factor(row, reference_year, variable, upgrade_factors, annual_growth_rates):
+    firm = row['Company name Latin alphabet']
+
     available_year_column = 'AVAILABLE_YEAR_' + variable
     available_year = row[available_year_column]
 
@@ -477,28 +545,36 @@ def apply_upgrade_factor(row, reference_year, variable, upgrade_factors):
         available_year = int(available_year)
 
     if available_year > reference_year:
-        column_name = f'uprusd{available_year - 2000}{reference_year - 2000}'
-        try:
+        n_years = available_year - reference_year
+
+        annual_growth_rate = annual_growth_rates[firm]
+
+        if not np.isnan(annual_growth_rate):
+            factor = annual_growth_rate**n_years
+
+        else:
+            column_name = f'uprusd{available_year - 2000}{reference_year - 2000}'
             factor = upgrade_factors.loc[
                 'European Union', column_name
             ]
-        except:
-            print(column_name)
-            factor = 1
 
         available_value = row[variable + str(available_year)]
 
         return available_value / factor
 
     elif available_year < reference_year:
-        column_name = f'uprusd{reference_year - 2000}{available_year - 2000}'
-        try:
+        n_years = reference_year - available_year
+
+        annual_growth_rate = annual_growth_rates[firm]
+
+        if not np.isnan(annual_growth_rate):
+            factor = annual_growth_rate**n_years
+
+        else:
+            column_name = f'uprusd{reference_year - 2000}{available_year - 2000}'
             factor = upgrade_factors.loc[
                 'European Union', column_name
             ]
-        except:
-            print(column_name)
-            factor = 1
 
         available_value = row[variable + str(available_year)]
 
