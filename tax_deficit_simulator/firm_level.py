@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 import os
 import json
 
-from utils import compute_ETRs
+from tax_deficit_simulator.utils import compute_ETRs
 
 
 # ----------------------------------------------------------------------------------------------------------------------

@@ -8,3 +8,4 @@ numpy>=1.18.5
 matplotlib>=3.2.1
 scipy>=1.6.1
 openpyxl>=3.0.7
+pycountry==20.7.3

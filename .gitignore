@@ -12,3 +12,6 @@ groupama/data/base_pno.*
 notebooks/
 *.ipynb
 __pycache__/
+*.egg-info
+tax_deficit_simulator/data/large_scale_purely_domestic_groups.xlsx
+tax_deficit_simulator/data/large_scale_purely_domestic_groups_final_sample.xlsx
