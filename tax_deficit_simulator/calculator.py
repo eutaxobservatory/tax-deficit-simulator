@@ -265,14 +265,14 @@ class TaxDeficitCalculator:
 
             # Local path to the GDP growth rates
             self.path_to_GDP_growth_rates = (
-                'https://github.com/eutaxobservatory/tax-deficit-simulator/blob/domestic_min_tax/' +
-                'tax_deficit_simulator/data/gdpgrowth.xlsx?raw=true'
+                "https://github.com/eutaxobservatory/tax-deficit-simulator/blob/"
+                + "master/tax_deficit_simulator/data/gdpgrowth.xlsx?raw=true"
             )
 
             # Local path to the USD-EUR exchange rates
             self.path_to_usdeur_xrate = (
-                'https://github.com/eutaxobservatory/tax-deficit-simulator/blob/domestic_min_tax/' +
-                'tax_deficit_simulator/data/usdeur_xrate.xlsx?raw=true'
+                "https://github.com/eutaxobservatory/tax-deficit-simulator/blob/"
+                + "master/tax_deficit_simulator/data/usdeur_xrate.xlsx?raw=true"
             )
 
         else:
