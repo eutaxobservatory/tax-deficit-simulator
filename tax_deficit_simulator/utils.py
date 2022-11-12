@@ -45,16 +45,17 @@ country_name_corresp = {
 # with open(os.path.join(path_to_data, 'online_data_paths.json')) as file:
 #     online_data_paths = json.load(file)
 
-online_data_paths = {
-    "path_to_eu_countries": "https://raw.githubusercontent.com/eutaxobservatory/tax-deficit-simulator/master/tax_deficit_simulator/data/listofeucountries_csv.csv",
-    "path_to_tax_haven_list": "https://raw.githubusercontent.com/eutaxobservatory/tax-deficit-simulator/master/tax_deficit_simulator/data/tax_haven_list.csv",
-    "path_to_geographies": "https://raw.githubusercontent.com/eutaxobservatory/tax-deficit-simulator/master/tax_deficit_simulator/data/geographies.csv",
-    "path_to_twz_CIT": "https://raw.githubusercontent.com/eutaxobservatory/tax-deficit-simulator/master/tax_deficit_simulator/data/twz_CIT.csv",
-    "path_to_statutory_rates": "https://github.com/eutaxobservatory/tax-deficit-simulator/raw/master/tax_deficit_simulator/data/statutory_rates.xlsx",
-    "url_base": "https://raw.githubusercontent.com/eutaxobservatory/tax-deficit-simulator/master/tax_deficit_simulator/data/",
-    "path_to_oecd": "https://raw.githubusercontent.com/eutaxobservatory/tax-deficit-simulator/master/tax_deficit_simulator/data/oecd.csv"
-}
+url_base = "https://raw.githubusercontent.com/eutaxobservatory/tax-deficit-simulator/master/tax_deficit_simulator/data/"
 
+online_data_paths = {
+    "path_to_eu_countries": url_base + "listofeucountries_csv.csv",
+    "path_to_tax_haven_list": url_base + "tax_haven_list.csv",
+    "path_to_geographies": url_base + "geographies.csv",
+    "path_to_twz_CIT": url_base + "twz_CIT.csv",
+    "path_to_statutory_rates": url_base + "statutory_rates.xlsx",
+    "url_base": url_base,
+    "path_to_oecd": url_base + "oecd.csv"
+}
 
 
 def load_and_clean_twz_main_data(

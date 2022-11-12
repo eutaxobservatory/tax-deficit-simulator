@@ -264,10 +264,16 @@ class TaxDeficitCalculator:
             self.path_to_geographies = online_data_paths['path_to_geographies']
 
             # Local path to the GDP growth rates
-            self.path_to_GDP_growth_rates = 'https://github.com/eutaxobservatory/tax-deficit-simulator/blob/domestic_min_tax/tax_deficit_simulator/data/gdpgrowth.xlsx?raw=true'
+            self.path_to_GDP_growth_rates = (
+                'https://github.com/eutaxobservatory/tax-deficit-simulator/blob/domestic_min_tax/' +
+                'tax_deficit_simulator/data/gdpgrowth.xlsx?raw=true'
+            )
 
             # Local path to the USD-EUR exchange rates
-            self.path_to_usdeur_xrate = 'https://github.com/eutaxobservatory/tax-deficit-simulator/blob/domestic_min_tax/tax_deficit_simulator/data/usdeur_xrate.xlsx?raw=true'
+            self.path_to_usdeur_xrate = (
+                'https://github.com/eutaxobservatory/tax-deficit-simulator/blob/domestic_min_tax/' +
+                'tax_deficit_simulator/data/usdeur_xrate.xlsx?raw=true'
+            )
 
         else:
             # Local path to the list of EU-28 and EU-27 country codes from a .csv file in the data folder
@@ -1125,7 +1131,7 @@ class TaxDeficitCalculator:
                             self.tax_haven_country_codes
                         ) * self.behavioral_responses_non_TH_elasticity
 
-                    # Focusing on domestic observations
+                        # Focusing on domestic observations
                     ) * (oecd['Parent jurisdiction (alpha-3 code)'] == oecd['Partner jurisdiction (alpha-3 code)']) * 1
 
                 oecd['UNSHIFTING_RATE'] = oecd['ELASTICITY'] * oecd['ETR'].map(lambda x: max(15 - x * 100, 0))
