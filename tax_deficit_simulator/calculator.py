@@ -4003,7 +4003,7 @@ class TaxDeficitCalculator:
                 + '("average") or use the closest year available and upgrade it to the reference year ("closest_year").'
             )
 
-        input_file_name = 'Pillar 2 - domestic firms (to be cleaned).xlsx'
+        input_file_name = 'large_scale_purely_domestic_groups_final_sample.xlsx'
         output_file_suffix = 'final_extract'
 
         file_name = input_file_name
