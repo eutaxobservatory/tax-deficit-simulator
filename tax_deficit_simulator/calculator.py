@@ -265,14 +265,14 @@ class TaxDeficitCalculator:
 
             # Local path to the GDP growth rates
             self.path_to_GDP_growth_rates = (
-                'https://github.com/eutaxobservatory/tax-deficit-simulator/blob/domestic_min_tax/' +
-                'tax_deficit_simulator/data/gdpgrowth.xlsx?raw=true'
+                "https://github.com/eutaxobservatory/tax-deficit-simulator/blob/"
+                + "master/tax_deficit_simulator/data/gdpgrowth.xlsx?raw=true"
             )
 
             # Local path to the USD-EUR exchange rates
             self.path_to_usdeur_xrate = (
-                'https://github.com/eutaxobservatory/tax-deficit-simulator/blob/domestic_min_tax/' +
-                'tax_deficit_simulator/data/usdeur_xrate.xlsx?raw=true'
+                "https://github.com/eutaxobservatory/tax-deficit-simulator/blob/"
+                + "master/tax_deficit_simulator/data/usdeur_xrate.xlsx?raw=true"
             )
 
         else:
@@ -561,16 +561,16 @@ class TaxDeficitCalculator:
         if self.fetch_data_online:
 
             # We construct the URL from which we can load the CSV country-by-country dataset
-            url_base = 'http://stats.oecd.org/SDMX-JSON/data/'
-            dataset_identifier = 'CBCR_TABLEI/'
-            dimensions = 'ALL/'
-            agency_name = 'OECD'
+            # url_base = 'http://stats.oecd.org/SDMX-JSON/data/'
+            # dataset_identifier = 'CBCR_TABLEI/'
+            # dimensions = 'ALL/'
+            # agency_name = 'OECD'
 
-            self.path_to_oecd = (
-                url_base + dataset_identifier + dimensions + agency_name + '?contenttype=csv'
-            )
+            # self.path_to_oecd = (
+            #     url_base + dataset_identifier + dimensions + agency_name + '?contenttype=csv'
+            # )
 
-            # self.path_to_oecd = online_data_paths['path_to_oecd']
+            self.path_to_oecd = online_data_paths['path_to_oecd']
 
             # Path to TWZ data on corporate income tax revenues and to data on statutory tax rates
             self.path_to_twz_CIT = online_data_paths['path_to_twz_CIT']
