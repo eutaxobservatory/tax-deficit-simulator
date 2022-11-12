@@ -14,3 +14,4 @@ notebooks/
 __pycache__/
 *.egg-info
 tax_deficit_simulator/data/large_scale_purely_domestic_groups.xlsx
+tax_deficit_simulator/data/Pillar 2 - domestic firms (to be cleaned).xlsx
