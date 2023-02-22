@@ -32,7 +32,7 @@ import sys
 from tax_deficit_simulator.utils import rename_partner_jurisdictions, manage_overlap_with_domestic, \
     COUNTRIES_WITH_MINIMUM_REPORTING, impute_missing_carve_out_values, load_and_clean_twz_main_data, \
     load_and_clean_twz_CIT, load_and_clean_bilateral_twz_data, get_avg_of_available_years, find_closest_year_available,\
-    apply_upgrade_factor, online_data_paths, get_growth_rates
+    apply_upgrade_factor, online_data_paths, get_growth_rates, country_name_corresp
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -617,7 +617,7 @@ class TaxDeficitCalculator:
             self.path_to_excel_file = os.path.join(path_to_dir, 'data', 'TWZ', str(self.year), 'TWZ.xlsx')
 
             # Path to TWZ data on profits booked domestically (with ETRs)
-            path_to_twz_domestic = os.path.join(path_to_dir, 'data', 'TWZ', str(self.year), 'twz_domestic.xlsx')
+            path_to_twz_domestic = os.path.join(path_to_dir, 'data', 'TWZ', 'TWZ2020AppendixTables.xlsx')
 
         try:
             # We try to read the files from the provided paths
@@ -644,7 +644,12 @@ class TaxDeficitCalculator:
 
             twz_domestic = pd.read_excel(
                 path_to_twz_domestic,
-                engine='openpyxl'
+                engine='openpyxl',
+                sheet_name='TableA6',
+                usecols='A,K:L',
+                skiprows=9,
+                header=None,
+                names=['COUNTRY_NAME', 'Domestic profits', 'Domestic ETR']
             )
 
         except FileNotFoundError:
@@ -1355,7 +1360,65 @@ class TaxDeficitCalculator:
 
         # --- Cleaning the TWZ domestic profits data
 
-        # Resulting figures are expressed in 2016 USD
+        # Dropping some rows at the bottom of the table without any data or country name
+        twz_domestic = twz_domestic.dropna(subset=['Domestic profits', 'Domestic ETR'], how='all').copy()
+        twz_domestic = twz_domestic.dropna(subset=['COUNTRY_NAME']).copy()
+
+        # Removes intermediary totals ("Main developing countries", "Non-OECD tax havens", etc.)
+        twz_domestic = twz_domestic[
+            ~twz_domestic['COUNTRY_NAME'].map(
+                lambda name: (
+                    'countries' in name.lower() or 'havens' in name.lower() or 'world' in name.lower()
+                )
+            )
+        ].copy()
+
+        # "Correcting" some country names so that we can add alpha-3 codes
+        twz_domestic['COUNTRY_NAME'] = twz_domestic['COUNTRY_NAME'].map(
+            lambda name: country_name_corresp.get(name, name)
+        )
+
+        # Adding country codes
+        geographies = pd.read_csv(self.path_to_geographies)
+
+        twz_domestic = twz_domestic.merge(
+            geographies[['NAME', 'CODE']].drop_duplicates(),
+            how='left',
+            left_on='COUNTRY_NAME', right_on='NAME'
+        ).rename(
+            columns={'CODE': 'Alpha-3 country code'}
+        ).drop(
+            columns=['NAME', 'COUNTRY_NAME']
+        )
+
+        # Simple check that we are not missing any country code
+        if twz_domestic['Alpha-3 country code'].isnull().sum() > 0:
+            raise Exception('We are missing some country codes when loading TWZ data on domestic activities.')
+
+        # Upgrading profits from 2015 to the relevant year
+        GDP_growth_rates = pd.read_excel(
+            self.path_to_GDP_growth_rates,
+            engine='openpyxl'
+        ).set_index('CountryGroupName')
+
+        twz_domestic['IS_EU'] = twz_domestic['Alpha-3 country code'].isin(self.eu_27_country_codes) * 1
+        twz_domestic['MULTIPLIER'] = twz_domestic['IS_EU'].map(
+            {
+                0: GDP_growth_rates.loc['World', f'uprusd{self.year - 2000}15'],
+                1: GDP_growth_rates.loc['European Union', f'uprusd{self.year - 2000}15']
+            }
+        )
+        twz_domestic['Domestic profits'] *= twz_domestic['MULTIPLIER']
+
+        twz_domestic = twz_domestic.drop(columns=['IS_EU', 'MULTIPLIER'])
+
+        # Replacing the ETR for Germany (taken from OECD's CBCR average ETR [--> TO BE UPDATED?])
+        twz_domestic['Domestic ETR'] = twz_domestic.apply(
+            lambda row: 0.2275 if row['Alpha-3 country code'] == 'DEU' else row['Domestic ETR'],
+            axis=1
+        )
+
+        # After this line, figures are expressed in plain USD
         twz_domestic['Domestic profits'] *= 10**9
 
         if self.carve_outs:
