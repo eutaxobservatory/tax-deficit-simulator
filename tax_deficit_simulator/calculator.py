@@ -159,9 +159,9 @@ class TaxDeficitCalculator:
         pond to assumptions taken in the methodology.
         """
 
-        if year not in [2016, 2017]:
+        if year not in [2016, 2017, 2018]:
             # Due to the availability of country-by-country report statistics
-            raise Exception('Only two years can be chosen for macro computations: 2016 and 2017.')
+            raise Exception('Only three years can be chosen for macro computations: 2016, 2017, and 2018.')
 
         if sweden_treatment not in ['exclude', 'adjust']:
             # See Appendix B of the October 2021 note
@@ -352,6 +352,7 @@ class TaxDeficitCalculator:
 
         self.sweden_adj_ratio_2016 = (342 - 200) / 342
         self.sweden_adj_ratio_2017 = (512 - 266) / 512
+        self.sweden_adj_ratio_2018 = (49.1 - 29.8) / 49.1
 
         # Average exchange rate over the relevant year, extracted from benchmark computations run on Stata
         # Source: European Central Bank
@@ -400,12 +401,6 @@ class TaxDeficitCalculator:
                 self.belgium_partner_for_replacement = 'NLD'
                 self.belgium_year_for_replacement = 2017
 
-                GDP_growth_rates = pd.read_excel(
-                    self.path_to_GDP_growth_rates,
-                    engine='openpyxl'
-                ).set_index(
-                    'CountryGroupName'
-                )
                 self.belgium_GDP_growth_multiplier = 1 / GDP_growth_rates.loc['European Union', 'uprusd1716']
 
         elif year == 2017:
@@ -442,15 +437,35 @@ class TaxDeficitCalculator:
                 self.belgium_GDP_growth_multiplier = GDP_growth_rates.loc['European Union', 'uprusd1716']
 
             if self.SGP_CYM_treatment == 'replace':
-                GDP_growth_rates = pd.read_excel(
-                    self.path_to_GDP_growth_rates,
-                    engine='openpyxl'
-                ).set_index(
-                    'CountryGroupName'
-                )
                 self.SGP_CYM_GDP_growth_multiplier = GDP_growth_rates.loc['World', 'uprusd1716']
 
             self.add_AUT_AUT_row = add_AUT_AUT_row
+
+        elif year == 2018:
+
+            # Gross growth rate of worldwide GDP in current EUR between 2018 and 2021
+            # Extracted from the benchmark computations run on Stata
+            self.multiplier_2021 = GDP_growth_rates.loc['World', 'upreur2118']
+
+            self.COUNTRIES_WITH_CONTINENTAL_REPORTING = ['AUT', 'GBR', 'GRC', 'IMN', 'LTU', 'SVN', 'SWE']
+
+            # --- TO BE UPDATED? ---------------------------------------------------------------------------------------
+            # The list of countries whose tax deficit is partly collected by EU countries in the intermediary scenario
+            self.country_list_intermediary_scenario = [
+                'ARG', 'AUS', 'BMU', 'BRA', 'CAN', 'CHE', 'CHL', 'CHN', 'GBR', 'IDN',
+                'IMN', 'IND', 'JPN', 'MEX', 'MYS', 'NOR', 'PER', 'SGP', 'USA', 'ZAF'
+            ]
+
+            self.unilateral_scenario_non_US_imputation_ratio = 0.25
+            self.unilateral_scenario_correction_for_DEU = 1
+            self.intermediary_scenario_imputation_ratio = 1 + 2 / 3
+            # --- TO BE UPDATED? ---------------------------------------------------------------------------------------
+
+            if self.sweden_adjust:
+                self.sweden_adjustment_ratio = self.sweden_adj_ratio_2018
+
+            else:
+                self.sweden_adjustment_ratio = 1
 
         # For rates of 0.2 or lower an alternative imputation is used to estimate the non-haven tax deficit of non-OECD
         # reporting countries; this argument allows to enable or disable this imputation
@@ -3379,7 +3394,7 @@ class TaxDeficitCalculator:
                     add_AUT_AUT_row=False,
                     fetch_data_online=self.fetch_data_online
                 ).sweden_adjustment_ratio
-                for year in [2016, 2017]
+                for year in [2016, 2017, 2018]
             }
 
             oecd['Profit (Loss) before Income Tax'] = oecd.apply(
@@ -3587,7 +3602,7 @@ class TaxDeficitCalculator:
             )
         ].copy()
 
-        for year in [2016, 2017]:
+        for year in [2016, 2017, 2018]:
             output['Parent country'].append('Sweden')
             output['Year'].append(year)
 
@@ -4574,7 +4589,7 @@ if __name__ == '__main__':
 
     final_output = {}
 
-    for year in [2016, 2017]:
+    for year in [2016, 2017, 2018]:
         calculator = TaxDeficitCalculator(year=year, fetch_data_online=self.fetch_data_online)
         calculator.load_clean_data()
 
