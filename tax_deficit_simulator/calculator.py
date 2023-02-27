@@ -608,7 +608,7 @@ class TaxDeficitCalculator:
             # Path to OECD data, TWZ data on corporate income tax revenues and data on statutory tax rates
             self.path_to_oecd = os.path.join(path_to_dir, 'data', 'oecd.csv')
             self.path_to_twz_CIT = os.path.join(path_to_dir, 'data', 'twz_CIT.csv')
-            self.path_to_statutory_rates = os.path.join(path_to_dir, 'data', 'statutory_rates.xlsx')
+            self.path_to_statutory_rates = os.path.join(path_to_dir, 'data', 'KPMG_statutory_rates.xlsx')
 
             # Path to ILO data
             path_to_preprocessed_mean_wages = os.path.join(path_to_dir, 'data', f'iloearn{self.year - 2000}.csv')
@@ -844,10 +844,42 @@ class TaxDeficitCalculator:
             axis=1
         )
 
-        # We clean the statutory corporate income tax rates
-        column_of_interest = f'statrate{self.year - 2000}'
-        statutory_rates = statutory_rates[['Country code', column_of_interest]].copy()
-
+        # --- We clean the statutory corporate income tax rates
+        # Selecting the relevant year
+        statutory_rates = statutory_rates[['CODE', 'Country', self.year]].copy()
+        # Adding the country code for Bonaire
+        statutory_rates['CODE'] = statutory_rates.apply(
+            lambda row: 'BES' if row['Country'].startswith('Bonaire') else row['CODE'],
+            axis=1
+        )
+        # Dealing with missing values
+        statutory_rates[year] = statutory_rates[year].map(lambda x: np.nan if x == '-' else x).astype(float)
+        # Managing duplicates (equivalently to the Stata code)
+        # Removing the EU average
+        statutory_rates = statutory_rates[statutory_rates['Country'] != 'EU average'].copy()
+        # If two rows display the same country code and the same rate, we keep only the first
+        statutory_rates = statutory_rates.drop_duplicates(subset=['CODE', 2017], keep='first').copy()
+        # In practice, only effect is to keep one row for Sint-Maarten which is the only other duplicated country code
+        # Adding a simple check for duplicates
+        if statutory_rates.duplicated(subset='CODE').sum() > 0:
+            raise Exception('At least one duplicated country code remains in the table of statutory rates.')
+        # Replacing continent codes to match the OECD's
+        code_mapping_1 = {'EUROPE': 'EUROP', 'AMERICA': 'AMER', 'AFRICA': 'AFRIC', 'ASIA': 'ASIAT', 'GLOBAL': 'FJT'}
+        code_mapping_2 = {'EUROP': 'OTE', 'AMER': 'OAM', 'AFRIC': 'OAF', 'ASIAT': 'OAS', 'FJT': 'GRPS'}
+        statutory_rates['CODE'] = statutory_rates['CODE'].map(
+            lambda code: code_mapping_1.get(code, code)
+        )
+        # Adding codes for the "Other [CONTINENT]" partners
+        extract = statutory_rates[statutory_rates['CODE'].isin(code_mapping_2.keys())].copy()
+        extract['CODE'] = extract['CODE'].map(
+            lambda code: code_mapping_2.get(code, code)
+        )
+        statutory_rates = pd.concat([statutory_rates, extract], axis=0)
+        # Dropping the column with country names
+        statutory_rates = statutory_rates.drop(columns='Country')
+        # Dividing rates by 100 to move from percentages to values between 0 and 1
+        statutory_rates[self.year] /= 100
+        # Renaming columns
         statutory_rates.rename(
             columns={
                 'Country code': 'partner',
