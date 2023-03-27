@@ -28,6 +28,7 @@ import pycountry
 
 import os
 import sys
+import re
 
 from tax_deficit_simulator.utils import rename_partner_jurisdictions, manage_overlap_with_domestic, \
     COUNTRIES_WITH_MINIMUM_REPORTING, impute_missing_carve_out_values, load_and_clean_twz_main_data, \
@@ -608,10 +609,15 @@ class TaxDeficitCalculator:
             # Path to OECD data, TWZ data on corporate income tax revenues and data on statutory tax rates
             self.path_to_oecd = os.path.join(path_to_dir, 'data', 'oecd.csv')
             self.path_to_twz_CIT = os.path.join(path_to_dir, 'data', 'twz_CIT.csv')
-            self.path_to_statutory_rates = os.path.join(path_to_dir, 'data', 'KPMG_statutory_rates.xlsx')
+            self.path_to_statutory_rates = os.path.join(path_to_dir, 'data', 'KPMG_statutoryrates.xlsx')
 
             # Path to ILO data
-            path_to_preprocessed_mean_wages = os.path.join(path_to_dir, 'data', f'iloearn{self.year - 2000}.csv')
+            self.path_to_employee_pop = os.path.join(
+                path_to_dir, 'data', 'EMP_2EMP_SEX_STE_NB_A-filtered-2021-07-20.csv'
+            )
+            self.path_to_mean_earnings = os.path.join(
+                path_to_dir, 'data', 'EAR_4MTH_SEX_ECO_CUR_NB_A-filtered-2021-07-06.csv'
+            )
 
             # Path to TWZ data on profits booked in tax havens
             self.path_to_excel_file = os.path.join(path_to_dir, 'data', 'TWZ', str(self.year), 'TWZ.xlsx')
@@ -623,12 +629,14 @@ class TaxDeficitCalculator:
             # We try to read the files from the provided paths
             oecd = pd.read_csv(self.path_to_oecd)
 
-            if self.year == 2016:
-                delimiter = ';'
-            else:
-                delimiter = ','
+            self.employee_population = pd.read_csv(self.path_to_employee_pop)
+            self.earnings = pd.read_csv(self.path_to_mean_earnings)
 
-            preprocessed_mean_wages = pd.read_csv(path_to_preprocessed_mean_wages, delimiter=delimiter)
+            preprocessed_mean_wages = pd.read_csv(
+                os.path.join(path_to_dir, 'data', f'iloearn{self.year - 2000}.csv'),
+                delimiter=(';' if self.year == 2016 else ',')
+            )
+            self.preprocessed_mean_wages = preprocessed_mean_wages.copy()
 
             statutory_rates = pd.read_excel(self.path_to_statutory_rates, engine='openpyxl')
 
@@ -853,12 +861,12 @@ class TaxDeficitCalculator:
             axis=1
         )
         # Dealing with missing values
-        statutory_rates[year] = statutory_rates[year].map(lambda x: np.nan if x == '-' else x).astype(float)
+        statutory_rates[self.year] = statutory_rates[self.year].map(lambda x: np.nan if x == '-' else x).astype(float)
         # Managing duplicates (equivalently to the Stata code)
         # Removing the EU average
         statutory_rates = statutory_rates[statutory_rates['Country'] != 'EU average'].copy()
         # If two rows display the same country code and the same rate, we keep only the first
-        statutory_rates = statutory_rates.drop_duplicates(subset=['CODE', 2017], keep='first').copy()
+        statutory_rates = statutory_rates.drop_duplicates(subset=['CODE', self.year], keep='first').copy()
         # In practice, only effect is to keep one row for Sint-Maarten which is the only other duplicated country code
         # Adding a simple check for duplicates
         if statutory_rates.duplicated(subset='CODE').sum() > 0:
@@ -882,8 +890,8 @@ class TaxDeficitCalculator:
         # Renaming columns
         statutory_rates.rename(
             columns={
-                'Country code': 'partner',
-                column_of_interest: 'statrate'
+                'CODE': 'partner',
+                self.year: 'statrate'
             },
             inplace=True
         )
@@ -1045,14 +1053,72 @@ class TaxDeficitCalculator:
         # We need some more work on the data if we want to simulate substance-based carve-outs
         if self.carve_outs or self.behavioral_responses:
 
+            main_ILO_df, continental_imputation_df = self.load_clean_ILO_data()
+
             # We merge earnings data with country-by-country data on partner jurisdiction codes
+
+            # - Countries for which earnings (possibly obtained via interpolations) are directly available
             oecd = oecd.merge(
-                preprocessed_mean_wages[['partner2', 'earn']],
+                main_ILO_df[['earn', 'partner2']],
                 how='left',
                 left_on='Partner jurisdiction (alpha-3 code)', right_on='partner2'
+            ).drop(columns=['partner2'])
+
+            # - Countries for which they are imputed based on continental weighted averages
+
+            # Adding continent codes for the imputation
+            oecd = oecd.merge(
+                pd.read_csv(self.path_to_geographies)[['CODE', 'CONTINENT_CODE']].drop_duplicates(),
+                how='left',
+                left_on='Partner jurisdiction (alpha-3 code)', right_on='CODE'
+            ).drop(columns=['CODE'])
+
+            # Adapting the set of continent codes to ensure the correspondence
+            oecd['CONTINENT_CODE'] = oecd['CONTINENT_CODE'].map(
+                lambda continent: {
+                    'NAMR': 'AMER',
+                    'SAMR': 'AMER',
+                    'EUR': 'EUROP',
+                    'AFR': 'AFRIC',
+                    'ASIA': 'ASIAT',
+                    'OCN': 'OCEAN',
+                    'ATC': 'AFRIC'  # For the specific case of the Bouvet Island (in India's CbCR)
+                }.get(continent, continent)
+            )
+            oecd['CONTINENT_CODE'] = oecd.apply(
+                lambda row: 'EUROP' if row['Partner jurisdiction (alpha-3 code)'] == 'RUS' else row['CONTINENT_CODE'],
+                axis=1
+            )
+            oecd['CONTINENT_CODE'] = oecd.apply(
+                lambda row: 'ASIAT' if row['Partner jurisdiction (alpha-3 code)'] == 'CYP' else row['CONTINENT_CODE'],
+                axis=1
             )
 
-            oecd.drop(columns=['partner2'], inplace=True)
+            # Merging based on continent codes
+            oecd = oecd.merge(
+                continental_imputation_df[['CONTINENT_CODE', 'earn']].rename(columns={'earn': 'earn_avg_continent'}),
+                how='left',
+                on='CONTINENT_CODE'
+            )
+
+            # - We gather earnings available at the country level and continental imputations
+            oecd['earn'] = oecd.apply(
+                lambda row: row['earn'] if not np.isnan(row['earn']) else row['earn_avg_continent'],
+                axis=1
+            )
+
+            oecd = oecd.drop(columns=['CONTINENT_CODE', 'earn_avg_continent'])
+
+            self.oecd_temp = oecd.copy()
+
+            # We merge earnings data with country-by-country data on partner jurisdiction codes
+            # oecd = oecd.merge(
+            #     self.preprocessed_mean_wages[['partner2', 'earn']],
+            #     how='left',
+            #     left_on='Partner jurisdiction (alpha-3 code)', right_on='partner2'
+            # )
+
+            # oecd.drop(columns=['partner2'], inplace=True)
 
             oecd.rename(
                 columns={
@@ -1062,9 +1128,9 @@ class TaxDeficitCalculator:
             )
 
             # We clean the mean annual earnings column
-            oecd['ANNUAL_VALUE'] = oecd['ANNUAL_VALUE'].map(
-                lambda x: x.replace(',', '.') if isinstance(x, str) else x
-            ).astype(float)
+            # oecd['ANNUAL_VALUE'] = oecd['ANNUAL_VALUE'].map(
+            #     lambda x: x.replace(',', '.') if isinstance(x, str) else x
+            # ).astype(float)
 
             # We deduce the payroll proxy from the number of employees and from mean annual earnings
             oecd['PAYROLL'] = oecd['Number of Employees'] * oecd['ANNUAL_VALUE'] * (1 + self.payroll_premium / 100)
@@ -4676,6 +4742,278 @@ class TaxDeficitCalculator:
         restricted_df = restricted_df[['Company name Latin alphabet', 'ETR']].copy()
 
         return restricted_df.copy()
+
+    def load_clean_ILO_data(self):
+
+        employee_population = self.employee_population.copy()
+        earnings = self.earnings.copy()
+
+        # --- Cleaning ILO data on employee population
+
+        # Renaming columns
+        employee_population = employee_population.rename(
+            columns={
+                'ref_area.label': 'countryname',
+                'time': 'year'
+            }
+        )
+
+        # Selecting relevant observations
+        # All genders
+        employee_population = employee_population[employee_population['sex.label'] == 'Sex: Total'].copy()
+        employee_population = employee_population.drop(columns=['sex.label'])
+        employee_population['sex'] = 'to'
+        # Focusing on wage employees
+        employee_population = employee_population[
+            employee_population['classif1.label'] == 'Status in employment (Aggregate): Employees'
+        ].copy()
+        employee_population = employee_population.drop(columns=['classif1.label'])
+        employee_population['status'] = 'wage'
+
+        # Selecting relevant columns
+        employee_population = employee_population[['year', 'countryname', 'obs_value', 'status']].copy()
+
+        # Renaming the column with the values of interest
+        employee_population = employee_population.rename(columns={'obs_value': 'emp'})
+
+        # Focusing on the relevant year
+        employee_population = employee_population[employee_population['year'] == self.year].copy()
+
+        # --- Cleaning ILO data on mean earnings
+
+        # Selecting relevant observations
+        # All sectors
+        earnings = earnings[earnings['classif1.label'].map(lambda label: 'Total' in label)].copy()
+        # Focusing on current USD for the currency
+        earnings = earnings[earnings['classif2.label'].map(lambda label: 'U.S. dollars' in label)].copy()
+        # All genders
+        earnings = earnings[earnings['sex.label'] == 'Sex: Total'].copy()
+        # Recent years
+        earnings = earnings[earnings['time'] >= 2014].copy()
+
+        # Selecting columns of interest with relevant variable names
+        earnings = earnings.drop(
+            columns=[
+                'source.label', 'sex.label', 'classif2.label', 'note_classif.label',
+                'indicator.label', 'note_indicator.label', 'note_source.label'
+            ]
+        )
+        earnings = earnings.rename(columns={'time': 'year', 'ref_area.label': 'country', 'classif1.label': 'type'})
+
+        # Managing the different industry classifications
+        # Simplifying the names of the different classifications
+        earnings['type'] = earnings['type'].map(lambda string: re.findall('\((.+)\)', string)[0])
+        earnings['type'] = earnings['type'].map(lambda string: string.replace('.', '').replace('-', ''))
+        # Moving from long to wide format
+        earnings = earnings.pivot(index=['country', 'year'], columns=['type'], values=['obs_value'])
+        earnings.columns = earnings.columns.droplevel()
+        earnings = earnings.reset_index()
+        # Do we find different figures from a classification to another?
+        earnings['check'] = earnings['Aggregate'] - earnings['ISICRev2']
+        earnings['check'] = earnings.apply(
+            lambda row: row['Aggregate'] - row['ISICRev31'] if np.isnan(row['check']) else row['check'],
+            axis=1
+        )
+        earnings['check'] = earnings.apply(
+            lambda row: row['Aggregate'] - row['ISICRev4'] if np.isnan(row['check']) else row['check'],
+            axis=1
+        )
+        # Only issues: Canada in 2019 and Uganda in 2017
+        # earnings[np.logical_and(earnings['check'] != 0, ~earnings['check'].isnull())]
+        # We select values in that order: ISICRev4, ISICRev31, ISICRev2, Aggregate
+        earnings['earn'] = earnings['ISICRev4']
+        earnings['earn'] = earnings.apply(
+            lambda row: row['ISICRev31'] if np.isnan(row['earn']) else row['earn'],
+            axis=1
+        )
+        earnings['earn'] = earnings.apply(
+            lambda row: row['ISICRev2'] if np.isnan(row['earn']) else row['earn'],
+            axis=1
+        )
+        earnings['earn'] = earnings.apply(
+            lambda row: row['Aggregate'] if np.isnan(row['earn']) else row['earn'],
+            axis=1
+        )
+
+        # Correcting a small issue in the data
+        earnings['earn'] = earnings.apply(
+            lambda row: row['earn'] / 10 if row['country'] == 'Thailand' and row['year'] == 2017 else row['earn'],
+            axis=1
+        )
+
+        # Distinction based on whether the year of interest is available
+        earnings_directly_available = earnings[earnings['year'] == self.year].copy()
+        earnings_not_available = earnings[
+            ~earnings['country'].isin(
+                earnings_directly_available['country'].unique()
+            )
+        ].copy()
+
+        # Further distinction based on whether the interpolation is feasible
+        earnings_not_available['help'] = earnings_not_available['year'] < self.year
+        earnings_not_available['help2'] = earnings_not_available['year'] > self.year
+
+        temp = earnings_not_available.groupby(by='country').sum()[['help', 'help2']].reset_index()
+        countries_feasible_interpolation = temp[
+            np.logical_and(temp['help'] > 0, temp['help2'] > 0)
+        ]['country'].unique()
+
+        earnings_not_available = earnings_not_available.drop(
+            columns=['Aggregate', 'ISICRev2', 'ISICRev31', 'ISICRev4']
+        )
+
+        earnings_feasible_countries = earnings_not_available[
+            earnings_not_available['country'].isin(countries_feasible_interpolation)
+        ].copy()
+
+        # Interpolation [CRITICAL STEP]
+        # Sorting values from the oldest to the latest for each country
+        earnings_feasible_countries = earnings_feasible_countries.sort_values(by=['country', 'year'])
+        # Indexing by year in a datetime format
+        earnings_feasible_countries['year'] = pd.to_datetime(earnings_feasible_countries['year'], format='%Y')
+        earnings_feasible_countries = earnings_feasible_countries.set_index('year')
+        # Computing the interpolation values
+        df_interpol = earnings_feasible_countries.groupby(['country']).resample('A').mean()
+        df_interpol['earn_ipo'] = df_interpol['earn'].interpolate()
+        df_interpol = df_interpol.reset_index()
+        df_interpol['year'] = df_interpol['year'].dt.year
+        # Restricting to the year of interest
+        df_interpol = df_interpol[df_interpol['year'] == self.year].copy()
+        # Focusing on the columns of interest with some renaming
+        df_interpol = df_interpol[['country', 'year', 'earn_ipo']].copy()
+        df_interpol = df_interpol.rename(columns={'earn_ipo': 'earn'})
+        # Dummy indicating whether the value was obtained via interpolation
+        df_interpol['ipo'] = 1
+
+        # Gathering earnings directly available and interpolated values
+        earnings_interpolated = pd.concat(
+            [earnings_directly_available, df_interpol],
+            axis=0
+        )[
+            ['country', 'year', 'earn', 'ipo']
+        ].reset_index(drop=True)
+        # Completing the dummy variable
+        earnings_interpolated['ipo'] = earnings_interpolated['ipo'].fillna(0)
+
+        # Moving from monthly to annual earnings
+        earnings_interpolated['earn'] *= 12
+
+        # Renaming column showing the country
+        earnings_interpolated = earnings_interpolated.rename(columns={'country': 'countryname'})
+
+        # --- Finalising the preparation of ILO data
+
+        # Merging earnings with population
+        earnings_merged = earnings_interpolated.merge(
+            employee_population,
+            on=['countryname', 'year'],
+            how='left'
+        )
+
+        # Adding country codes and continents
+        # Manually editing one of the country names, otherwise not found in the file with correspondences
+        earnings_merged['countryname'] = earnings_merged['countryname'].map(
+            lambda country_name: {'Moldova, Republic of': 'Moldova'}.get(country_name, country_name)
+        )
+        # Merging with the file with correspondences
+        earnings_merged = earnings_merged.merge(
+            pd.read_csv(self.path_to_geographies),
+            left_on='countryname', right_on='NAME',
+            how='left'
+        )
+        # Renaming some columns, removing some others
+        earnings_merged = earnings_merged.rename(
+            columns={
+                'CONTINENT_NAME': 'GEO',
+                'CODE': 'partner'
+            }
+        ).drop(columns=['NAME', 'CONTINENT_CODE'])
+        # Gathering South America and North America
+        earnings_merged['GEO'] = earnings_merged['GEO'].map(
+            lambda continent: {'South America': 'Americas', 'North America': 'Americas'}.get(continent, continent)
+        )
+
+        # Computing each country's population weight
+        earnings_merged['wgt'] = earnings_merged['emp'] / earnings_merged['emp'].sum()
+
+        # Row with the global mean earnings
+        additional_rows = {
+            'countryname': [''] * 2,
+            'year': [self.year] * 2,
+            'earn': [np.sum(earnings_merged['wgt'] * earnings_merged['earn'])] * 2,
+            'ipo': [1] * 2,
+            'emp': [np.nan] * 2,
+            'status': ['wage'] * 2,
+            'partner': ['FJT', 'GRPS'],
+            'GEO': [''] * 2
+        }
+        additional_rows = pd.DataFrame(additional_rows)
+
+        # Continent-level mean earnings
+        regional_extract = earnings_merged.copy()
+        regional_extract['numerator'] = regional_extract['earn'] *  regional_extract['emp']
+        # Correcting a few continents to match Stata outputs
+        regional_extract['GEO'] = regional_extract.apply(
+            lambda row: 'Europe' if row['countryname'] == 'Russian Federation' else row['GEO'],
+            axis=1
+        )
+        regional_extract['GEO'] = regional_extract.apply(
+            lambda row: 'Asia' if row['countryname'] == 'Cyprus' else row['GEO'],
+            axis=1
+        )
+        regional_extract = regional_extract.groupby('GEO').sum()[['emp', 'numerator']]
+        regional_extract['earn'] = regional_extract['numerator'] / regional_extract['emp']
+        regional_extract = regional_extract.reset_index()
+
+        # First auxiliary table used for countries with continental CbCRs
+        # and to impute the missing values for countries that do not display data on earnings
+        regional_extract1 = regional_extract.copy()
+        regional_extract1['partner'] = regional_extract1['GEO'].map(
+            {
+                'Africa': 'AFRIC',
+                'Europe': 'EUROP',
+                'Asia': 'ASIAT',
+                'Americas': 'AMER',
+                'Oceania': 'OCEAN'
+            }
+        )
+        regional_extract1['year'] = self.year
+        regional_extract1['countryname'] = ''
+        regional_extract1['ipo'] = 0
+        regional_extract1['status'] = 'wage'
+        regional_extract1['ipo'] = 0
+        regional_extract1 = regional_extract1.drop(columns=['numerator'])
+
+        # Second auxiliary table used to provide mean earnings for the regional aggregates in CbCR data
+        regional_extract2 = regional_extract[regional_extract['GEO'] != 'Oceania'].copy()
+        regional_extract2['partner'] = regional_extract2['GEO'].map(
+            {
+                'Africa': 'OAF',
+                'Europe': 'OTE',
+                'Asia': 'OAS',
+                'Americas': 'OAM',
+            }
+        )
+        regional_extract2['year'] = self.year
+        regional_extract2['countryname'] = ''
+        regional_extract2['status'] = 'wage'
+        regional_extract2['ipo'] = 0
+        regional_extract2 = regional_extract2.drop(columns=['numerator'])
+        regional_extract2.head()
+
+        # Gathering all the required data
+        earnings_merged = earnings_merged.drop(columns=['wgt'])
+
+        main_ILO_df = pd.concat([earnings_merged, additional_rows, regional_extract1, regional_extract2], axis=0)
+        main_ILO_df = main_ILO_df.rename(columns={'partner': 'partner2'})
+        main_ILO_df = main_ILO_df[['year', 'earn', 'partner2', 'GEO']].copy()
+
+        continental_imputation_df = regional_extract1[['year', 'earn', 'partner', 'GEO']].copy()
+        continental_imputation_df = continental_imputation_df.rename(
+            columns={'GEO': 'CONTINENT_NAME', 'partner': 'CONTINENT_CODE'}
+        )
+
+        return main_ILO_df.copy(), continental_imputation_df.copy()
 
 
 if __name__ == '__main__':
