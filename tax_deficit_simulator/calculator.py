@@ -47,6 +47,90 @@ path_to_dir = os.path.dirname(os.path.abspath(__file__))
 
 class TaxDeficitCalculator:
 
+    def load_xchange_growth_rates(self):
+
+        path_to_data = os.path.join(path_to_dir, "data")
+
+        # --- Exchange rates
+
+        raw_data = pd.read_csv(os.path.join(path_to_data, "eurofxref-hist.csv"))
+
+        raw_data = raw_data[['Date', 'USD']].copy()
+        raw_data['YEAR'] = raw_data['Date'].map(lambda date: date[:date.find('-')]).astype(int)
+        raw_data = raw_data[np.logical_and(raw_data['YEAR'] >= 2012, raw_data['YEAR'] <= 2022)].copy()
+
+        average_exchange_rates = raw_data.groupby('YEAR').agg({'USD': 'mean'}).reset_index()
+        average_exchange_rates = average_exchange_rates.rename(columns={"YEAR": "year", "USD": "usd"})
+
+        # with pd.ExcelWriter(os.path.join(path_to_data, "usdeur_xrate.xlsx")) as writer:
+        #     average_exchange_rates.to_excel(writer, index=False)
+
+        self.xrates = average_exchange_rates.copy()
+
+        # --- Growth rates
+
+        raw_data = pd.read_excel(
+            os.path.join(path_to_data, "WEOOct2021group.xlsx"),
+            engine="openpyxl"
+        )
+
+        raw_data = raw_data[raw_data["Country Group Name"].isin(["European Union", "World"])].copy()
+        raw_data = raw_data[raw_data["Subject Descriptor"] == "Gross domestic product, current prices"].copy()
+        raw_data = raw_data[raw_data["Units"] == "U.S. dollars"].copy()
+
+        # Extracting relevant values for GDP in USD
+        extract = raw_data[
+            ["Country Group Name", "Units"] + [f"y{year}" for year in range(2012, 2023)]
+        ].reset_index(drop=True).copy()
+
+        # Deducing GDP in EUR by adding exchange rates
+        exchange_rates_temp = average_exchange_rates.set_index("year")
+
+        for year in range(2012, 2023):
+            extract[f"eurgdp{year}"] = extract[f"y{year}"] / exchange_rates_temp.loc[year, "usd"]
+
+        # One-year and two-year growth rates for USD and EUR GDP
+        for t in range(16, 23):
+            # One-year growth rates
+            t_1 = t - 1
+            # GDP in USD
+            extract[f"uprusd{t}{t_1}"] = extract[f"y20{t}"] / extract[f"y20{t_1}"]
+            # GDP in EUR
+            extract[f"upreur{t}{t_1}"] = extract[f"eurgdp20{t}"] / extract[f"eurgdp20{t_1}"]
+
+            # Two-year growth rates
+            t_2 = t - 2
+            # GDP in USD
+            extract[f"uprusd{t}{t_2}"] = extract[f"y20{t}"] / extract[f"y20{t_2}"]
+            # GDP in EUR
+            extract[f"upreur{t}{t_2}"] = extract[f"eurgdp20{t}"] / extract[f"eurgdp20{t_2}"]
+
+        # Growth rates to 2021 in EUR and USD
+        for t in [12] + list(range(16, 23)):
+            # GDP in USD
+            extract[f"uprusd21{t}"] = extract[f"y2021"] / extract[f"y20{t}"]
+            # GDP in EUR
+            extract[f"upreur21{t}"] = extract[f"eurgdp2021"] / extract[f"eurgdp20{t}"]
+
+        # Growth rates to 2020 in EUR and USD
+        for t in [16, 17]:
+            # GDP in USD
+            extract[f"uprusd20{t}"] = extract[f"y2020"] / extract[f"y20{t}"]
+            # GDP in EUR
+            extract[f"upreur20{t}"] = extract[f"eurgdp2020"] / extract[f"eurgdp20{t}"]
+
+        columns = ["Country Group Name"] + list(
+            extract.columns[extract.columns.map(lambda col: col.startswith("upr"))]
+        )
+
+        extract = extract[columns].copy()
+        extract = extract.rename(columns={"Country Group Name": "CountryGroupName"})
+
+        self.growth_rates = extract.copy()
+
+        # with pd.ExcelWriter(os.path.join(path_to_data, "gdpgrowth.xlsx")) as writer:
+        #     extract.to_excel(writer, index=False)
+
     def __init__(
         self,
         year=2017,
@@ -160,6 +244,8 @@ class TaxDeficitCalculator:
         pond to assumptions taken in the methodology.
         """
 
+        self.load_xchange_growth_rates()
+
         if year not in [2016, 2017, 2018]:
             # Due to the availability of country-by-country report statistics
             raise Exception('Only three years can be chosen for macro computations: 2016, 2017, and 2018.')
@@ -264,17 +350,17 @@ class TaxDeficitCalculator:
             # URL to country codes
             self.path_to_geographies = online_data_paths['path_to_geographies']
 
-            # Local path to the GDP growth rates
-            self.path_to_GDP_growth_rates = (
-                "https://github.com/eutaxobservatory/tax-deficit-simulator/blob/"
-                + "master/tax_deficit_simulator/data/gdpgrowth.xlsx?raw=true"
-            )
+            # # URL to the GDP growth rates
+            # self.path_to_GDP_growth_rates = (
+            #     "https://github.com/eutaxobservatory/tax-deficit-simulator/blob/"
+            #     + "master/tax_deficit_simulator/data/gdpgrowth.xlsx?raw=true"
+            # )
 
-            # Local path to the USD-EUR exchange rates
-            self.path_to_usdeur_xrate = (
-                "https://github.com/eutaxobservatory/tax-deficit-simulator/blob/"
-                + "master/tax_deficit_simulator/data/usdeur_xrate.xlsx?raw=true"
-            )
+            # # URL to the USD-EUR exchange rates
+            # self.path_to_usdeur_xrate = (
+            #     "https://github.com/eutaxobservatory/tax-deficit-simulator/blob/"
+            #     + "master/tax_deficit_simulator/data/usdeur_xrate.xlsx?raw=true"
+            # )
 
         else:
             # Local path to the list of EU-28 and EU-27 country codes from a .csv file in the data folder
@@ -286,11 +372,11 @@ class TaxDeficitCalculator:
             # Local path to country codes
             self.path_to_geographies = os.path.join(path_to_dir, 'data', 'geographies.csv')
 
-            # Local path to the GDP growth rates
-            self.path_to_GDP_growth_rates = os.path.join(path_to_dir, 'data', 'gdpgrowth.xlsx')
+            # # Local path to the GDP growth rates
+            # self.path_to_GDP_growth_rates = os.path.join(path_to_dir, 'data', 'gdpgrowth.xlsx')
 
-            # Local path to the USD-EUR exchange rates
-            self.path_to_usdeur_xrate = os.path.join(path_to_dir, 'data', 'usdeur_xrate.xlsx')
+            # # Local path to the USD-EUR exchange rates
+            # self.path_to_usdeur_xrate = os.path.join(path_to_dir, 'data', 'usdeur_xrate.xlsx')
 
         # Storing EU Member-States' country codes
         eu_country_codes = list(pd.read_csv(path_to_eu_countries, delimiter=';')['Alpha-3 code'])
@@ -337,12 +423,7 @@ class TaxDeficitCalculator:
         self.use_adjusted_profits = use_adjusted_profits
 
         # Reading the Excel file with the growth rates of GDP
-        GDP_growth_rates = pd.read_excel(
-            self.path_to_GDP_growth_rates,
-            engine='openpyxl'
-        ).set_index(
-            'CountryGroupName'
-        )
+        GDP_growth_rates = self.growth_rates.set_index('CountryGroupName')
 
         self.average_ETRs_bool = average_ETRs
         self.deflator_2016_to_2017 = GDP_growth_rates.loc['World', 'uprusd1716']
@@ -357,7 +438,7 @@ class TaxDeficitCalculator:
 
         # Average exchange rate over the relevant year, extracted from benchmark computations run on Stata
         # Source: European Central Bank
-        xrates = pd.read_excel(self.path_to_usdeur_xrate, engine='openpyxl').set_index('year')
+        xrates = self.xrates.set_index('year')
         self.USD_to_EUR = 1 / xrates.loc[self.year, 'usd']
 
         if year == 2016:
@@ -1494,10 +1575,7 @@ class TaxDeficitCalculator:
             raise Exception('We are missing some country codes when loading TWZ data on domestic activities.')
 
         # Upgrading profits from 2015 to the relevant year
-        GDP_growth_rates = pd.read_excel(
-            self.path_to_GDP_growth_rates,
-            engine='openpyxl'
-        ).set_index('CountryGroupName')
+        GDP_growth_rates = self.growth_rates.set_index('CountryGroupName')
 
         twz_domestic['IS_EU'] = twz_domestic['Alpha-3 country code'].isin(self.eu_27_country_codes) * 1
         twz_domestic['MULTIPLIER'] = twz_domestic['IS_EU'].map(
@@ -4404,12 +4482,7 @@ class TaxDeficitCalculator:
                 data[column] = data[column].astype(float)
 
             # We read the Excel file that contains the upgrade factor
-            upgrade_factors = pd.read_excel(
-                os.path.join(path_to_dir, 'data', 'gdpgrowth.xlsx'),
-                engine='openpyxl'
-            ).set_index(
-                'CountryGroupName'
-            )
+            upgrade_factors = self.growth_rates.set_index('CountryGroupName')
 
             relevant_columns = []
 
@@ -4447,7 +4520,7 @@ class TaxDeficitCalculator:
                 restricted_df[column] *= 10**6
 
         # Applying the turnover threshold
-        exchange_rates = pd.read_excel(os.path.join(path_to_dir, 'data', 'usdeur_xrate.xlsx'), engine='openpyxl')
+        exchange_rates = self.xrates.copy()
         exchange_rate = exchange_rates.set_index('year').loc[reference_year, 'usd']
 
         threshold = 750 * 10**6 * exchange_rate
@@ -4695,12 +4768,7 @@ class TaxDeficitCalculator:
         # These are valid if they are both available at the same time and if profits are positive
 
         # When summing, we upgrade all values to 2021 for comparability purposes thanks to the usual upgrade factors
-        upgrade_factors = pd.read_excel(
-            os.path.join(path_to_dir, 'data', 'gdpgrowth.xlsx'),
-            engine='openpyxl'
-        ).set_index(
-            'CountryGroupName'
-        )
+        upgrade_factors = self.growth_rates.set_index('CountryGroupName')
 
         restricted_df['DENOMINATOR'] = (
             restricted_df['P/L before tax\nm USD 2016'].fillna(0)
