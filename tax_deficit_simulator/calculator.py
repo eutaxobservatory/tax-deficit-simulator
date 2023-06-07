@@ -89,7 +89,7 @@ class TaxDeficitCalculator:
         for year in range(2012, 2023):
             extract[f"eurgdp{year}"] = extract[f"y{year}"] / exchange_rates_temp.loc[year, "usd"]
 
-        # One-year and two-year growth rates for USD and EUR GDP
+        # One-year, two-year, and three-year growth rates for USD and EUR GDP
         for t in range(16, 23):
             # One-year growth rates
             t_1 = t - 1
@@ -104,6 +104,13 @@ class TaxDeficitCalculator:
             extract[f"uprusd{t}{t_2}"] = extract[f"y20{t}"] / extract[f"y20{t_2}"]
             # GDP in EUR
             extract[f"upreur{t}{t_2}"] = extract[f"eurgdp20{t}"] / extract[f"eurgdp20{t_2}"]
+
+            # Three-year growth rates
+            t_3 = t - 3
+            # GDP in USD
+            extract[f"uprusd{t}{t_3}"] = extract[f"y20{t}"] / extract[f"y20{t_3}"]
+            # GDP in EUR
+            extract[f"upreur{t}{t_3}"] = extract[f"eurgdp20{t}"] / extract[f"eurgdp20{t_3}"]
 
         # Growth rates to 2021 in EUR and USD
         for t in [12] + list(range(16, 23)):
@@ -2002,7 +2009,10 @@ class TaxDeficitCalculator:
                 year=self.year,
                 add_AUT_AUT_row=True,
                 average_ETRs=self.average_ETRs_bool,
-                fetch_data_online=self.fetch_data_online
+                fetch_data_online=self.fetch_data_online,
+                sweden_treatment=self.sweden_treatment,
+                belgium_treatment=self.belgium_treatment,
+                SGP_CYM_treatment=self.SGP_CYM_treatment,
             )
             calculator.load_clean_data()
             _ = calculator.compute_all_tax_deficits(minimum_ETR=minimum_ETR)
