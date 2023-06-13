@@ -31,8 +31,8 @@ import sys
 import re
 
 from tax_deficit_simulator.utils import rename_partner_jurisdictions, manage_overlap_with_domestic, \
-    COUNTRIES_WITH_MINIMUM_REPORTING, impute_missing_carve_out_values, load_and_clean_twz_main_data, \
-    load_and_clean_twz_CIT, load_and_clean_bilateral_twz_data, get_avg_of_available_years, find_closest_year_available,\
+    impute_missing_carve_out_values, load_and_clean_twz_main_data, load_and_clean_twz_CIT, \
+    load_and_clean_bilateral_twz_data, get_avg_of_available_years, find_closest_year_available, \
     apply_upgrade_factor, online_data_paths, get_growth_rates, country_name_corresp
 
 
@@ -146,6 +146,7 @@ class TaxDeficitCalculator:
         sweden_treatment='adjust', belgium_treatment='replace', SGP_CYM_treatment='replace',
         use_adjusted_profits=True,
         average_ETRs=True,
+        years_for_avg_ETRs=[2016, 2017, 2018],
         carve_outs=False,
         carve_out_rate_assets=None, carve_out_rate_payroll=None,
         depreciation_only=None, exclude_inventories=None, payroll_premium=20,
@@ -293,6 +294,9 @@ class TaxDeficitCalculator:
                 + 'if adjusted profits are used whenever they are available (when use_adjusted_profits=True is passed.)'
             )
 
+        if average_ETRs and (years_for_avg_ETRs is None or len(years_for_avg_ETRs) == 0):
+            raise Exception('To use mean ETRs, you must specify a set of year(s) over which ETRs should be averaged.')
+
         if behavioral_responses and carve_outs:
             raise Exception(
                 'Behavioral responses can only be used without the substance-based carve-outs.'
@@ -433,7 +437,9 @@ class TaxDeficitCalculator:
         GDP_growth_rates = self.growth_rates.set_index('CountryGroupName')
 
         self.average_ETRs_bool = average_ETRs
-        self.deflator_2016_to_2017 = GDP_growth_rates.loc['World', 'uprusd1716']
+        self.years_for_avg_ETRs = years_for_avg_ETRs
+        self.deflator_2016_to_2018 = GDP_growth_rates.loc['World', 'uprusd1816']
+        self.deflator_2017_to_2018 = GDP_growth_rates.loc['World', 'uprusd1817']
 
         self.de_minimis_exclusion = de_minimis_exclusion
 
@@ -454,6 +460,7 @@ class TaxDeficitCalculator:
             # Extracted from the benchmark computations run on Stata
             self.multiplier_2021 = GDP_growth_rates.loc['World', 'upreur2116']
 
+            self.COUNTRIES_WITH_MINIMUM_REPORTING = ['KOR', 'NLD', 'IRL', 'FIN']
             self.COUNTRIES_WITH_CONTINENTAL_REPORTING = ['AUT', 'NOR', 'SVN', 'SWE']
 
             # The list of countries whose tax deficit is partly collected by EU countries in the intermediary scenario
@@ -498,6 +505,7 @@ class TaxDeficitCalculator:
             # Extracted from the benchmark computations run on Stata
             self.multiplier_2021 = GDP_growth_rates.loc['World', 'upreur2117']
 
+            self.COUNTRIES_WITH_MINIMUM_REPORTING = ['KOR', 'NLD', 'IRL', 'FIN']
             self.COUNTRIES_WITH_CONTINENTAL_REPORTING = ['AUT', 'GBR', 'GRC', 'IMN', 'NOR', 'SVN', 'SWE']
 
             # The list of countries whose tax deficit is partly collected by EU countries in the intermediary scenario
@@ -536,6 +544,7 @@ class TaxDeficitCalculator:
             # Extracted from the benchmark computations run on Stata
             self.multiplier_2021 = GDP_growth_rates.loc['World', 'upreur2118']
 
+            self.COUNTRIES_WITH_MINIMUM_REPORTING = ['KOR', 'NZL', 'IRL', 'FIN']
             self.COUNTRIES_WITH_CONTINENTAL_REPORTING = ['AUT', 'GBR', 'GRC', 'IMN', 'LTU', 'SVN', 'SWE']
 
             # --- TO BE UPDATED? ---------------------------------------------------------------------------------------
@@ -922,7 +931,14 @@ class TaxDeficitCalculator:
 
         # Thanks to a function defined in utils.py, we rename the "Foreign Jurisdictions Total" field for all countries
         # that only report a domestic / foreign breakdown in their CbCR
-        oecd['Partner jurisdiction (whitespaces cleaned)'] = oecd.apply(rename_partner_jurisdictions, axis=1)
+        oecd['Partner jurisdiction (whitespaces cleaned)'] = oecd.apply(
+            lambda row: rename_partner_jurisdictions(
+                row,
+                COUNTRIES_WITH_MINIMUM_REPORTING=self.COUNTRIES_WITH_MINIMUM_REPORTING,
+                use_case="normal"
+            ),
+            axis=1
+        )
 
         # We eliminate stateless entities and the "Foreign Jurisdictions Total" fields
         oecd = oecd[
@@ -1063,7 +1079,7 @@ class TaxDeficitCalculator:
 
         else:
             # We compute ETRs over both 2016 and 2017 fiscal years
-            average_ETRs_df = self.get_average_CbCR_ETRs()
+            average_ETRs_df = self.get_average_CbCR_ETRs(years=self.years_for_avg_ETRs)
 
             # We input these average ETRs into our dataset
             oecd = oecd.merge(
@@ -1092,7 +1108,7 @@ class TaxDeficitCalculator:
             (
                 lambda row: 0
                 if (
-                    row['Parent jurisdiction (alpha-3 code)'] in COUNTRIES_WITH_MINIMUM_REPORTING
+                    row['Parent jurisdiction (alpha-3 code)'] in self.COUNTRIES_WITH_MINIMUM_REPORTING
                     and row['Partner jurisdiction (alpha-3 code)'] == 'FJT'
                 ) or (
                     row['Parent jurisdiction (alpha-3 code)'] in self.COUNTRIES_WITH_CONTINENTAL_REPORTING
@@ -1704,6 +1720,7 @@ class TaxDeficitCalculator:
                 SGP_CYM_treatment=self.SGP_CYM_treatment,
                 use_adjusted_profits=self.use_adjusted_profits,
                 average_ETRs=self.average_ETRs_bool,
+                years_for_avg_ETRs=self.years_for_avg_ETRs,
                 carve_outs=self.carve_outs,
                 carve_out_rate_assets=self.carve_out_rate_assets,
                 carve_out_rate_payroll=self.carve_out_rate_payroll,
@@ -1737,7 +1754,7 @@ class TaxDeficitCalculator:
             mask_non_haven = ~oecd['Parent jurisdiction (alpha-3 code)'].isin(self.tax_haven_country_codes)
             # - And report a detailed country by country breakdown in their CbCR
             mask_minimum_reporting_countries = ~oecd['Parent jurisdiction (alpha-3 code)'].isin(
-                COUNTRIES_WITH_MINIMUM_REPORTING + self.COUNTRIES_WITH_CONTINENTAL_REPORTING
+                self.COUNTRIES_WITH_MINIMUM_REPORTING + self.COUNTRIES_WITH_CONTINENTAL_REPORTING
             )
 
             # We combine the boolean indexing masks
@@ -1815,6 +1832,7 @@ class TaxDeficitCalculator:
                 SGP_CYM_treatment=self.SGP_CYM_treatment,
                 use_adjusted_profits=self.use_adjusted_profits,
                 average_ETRs=self.average_ETRs_bool,
+                years_for_avg_ETRs=self.years_for_avg_ETRs,
                 carve_outs=self.carve_outs,
                 carve_out_rate_assets=self.carve_out_rate_assets,
                 carve_out_rate_payroll=self.carve_out_rate_payroll,
@@ -1849,7 +1867,7 @@ class TaxDeficitCalculator:
         # We exclude countries whose CbCR breakdown does not allow to distinguish tax-haven and non-haven profits
         df_restricted = oecd_stratified[
             ~oecd_stratified['Parent jurisdiction (alpha-3 code)'].isin(
-                self.COUNTRIES_WITH_CONTINENTAL_REPORTING + COUNTRIES_WITH_MINIMUM_REPORTING
+                self.COUNTRIES_WITH_CONTINENTAL_REPORTING + self.COUNTRIES_WITH_MINIMUM_REPORTING
             )
         ].copy()
 
@@ -1870,7 +1888,7 @@ class TaxDeficitCalculator:
         # We exclude countries whose CbCR breakdown does not allow to distinguish tax-haven and non-haven profits
         df_restricted = oecd_stratified[
             ~oecd_stratified['Parent jurisdiction (alpha-3 code)'].isin(
-                self.COUNTRIES_WITH_CONTINENTAL_REPORTING + COUNTRIES_WITH_MINIMUM_REPORTING
+                self.COUNTRIES_WITH_CONTINENTAL_REPORTING + self.COUNTRIES_WITH_MINIMUM_REPORTING
             )
         ].copy()
 
@@ -2009,6 +2027,7 @@ class TaxDeficitCalculator:
                 year=self.year,
                 add_AUT_AUT_row=True,
                 average_ETRs=self.average_ETRs_bool,
+                years_for_avg_ETRs=self.years_for_avg_ETRs,
                 fetch_data_online=self.fetch_data_online,
                 sweden_treatment=self.sweden_treatment,
                 belgium_treatment=self.belgium_treatment,
@@ -2255,7 +2274,7 @@ class TaxDeficitCalculator:
             )
 
         if row['Parent jurisdiction (alpha-3 code)'] not in (
-            COUNTRIES_WITH_MINIMUM_REPORTING + self.COUNTRIES_WITH_CONTINENTAL_REPORTING
+            self.COUNTRIES_WITH_MINIMUM_REPORTING + self.COUNTRIES_WITH_CONTINENTAL_REPORTING
         ):
             if countries_replaced is None:
 
@@ -2989,6 +3008,7 @@ class TaxDeficitCalculator:
             belgium_treatment=self.belgium_treatment,
             use_adjusted_profits=self.use_adjusted_profits,
             average_ETRs=self.average_ETRs_bool,
+            years_for_avg_ETRs=self.years_for_avg_ETRs,
             carve_outs=True,
             carve_out_rate_assets=self.carve_out_rate_assets,
             carve_out_rate_payroll=self.carve_out_rate_payroll,
@@ -3016,6 +3036,7 @@ class TaxDeficitCalculator:
             belgium_treatment=self.belgium_treatment,
             use_adjusted_profits=self.use_adjusted_profits,
             average_ETRs=self.average_ETRs_bool,
+            years_for_avg_ETRs=self.years_for_avg_ETRs,
             carve_outs=False,
             add_AUT_AUT_row=self.add_AUT_AUT_row,
             extended_dividends_adjustment=self.extended_dividends_adjustment,
@@ -3570,7 +3591,7 @@ class TaxDeficitCalculator:
         return restricted_df.copy()
 
     def get_average_CbCR_ETRs(
-        self
+        self, years
     ):
         """
         Based on the country-by-country report statistics, this method allows to compute effective tax rates (ETRs)
@@ -3613,7 +3634,11 @@ class TaxDeficitCalculator:
 
         # Eliminating Foreign Jurisdictions Totals and Stateless Entities when they are not needed
         oecd['JUR'] = oecd.apply(
-            lambda row: rename_partner_jurisdictions(row, use_case='specific'),
+            lambda row: rename_partner_jurisdictions(
+                row,
+                COUNTRIES_WITH_MINIMUM_REPORTING=self.COUNTRIES_WITH_MINIMUM_REPORTING,
+                use_case='specific'
+            ),
             axis=1
         )
 
@@ -3726,8 +3751,9 @@ class TaxDeficitCalculator:
 
         # We apply the deflation of profits and income taxes paid
         deflators = {
-            2016: self.deflator_2016_to_2017,
-            2017: 1
+            2016: self.deflator_2016_to_2018,
+            2017: self.deflator_2017_to_2018,
+            2018: 1
         }
 
         oecd['deflators'] = oecd['YEA'].map(deflators)
@@ -3767,6 +3793,9 @@ class TaxDeficitCalculator:
             oecd_temp['Income Tax Paid (on Cash Basis)'] >= 0
         ].copy()
 
+        # IMPORTANT NEW STEP: Before summing, we restrict ourselves to the set of years considered for the average
+        oecd_temp = oecd_temp[oecd_temp['YEA'].isin(years)].copy()
+
         average_ETRs = oecd_temp.groupby(['COU', 'JUR']).sum()[
             ['Profit (Loss) before Income Tax', 'Income Tax Paid (on Cash Basis)']
         ].reset_index()
@@ -3795,8 +3824,6 @@ class TaxDeficitCalculator:
             lambda row: row['statrate'] if np.isnan(row['ETR']) else row['ETR'],
             axis=1
         )
-
-        self.temp = oecd.copy()
 
         # oecd['ETR'] = winsorize(oecd['ETR'].values, limits=[0.04, 0.04], nan_policy='omit')
 
