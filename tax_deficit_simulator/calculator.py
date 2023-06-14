@@ -157,6 +157,7 @@ class TaxDeficitCalculator:
         de_minimis_exclusion=True,
         add_AUT_AUT_row=True,
         extended_dividends_adjustment=False,
+        use_TWZ_for_CbCR_newcomers=False,
         behavioral_responses=False,
         behavioral_responses_method=None,
         behavioral_responses_TH_elasticity=None,
@@ -362,7 +363,15 @@ class TaxDeficitCalculator:
             raise Exception(
                 "For 2018, two option are available to deal with the absence of Chinese CbCR data: either using TWZ"
                 + " data only ('TWZ') or using 2017 CbCR data ('2017_CbCR'), to which we apply the appropriate exchange"
-                + "rate and upgrade factor."
+                + " rate and upgrade factor."
+            )
+
+        if use_TWZ_for_CbCR_newcomers and year == 2016:
+            raise Exception(
+                "The argument 'use_TWZ_for_CbCR_newcomers' can only be used as of 2017. If it is set to True, we do as"
+                + " if countries reporting CbCR data in the year considered but not in the previous one were absent"
+                + " from the OECD's data and required the use of TWZ data (except for tax havens). Purely"
+                + " methodological detail to challenge our use of TWZ data."
             )
 
         self.fetch_data_online = fetch_data_online
@@ -460,6 +469,8 @@ class TaxDeficitCalculator:
         self.de_minimis_exclusion = de_minimis_exclusion
 
         self.extended_dividends_adjustment = extended_dividends_adjustment
+
+        self.use_TWZ_for_CbCR_newcomers = use_TWZ_for_CbCR_newcomers
 
         self.sweden_adj_ratio_2016 = (342 - 200) / 342
         self.sweden_adj_ratio_2017 = (512 - 266) / 512
@@ -907,6 +918,16 @@ class TaxDeficitCalculator:
                 lambda row: 2018 if row['COU'] == 'CHN' and row['Year'] == 2017 else row['Year'],
                 axis=1
             )
+
+        # Removing newcomers if relevant
+        if self.use_TWZ_for_CbCR_newcomers:
+
+            reporting_countries = oecd[oecd['Year'] == self.year]['COU'].unique()
+            reporting_countries_previous_year = oecd[oecd['Year'] == self.year - 1]['COU'].unique()
+            newcomers = reporting_countries[~reporting_countries.isin(reporting_countries_previous_year)].copy()
+            newcomers = newcomers[~newcomers.isin(self.tax_haven_country_codes)].copy()
+
+            oecd = oecd[~np.logical_and(oecd['Year'] == self.year, oecd['COU'].isin(newcomers))].copy()
 
         # Restricting the data to the relevant income year
         oecd = oecd[oecd['Year'] == self.year].copy()
@@ -1787,6 +1808,7 @@ class TaxDeficitCalculator:
                 add_AUT_AUT_row=self.add_AUT_AUT_row,
                 de_minimis_exclusion=self.de_minimis_exclusion,
                 extended_dividends_adjustment=self.extended_dividends_adjustment,
+                use_TWZ_for_CbCR_newcomers=self.use_TWZ_for_CbCR_newcomers,
                 fetch_data_online=self.fetch_data_online,
                 behavioral_responses=False,
             )
@@ -1900,6 +1922,7 @@ class TaxDeficitCalculator:
                 add_AUT_AUT_row=self.add_AUT_AUT_row,
                 de_minimis_exclusion=self.de_minimis_exclusion,
                 extended_dividends_adjustment=self.extended_dividends_adjustment,
+                use_TWZ_for_CbCR_newcomers=self.use_TWZ_for_CbCR_newcomers,
                 fetch_data_online=self.fetch_data_online,
                 behavioral_responses=False,
             )
@@ -2089,7 +2112,8 @@ class TaxDeficitCalculator:
                 sweden_treatment=self.sweden_treatment,
                 belgium_treatment=self.belgium_treatment,
                 SGP_CYM_treatment=self.SGP_CYM_treatment,
-                China_treatment_2018=self.China_treatment_2018
+                China_treatment_2018=self.China_treatment_2018,
+                use_TWZ_for_CbCR_newcomers=self.use_TWZ_for_CbCR_newcomers,
             )
             calculator.load_clean_data()
             _ = calculator.compute_all_tax_deficits(minimum_ETR=minimum_ETR)
@@ -3102,6 +3126,7 @@ class TaxDeficitCalculator:
             ex_post_ETRs=self.ex_post_ETRs,
             add_AUT_AUT_row=self.add_AUT_AUT_row,
             extended_dividends_adjustment=self.extended_dividends_adjustment,
+            use_TWZ_for_CbCR_newcomers=self.use_TWZ_for_CbCR_newcomers,
             fetch_data_online=self.fetch_data_online
         )
 
@@ -3127,6 +3152,7 @@ class TaxDeficitCalculator:
             carve_outs=False,
             add_AUT_AUT_row=self.add_AUT_AUT_row,
             extended_dividends_adjustment=self.extended_dividends_adjustment,
+            use_TWZ_for_CbCR_newcomers=self.use_TWZ_for_CbCR_newcomers,
             fetch_data_online=self.fetch_data_online
         )
 
