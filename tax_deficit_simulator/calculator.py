@@ -143,7 +143,10 @@ class TaxDeficitCalculator:
         year=2017,
         alternative_imputation=True,
         non_haven_TD_imputation_selection='EU',
-        sweden_treatment='adjust', belgium_treatment='replace', SGP_CYM_treatment='replace',
+        sweden_treatment='adjust',
+        belgium_treatment='replace',
+        SGP_CYM_treatment='replace',
+        China_treatment_2018='none',
         use_adjusted_profits=True,
         average_ETRs=True,
         years_for_avg_ETRs=[2016, 2017, 2018],
@@ -347,6 +350,19 @@ class TaxDeficitCalculator:
             raise Exception(
                 "If you want to include firms' behavioral responses in the simulation, you must specify whether to "
                 + "include domestic observations (profits booked in the headquarter country) in the adjustment."
+            )
+
+        if year == 2018 and China_treatment_2018 == 'none':
+            raise Exception(
+                "To run the computations on 2018 data, you must specify the approach for China,"
+                + " which does not provide aggregated country-by-country report statistics that year."
+            )
+
+        if China_treatment_2018 not in ['TWZ', '2017_CbCR']:
+            raise Exception(
+                "For 2018, two option are available to deal with the absence of Chinese CbCR data: either using TWZ"
+                + " data only ('TWZ') or using 2017 CbCR data ('2017_CbCR'), to which we apply the appropriate exchange"
+                + "rate and upgrade factor."
             )
 
         self.fetch_data_online = fetch_data_online
@@ -565,6 +581,12 @@ class TaxDeficitCalculator:
             else:
                 self.sweden_adjustment_ratio = 1
 
+            self.China_treatment_2018 = China_treatment_2018
+
+            if self.China_treatment_2018 == '2017_CbCR':
+                self.USD_to_EUR_2017 = 1 / xrates.loc[2017, 'usd']
+                self.multiplier_2017_2021 = GDP_growth_rates.loc['World', 'upreur2117']
+
         # For rates of 0.2 or lower an alternative imputation is used to estimate the non-haven tax deficit of non-OECD
         # reporting countries; this argument allows to enable or disable this imputation
         self.alternative_imputation = alternative_imputation
@@ -628,6 +650,11 @@ class TaxDeficitCalculator:
         if self.de_minimis_exclusion:
             self.exclusion_threshold_revenues = 10 * 10**6 / self.USD_to_EUR
             self.exclusion_threshold_profits = 1 * 10**6 / self.USD_to_EUR
+
+            if self.year == 2018 and self.China_treatment_2018 == '2017_CbCR':
+
+                self.exclusion_threshold_revenues_China = 10 * 10**6 / self.USD_to_EUR_2017
+                self.exclusion_threshold_profits_China = 1 * 10**6 / self.USD_to_EUR_2017
 
         self.behavioral_responses = behavioral_responses
 
@@ -872,6 +899,14 @@ class TaxDeficitCalculator:
             ]['Value'].sum()
 
             self.extended_adjustment_ratio = (adj_sweden_profits + adj_profits) / (sweden_profits + profits)
+
+        # Dealing with the case of China in 2018 if relevant
+        if self.year == 2018 and self.China_treatment_2018 == "2017_CbCR":
+
+            oecd['Year'] = oecd.apply(
+                lambda row: 2018 if row['COU'] == 'CHN' and row['Year'] == 2017 else row['Year'],
+                axis=1
+            )
 
         # Restricting the data to the relevant income year
         oecd = oecd[oecd['Year'] == self.year].copy()
@@ -1147,8 +1182,28 @@ class TaxDeficitCalculator:
 
         # We apply - if relevant - the de minimis exclusion based on revenue and profit thresholds
         if self.de_minimis_exclusion:
-            mask_revenues = (oecd['Total Revenues'] >= self.exclusion_threshold_revenues)
-            mask_profits = (oecd['Profit (Loss) before Income Tax'] >= self.exclusion_threshold_profits)
+
+            if self.year == 2018 and self.China_treatment_2018 == '2017_CbCR':
+
+                revenue_threshold = oecd['Parent jurisdiction (alpha-3 code)'].map(
+                    lambda country_code: {
+                        'CHN': self.exclusion_threshold_revenues_China
+                    }.get(country_code, self.exclusion_threshold_revenues)
+                )
+
+                profit_threshold = oecd['Parent jurisdiction (alpha-3 code)'].map(
+                    lambda country_code: {
+                        'CHN': self.exclusion_threshold_profits_China
+                    }.get(country_code, self.exclusion_threshold_profits)
+                )
+
+            else:
+
+                revenue_threshold = self.exclusion_threshold_revenues
+                profit_threshold = self.exclusion_threshold_profits
+
+            mask_revenues = (oecd['Total Revenues'] >= revenue_threshold)
+            mask_profits = (oecd['Profit (Loss) before Income Tax'] >= profit_threshold)
 
             mask_de_minimis_exclusion = np.logical_or(mask_revenues, mask_profits)
 
@@ -1718,6 +1773,7 @@ class TaxDeficitCalculator:
                 sweden_treatment=self.sweden_treatment,
                 belgium_treatment=self.belgium_treatment,
                 SGP_CYM_treatment=self.SGP_CYM_treatment,
+                China_treatment_2018=self.China_treatment_2018,
                 use_adjusted_profits=self.use_adjusted_profits,
                 average_ETRs=self.average_ETRs_bool,
                 years_for_avg_ETRs=self.years_for_avg_ETRs,
@@ -1830,6 +1886,7 @@ class TaxDeficitCalculator:
                 sweden_treatment=self.sweden_treatment,
                 belgium_treatment=self.belgium_treatment,
                 SGP_CYM_treatment=self.SGP_CYM_treatment,
+                China_treatment_2018=self.China_treatment_2018,
                 use_adjusted_profits=self.use_adjusted_profits,
                 average_ETRs=self.average_ETRs_bool,
                 years_for_avg_ETRs=self.years_for_avg_ETRs,
@@ -2032,6 +2089,7 @@ class TaxDeficitCalculator:
                 sweden_treatment=self.sweden_treatment,
                 belgium_treatment=self.belgium_treatment,
                 SGP_CYM_treatment=self.SGP_CYM_treatment,
+                China_treatment_2018=self.China_treatment_2018
             )
             calculator.load_clean_data()
             _ = calculator.compute_all_tax_deficits(minimum_ETR=minimum_ETR)
@@ -2174,7 +2232,20 @@ class TaxDeficitCalculator:
 
         # We convert 2016 USD results in 2016 EUR and extrapolate them to 2021 EUR
         for column_name in merged_df.columns[2:]:
-            merged_df[column_name] = merged_df[column_name] * self.USD_to_EUR * self.multiplier_2021
+
+            if self.year == 2018 and self.China_treatment_2018 == "2017_CbCR":
+
+                multiplier = merged_df['Parent jurisdiction (alpha-3 code)'] == 'CHN'
+                multiplier *= self.USD_to_EUR_2017 * self.multiplier_2017_2021
+                multiplier = multiplier.map(
+                    lambda x: self.USD_to_EUR * self.multiplier_2021 if x == 0 else x
+                )
+
+            else:
+
+                multiplier = self.USD_to_EUR * self.multiplier_2021
+
+            merged_df[column_name] = merged_df[column_name] * multiplier
 
         # --- Managing the case where the minimum ETR is 20% or below for TWZ countries
 
@@ -2385,7 +2456,19 @@ class TaxDeficitCalculator:
         ).drop(columns=['Country', 'Country (alpha-3 code)'])
 
         # We bring back the tax deficit estimated to 2016 USD (from 2021 EUR)
-        merged_df['tax_deficit_15'] /= (merged_df['CIT revenue'] * self.multiplier_2021 * self.USD_to_EUR / 100)
+        if self.year == 2018 and self.China_treatment_2018 == '2017_CbCR':
+
+            multiplier = merged_df['Parent jurisdiction (alpha-3 code)'] == 'CHN'
+            multiplier *= self.multiplier_2017_2021 * self.USD_to_EUR_2017
+            multiplier = multiplier.map(
+                lambda x: self.multiplier_2021 * self.USD_to_EUR if x == 0 else x
+            )
+
+        else:
+
+            multiplier = self.multiplier_2021 * self.USD_to_EUR
+
+        merged_df['tax_deficit_15'] /= (merged_df['CIT revenue'] * multiplier / 100)
 
         # For the 3 other rates considered in the output table
         for rate in [0.21, 0.25, 0.3]:
@@ -2410,7 +2493,7 @@ class TaxDeficitCalculator:
 
             # And we bring it back to 2016 USD
             merged_df[f'tax_deficit_{int(rate * 100)}'] /= (
-                merged_df['CIT revenue'] * self.multiplier_2021 * self.USD_to_EUR / 100
+                merged_df['CIT revenue'] * multiplier / 100
             )
 
         # We want to also verify the EU-27 average and restrict the DataFrame to these countries
@@ -3006,6 +3089,8 @@ class TaxDeficitCalculator:
             year=self.year,
             sweden_treatment=self.sweden_treatment,
             belgium_treatment=self.belgium_treatment,
+            SGP_CYM_treatment=self.SGP_CYM_treatment,
+            China_treatment_2018=self.China_treatment_2018,
             use_adjusted_profits=self.use_adjusted_profits,
             average_ETRs=self.average_ETRs_bool,
             years_for_avg_ETRs=self.years_for_avg_ETRs,
@@ -3034,6 +3119,8 @@ class TaxDeficitCalculator:
             year=self.year,
             sweden_treatment=self.sweden_treatment,
             belgium_treatment=self.belgium_treatment,
+            SGP_CYM_treatment=self.SGP_CYM_treatment,
+            China_treatment_2018=self.China_treatment_2018,
             use_adjusted_profits=self.use_adjusted_profits,
             average_ETRs=self.average_ETRs_bool,
             years_for_avg_ETRs=self.years_for_avg_ETRs,
@@ -3666,7 +3753,8 @@ class TaxDeficitCalculator:
                     year=year,
                     sweden_treatment='adjust',
                     add_AUT_AUT_row=False,
-                    fetch_data_online=self.fetch_data_online
+                    fetch_data_online=self.fetch_data_online,
+                    China_treatment_2018=self.China_treatment_2018
                 ).sweden_adjustment_ratio
                 for year in [2016, 2017, 2018]
             }
@@ -4177,8 +4265,21 @@ class TaxDeficitCalculator:
 
         # - Theresa's method
         if upgrade_non_havens:
+
+            if self.year == 2018 and self.China_treatment_2018 == "2017_CbCR":
+
+                multiplier = headquarter_collects_scenario['Parent jurisdiction (alpha-3 code)'] == 'CHN'
+                multiplier *= self.USD_to_EUR_2017 * self.multiplier_2017_2021
+                multiplier = multiplier.map(
+                    lambda x: self.USD_to_EUR * self.multiplier_2021 if x == 0 else x
+                )
+
+            else:
+
+                multiplier = self.USD_to_EUR * self.multiplier_2021
+
             to_be_distributed = (
-                headquarter_collects_scenario['tax_deficit'].sum() / (self.USD_to_EUR * self.multiplier_2021)
+                headquarter_collects_scenario['tax_deficit'].sum() / multiplier
                 - full_sample['TAX_DEFICIT'].sum()
             )
 
@@ -4231,6 +4332,21 @@ class TaxDeficitCalculator:
 
         # --- Finalising the tax deficit computations
 
+        # Currency conversion and upgrade to 2021
+        if self.year == 2018 and self.China_treatment_2018 == '2017_CbCR':
+
+            multiplier = tax_deficits['PARENT_COUNTRY_CODE'] == 'CHN'
+            multiplier *= self.multiplier_2017_2021 * self.USD_to_EUR_2017
+            multiplier = multiplier.map(
+                lambda x: self.multiplier_2021 * self.USD_to_EUR if x == 0 else x
+            )
+
+        else:
+
+            multiplier = self.multiplier_2021 * self.USD_to_EUR
+
+        tax_deficits['TAX_DEFICIT'] *= multiplier
+
         # Grouping by partner country in the full QDMTT scenario
         tax_deficits = full_sample.groupby(
             'PARTNER_COUNTRY_CODE'
@@ -4240,9 +4356,6 @@ class TaxDeficitCalculator:
                 'TAX_DEFICIT': 'sum'
             }
         ).reset_index()
-
-        # Currency conversion and upgrade to 2021
-        tax_deficits['TAX_DEFICIT'] *= self.multiplier_2021 * self.USD_to_EUR
 
         return tax_deficits.copy()
 
