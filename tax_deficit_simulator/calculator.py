@@ -359,9 +359,11 @@ class TaxDeficitCalculator:
                 + " which does not provide aggregated country-by-country report statistics that year."
             )
 
-        if China_treatment_2018 not in ['TWZ', '2017_CbCR']:
+        if (
+            year == 2018 or (average_ETRs and 2018 in years_for_avg_ETRs)
+        ) and China_treatment_2018 not in ['TWZ', '2017_CbCR']:
             raise Exception(
-                "For 2018, two option are available to deal with the absence of Chinese CbCR data: either using TWZ"
+                "For 2018, two options are available to deal with the absence of Chinese CbCR data: either using TWZ"
                 + " data only ('TWZ') or using 2017 CbCR data ('2017_CbCR'), to which we apply the appropriate exchange"
                 + " rate and upgrade factor."
             )
@@ -481,6 +483,8 @@ class TaxDeficitCalculator:
         xrates = self.xrates.set_index('year')
         self.USD_to_EUR = 1 / xrates.loc[self.year, 'usd']
 
+        self.China_treatment_2018 = China_treatment_2018
+
         if year == 2016:
 
             # Gross growth rate of worldwide GDP in current EUR between 2016 and 2021
@@ -518,13 +522,14 @@ class TaxDeficitCalculator:
                 self.sweden_adjustment_ratio = 1
 
             if self.belgium_treatment == 'adjust':
-                self.belgium_partner_for_adjustment = 'NLD'
+                self.belgium_partners_for_adjustment = ['NLD']
+                self.belgium_years_for_adjustment = [2017]
 
             elif self.belgium_treatment == 'replace':
-                self.belgium_partner_for_replacement = 'NLD'
-                self.belgium_year_for_replacement = 2017
+                self.belgium_partners_for_replacement = ['NLD']
+                self.belgium_years_for_replacement = [2017]
 
-                self.belgium_GDP_growth_multiplier = 1 / GDP_growth_rates.loc['European Union', 'uprusd1716']
+                self.belgium_GDP_growth_multipliers = [1 / GDP_growth_rates.loc['European Union', 'uprusd1716']]
 
         elif year == 2017:
 
@@ -552,13 +557,14 @@ class TaxDeficitCalculator:
                 self.sweden_adjustment_ratio = 1
 
             if self.belgium_treatment == 'adjust':
-                self.belgium_partner_for_adjustment = 'GBR'
+                self.belgium_partners_for_adjustment = ['GBR']
+                self.belgium_years_for_adjustment = [2016]
 
             elif self.belgium_treatment == 'replace':
-                self.belgium_partner_for_replacement = 'GBR'
-                self.belgium_year_for_replacement = 2016
+                self.belgium_partners_for_replacement = ['GBR']
+                self.belgium_years_for_replacement = [2016]
 
-                self.belgium_GDP_growth_multiplier = GDP_growth_rates.loc['European Union', 'uprusd1716']
+                self.belgium_GDP_growth_multipliers = [GDP_growth_rates.loc['European Union', 'uprusd1716']]
 
             if self.SGP_CYM_treatment == 'replace':
                 self.SGP_CYM_GDP_growth_multiplier = GDP_growth_rates.loc['World', 'uprusd1716']
@@ -592,11 +598,22 @@ class TaxDeficitCalculator:
             else:
                 self.sweden_adjustment_ratio = 1
 
-            self.China_treatment_2018 = China_treatment_2018
-
             if self.China_treatment_2018 == '2017_CbCR':
                 self.USD_to_EUR_2017 = 1 / xrates.loc[2017, 'usd']
                 self.multiplier_2017_2021 = GDP_growth_rates.loc['World', 'upreur2117']
+
+            if self.belgium_treatment == 'adjust':
+                self.belgium_partners_for_adjustment = ['GBR', 'NLD']
+                self.belgium_years_for_adjustment = [2016, 2017]
+
+            elif self.belgium_treatment == 'replace':
+                self.belgium_partners_for_replacement = ['GBR', 'NLD']
+                self.belgium_years_for_replacement = [2016, 2017]
+
+                self.belgium_GDP_growth_multipliers = [
+                    GDP_growth_rates.loc['European Union', 'uprusd1816'],
+                    GDP_growth_rates.loc['European Union', 'uprusd1817']
+                ]
 
         # For rates of 0.2 or lower an alternative imputation is used to estimate the non-haven tax deficit of non-OECD
         # reporting countries; this argument allows to enable or disable this imputation
@@ -836,35 +853,48 @@ class TaxDeficitCalculator:
 
         # Dealing with Belgian data depending on the value of "belgium_treatment" - First fetching the relevant values
         if self.belgium_treatment == 'adjust':
-            temp = oecd[
-                np.logical_and(
-                    oecd['COU'] == 'BEL',
-                    oecd['JUR'] == self.belgium_partner_for_adjustment
-                )
-            ].copy()
 
-            temp = temp[temp['CBC'].isin(['TOT_REV', 'PROFIT'])].copy()
-            temp = temp[temp['Year'] == (2017 if self.year == 2016 else 2016)].copy()
+            self.belgium_ratios_for_adjustment = []
 
-            temp = temp[['CBC', 'Value']].set_index('CBC')
+            for partner, year in zip(self.belgium_partners_for_adjustment, self.belgium_years_for_adjustment):
 
-            self.belgium_ratio_for_adjustment = (temp.loc['PROFIT'] / temp.loc['TOT_REV'])['Value']
+                temp = oecd[
+                    np.logical_and(
+                        oecd['COU'] == 'BEL',
+                        oecd['JUR'] == partner
+                    )
+                ].copy()
+
+                temp = temp[temp['CBC'].isin(['TOT_REV', 'PROFIT'])].copy()
+                temp = temp[temp['Year'] == year].copy()
+
+                temp = temp[['CBC', 'Value']].set_index('CBC')
+
+                self.belgium_ratios_for_adjustment.append((temp.loc['PROFIT'] / temp.loc['TOT_REV'])['Value'])
 
         elif self.belgium_treatment == 'replace':
-            belgium_data_for_replacement = oecd[
-                np.logical_and(
-                    oecd['COU'] == 'BEL',
+
+            self.belgium_data_for_replacement = []
+
+            for partner, year, multiplier in zip(
+                self.belgium_partners_for_replacement,
+                self.belgium_years_for_replacement,
+                self.belgium_GDP_growth_multipliers
+            ):
+                belgium_data_for_replacement = oecd[
                     np.logical_and(
-                        oecd['JUR'] == self.belgium_partner_for_replacement,
-                        oecd['YEA'] == self.belgium_year_for_replacement
+                        oecd['COU'] == 'BEL',
+                        np.logical_and(
+                            oecd['JUR'] == partner,
+                            oecd['YEA'] == year
+                        )
                     )
-                )
-            ].copy()
+                ].copy()
 
-            mask = ~(belgium_data_for_replacement['CBC'] == 'EMPLOYEES')
-            belgium_data_for_replacement['Value'] *= (mask * (self.belgium_GDP_growth_multiplier - 1) + 1)
+                mask = ~(belgium_data_for_replacement['CBC'] == 'EMPLOYEES')
+                belgium_data_for_replacement['Value'] *= (mask * (multiplier - 1) + 1)
 
-            self.belgium_data_for_replacement = belgium_data_for_replacement.copy()
+                self.belgium_data_for_replacement.append(belgium_data_for_replacement.copy())
 
         # Dealing with the problematic Singapore-Cayman Islands observation - First fetching the relevant values
         if self.SGP_CYM_treatment == 'replace' and self.year == 2017:
@@ -934,14 +964,12 @@ class TaxDeficitCalculator:
 
         # Dealing with Belgian data depending on the value of "belgium_treatment" - Applying the adjustment
         if self.belgium_treatment == 'replace':
-            oecd = oecd[
-                ~np.logical_and(
-                    oecd['COU'] == 'BEL',
-                    oecd['JUR'] == self.belgium_partner_for_replacement
-                )
-            ].copy()
 
-            oecd = pd.concat([oecd, self.belgium_data_for_replacement], axis=0)
+            for partner, data in zip(self.belgium_partners_for_replacement, self.belgium_data_for_replacement):
+
+                oecd = oecd[~np.logical_and(oecd['COU'] == 'BEL', oecd['JUR'] == partner)].copy()
+
+                oecd = pd.concat([oecd, data], axis=0)
 
         # Dealing with the problematic Singapore-Cayman Islands observation - Applying the adjustment
         if self.SGP_CYM_treatment == 'replace' and self.year == 2017:
@@ -1092,15 +1120,18 @@ class TaxDeficitCalculator:
 
         # We adjust the pre-tax profits of Belgian multinationals if the "adjust" option has been chosen
         if self.belgium_treatment == 'adjust':
-            oecd['Profit (Loss) before Income Tax'] = oecd.apply(
-                (
-                    lambda row: row['Total Revenues'] * self.belgium_ratio_for_adjustment
-                    if row['Parent jurisdiction (alpha-3 code)'] == 'BEL'
-                    and row['Partner jurisdiction (alpha-3 code)'] == self.belgium_partner_for_adjustment
-                    else row['Profit (Loss) before Income Tax']
-                ),
-                axis=1
-            )
+
+            for partner, ratio in zip(self.belgium_partners_for_adjustment, self.belgium_ratios_for_adjustment):
+
+                oecd['Profit (Loss) before Income Tax'] = oecd.apply(
+                    (
+                        lambda row: row['Total Revenues'] * ratio
+                        if row['Parent jurisdiction (alpha-3 code)'] == 'BEL'
+                        and row['Partner jurisdiction (alpha-3 code)'] == partner
+                        else row['Profit (Loss) before Income Tax']
+                    ),
+                    axis=1
+                )
 
         # If we prioritarily use adjusted pre-tax profits, we make the required adjustment
         if self.use_adjusted_profits and self.year == 2017:
@@ -3774,16 +3805,27 @@ class TaxDeficitCalculator:
             )
 
         if self.sweden_adjust:
+
+            # For the years eventually considered in the average ETRs, we get the Sweden adjustment ratio and apply it
+
+            # For the other years, we apply no adjustment (multiplying by 1)
+            # This has no influence on the computation of average ETRs since these observations are removed later on
+
             sweden_adj_ratios = {
                 year: TaxDeficitCalculator(
                     year=year,
                     sweden_treatment='adjust',
                     add_AUT_AUT_row=False,
+                    average_ETRs=False,
                     fetch_data_online=self.fetch_data_online,
                     China_treatment_2018=self.China_treatment_2018
                 ).sweden_adjustment_ratio
-                for year in [2016, 2017, 2018]
+                for year in self.years_for_avg_ETRs
             }
+
+            for year in [2016, 2017, 2018]:
+                if year not in self.years_for_avg_ETRs:
+                    sweden_adj_ratios[year] = 1
 
             oecd['Profit (Loss) before Income Tax'] = oecd.apply(
                 (
