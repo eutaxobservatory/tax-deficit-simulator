@@ -45,6 +45,22 @@ def test_partial_cooperation_scenario_1():
 
                 print("Minimum effective tax rate:", rate)
 
+                alternative_computation, _, _ = calculator.compute_selected_intermediary_scenario_gain(
+                    countries_implementing=calculator.eu_27_country_codes,
+                    among_countries_implementing=True,
+                    minimum_ETR=rate,
+                    minimum_breakdown=60,
+                    weight_UPR=weight_UPR,
+                    weight_assets=weight_assets,
+                    weight_employees=weight_employees,
+                    exclude_non_implementing_domestic_TDs=False,
+                    upgrade_to_2021=False
+                )
+
+                alternative_computation_tmp = alternative_computation[
+                    ['Parent jurisdiction (alpha-3 code)', 'total']
+                ].copy()
+
                 output_df = calculator.allocate_bilateral_tax_deficits(
                     minimum_rate=rate,
                     QDMTT_incl_domestic=[],
@@ -122,22 +138,6 @@ def test_partial_cooperation_scenario_1():
                 assert (merged_df['RELATIVE_DIFF'] > 0.0000001).sum() == 0
 
                 merged_df = merged_df.drop(columns=['ALLOCATED_TAX_DEFICIT', 'COLLECTING_COUNTRY_NAME_y', 'DIFF'])
-
-                alternative_computation, _, _ = calculator.compute_selected_intermediary_scenario_gain(
-                    countries_implementing=calculator.eu_27_country_codes,
-                    among_countries_implementing=True,
-                    minimum_ETR=rate,
-                    minimum_breakdown=60,
-                    weight_UPR=weight_UPR,
-                    weight_assets=weight_assets,
-                    weight_employees=weight_employees,
-                    exclude_non_implementing_domestic_TDs=False,
-                    upgrade_to_2021=False
-                )
-
-                alternative_computation_tmp = alternative_computation[
-                    ['Parent jurisdiction (alpha-3 code)', 'total']
-                ].copy()
 
                 temp_df = merged_df.merge(
                     alternative_computation_tmp,
@@ -198,6 +198,22 @@ def test_partial_cooperation_scenario_2():
 
                 print("Minimum effective tax rate:", rate)
 
+                alternative_computation, _, _ = calculator.compute_selected_intermediary_scenario_gain(
+                    countries_implementing=calculator.eu_27_country_codes + non_EU_implementing_countries,
+                    among_countries_implementing=True,
+                    minimum_ETR=rate,
+                    minimum_breakdown=60,
+                    weight_UPR=weight_UPR,
+                    weight_assets=weight_assets,
+                    weight_employees=weight_employees,
+                    exclude_non_implementing_domestic_TDs=False,
+                    upgrade_to_2021=False
+                )
+
+                alternative_computation_tmp = alternative_computation[
+                    ['Parent jurisdiction (alpha-3 code)', 'total']
+                ].copy()
+
                 output_df = calculator.allocate_bilateral_tax_deficits(
                     minimum_rate=rate,
                     QDMTT_incl_domestic=[],
@@ -276,22 +292,6 @@ def test_partial_cooperation_scenario_2():
 
                 merged_df = merged_df.drop(columns=['ALLOCATED_TAX_DEFICIT', 'COLLECTING_COUNTRY_NAME_y', 'DIFF'])
 
-                alternative_computation, _, _ = calculator.compute_selected_intermediary_scenario_gain(
-                    countries_implementing=calculator.eu_27_country_codes + non_EU_implementing_countries,
-                    among_countries_implementing=True,
-                    minimum_ETR=rate,
-                    minimum_breakdown=60,
-                    weight_UPR=weight_UPR,
-                    weight_assets=weight_assets,
-                    weight_employees=weight_employees,
-                    exclude_non_implementing_domestic_TDs=False,
-                    upgrade_to_2021=False
-                )
-
-                alternative_computation_tmp = alternative_computation[
-                    ['Parent jurisdiction (alpha-3 code)', 'total']
-                ].copy()
-
                 temp_df = merged_df.merge(
                     alternative_computation_tmp,
                     how='outer',
@@ -346,6 +346,22 @@ def test_partial_cooperation_scenario_3():
                 rate = random.uniform(0.15, 0.3)
 
                 print("Minimum effective tax rate:", rate)
+
+                alternative_computation, _, _ = calculator.compute_selected_intermediary_scenario_gain(
+                    countries_implementing=calculator.eu_27_country_codes,
+                    among_countries_implementing=False,
+                    minimum_ETR=rate,
+                    minimum_breakdown=60,
+                    weight_UPR=weight_UPR,
+                    weight_assets=weight_assets,
+                    weight_employees=weight_employees,
+                    exclude_non_implementing_domestic_TDs=False,
+                    upgrade_to_2021=False
+                )
+
+                alternative_computation_tmp = alternative_computation[
+                    ['Parent jurisdiction (alpha-3 code)', 'total']
+                ].copy()
 
                 output_df = calculator.allocate_bilateral_tax_deficits(
                     minimum_rate=rate,
@@ -424,22 +440,6 @@ def test_partial_cooperation_scenario_3():
                 assert (merged_df['RELATIVE_DIFF'] > 0.0000001).sum() == 0
 
                 merged_df = merged_df.drop(columns=['ALLOCATED_TAX_DEFICIT', 'COLLECTING_COUNTRY_NAME_y', 'DIFF'])
-
-                alternative_computation, _, _ = calculator.compute_selected_intermediary_scenario_gain(
-                    countries_implementing=calculator.eu_27_country_codes,
-                    among_countries_implementing=False,
-                    minimum_ETR=rate,
-                    minimum_breakdown=60,
-                    weight_UPR=weight_UPR,
-                    weight_assets=weight_assets,
-                    weight_employees=weight_employees,
-                    exclude_non_implementing_domestic_TDs=False,
-                    upgrade_to_2021=False
-                )
-
-                alternative_computation_tmp = alternative_computation[
-                    ['Parent jurisdiction (alpha-3 code)', 'total']
-                ].copy()
 
                 temp_df = merged_df.merge(
                     alternative_computation_tmp,
@@ -500,6 +500,22 @@ def test_partial_cooperation_scenario_4():
 
                 print("Minimum effective tax rate:", rate)
 
+                alternative_computation, _, _ = calculator.compute_selected_intermediary_scenario_gain(
+                    countries_implementing=calculator.eu_27_country_codes + non_EU_implementing_countries,
+                    among_countries_implementing=False,
+                    minimum_ETR=rate,
+                    minimum_breakdown=60,
+                    weight_UPR=weight_UPR,
+                    weight_assets=weight_assets,
+                    weight_employees=weight_employees,
+                    exclude_non_implementing_domestic_TDs=False,
+                    upgrade_to_2021=False
+                )
+
+                alternative_computation_tmp = alternative_computation[
+                    ['Parent jurisdiction (alpha-3 code)', 'total']
+                ].copy()
+
                 output_df = calculator.allocate_bilateral_tax_deficits(
                     minimum_rate=rate,
                     QDMTT_incl_domestic=[],
@@ -578,22 +594,6 @@ def test_partial_cooperation_scenario_4():
 
                 merged_df = merged_df.drop(columns=['ALLOCATED_TAX_DEFICIT', 'COLLECTING_COUNTRY_NAME_y', 'DIFF'])
 
-                alternative_computation, _, _ = calculator.compute_selected_intermediary_scenario_gain(
-                    countries_implementing=calculator.eu_27_country_codes + non_EU_implementing_countries,
-                    among_countries_implementing=False,
-                    minimum_ETR=rate,
-                    minimum_breakdown=60,
-                    weight_UPR=weight_UPR,
-                    weight_assets=weight_assets,
-                    weight_employees=weight_employees,
-                    exclude_non_implementing_domestic_TDs=False,
-                    upgrade_to_2021=False
-                )
-
-                alternative_computation_tmp = alternative_computation[
-                    ['Parent jurisdiction (alpha-3 code)', 'total']
-                ].copy()
-
                 temp_df = merged_df.merge(
                     alternative_computation_tmp,
                     how='outer',
@@ -648,6 +648,12 @@ def test_partial_cooperation_scenario_stat_rate_cond():
                 rate = random.uniform(0.15, 0.3)
 
                 print("Minimum effective tax rate:", rate)
+
+                # Not sure why but starting with the new method without applying one of the old ones seems to raise
+                # an error when running the tests
+                _ = calculator.compute_all_tax_deficits(
+                    minimum_ETR=rate, exclude_non_EU_domestic_TDs=True, upgrade_to_2021=False
+                )
 
                 output_df = calculator.allocate_bilateral_tax_deficits(
                     minimum_rate=rate,
