@@ -118,16 +118,16 @@ class TaxDeficitCalculator:
         # Growth rates to 2021 in EUR and USD
         for t in [12] + list(range(16, 23)):
             # GDP in USD
-            extract[f"uprusd21{t}"] = extract[f"y2021"] / extract[f"y20{t}"]
+            extract[f"uprusd21{t}"] = extract["y2021"] / extract[f"y20{t}"]
             # GDP in EUR
-            extract[f"upreur21{t}"] = extract[f"eurgdp2021"] / extract[f"eurgdp20{t}"]
+            extract[f"upreur21{t}"] = extract["eurgdp2021"] / extract[f"eurgdp20{t}"]
 
         # Growth rates to 2020 in EUR and USD
         for t in [16, 17]:
             # GDP in USD
-            extract[f"uprusd20{t}"] = extract[f"y2020"] / extract[f"y20{t}"]
+            extract[f"uprusd20{t}"] = extract["y2020"] / extract[f"y20{t}"]
             # GDP in EUR
-            extract[f"upreur20{t}"] = extract[f"eurgdp2020"] / extract[f"eurgdp20{t}"]
+            extract[f"upreur20{t}"] = extract["eurgdp2020"] / extract[f"eurgdp20{t}"]
 
         columns = ["Country Group Name"] + list(
             extract.columns[extract.columns.map(lambda col: col.startswith("upr"))]
@@ -748,9 +748,9 @@ class TaxDeficitCalculator:
             self.path_to_statutory_rates = online_data_paths['path_to_statutory_rates']
 
             # Path to ILO data
-            url_base = online_data_paths['url_base']
-            file_name = f'iloearn{self.year - 2000}.csv'
-            path_to_preprocessed_mean_wages = url_base + file_name
+            # url_base = online_data_paths['url_base']
+            # file_name = f'iloearn{self.year - 2000}.csv'
+            # path_to_preprocessed_mean_wages = url_base + file_name
 
             # Path to TWZ data on profits booked in tax havens
             url_base += 'TWZ/'
@@ -2011,7 +2011,7 @@ class TaxDeficitCalculator:
 
         return numerator / denominator
 
-    def get_stratified_oecd_data(self, minimum_ETR=0.25):
+    def get_stratified_oecd_data(self, minimum_ETR=0.25, exclude_non_EU_domestic_TDs=True):
         """
         This method constitutes a first step in the computation of each country's collectible tax deficit in the multi-
         lateral agreement scenario.
@@ -2073,7 +2073,8 @@ class TaxDeficitCalculator:
         oecd_stratified['IS_EU'] = oecd_stratified[
             'Parent jurisdiction (alpha-3 code)'
         ].isin(self.eu_27_country_codes) * 1
-        oecd_stratified['tax_deficit_x_domestic'] *= oecd_stratified['IS_EU']
+        if exclude_non_EU_domestic_TDs:
+            oecd_stratified['tax_deficit_x_domestic'] *= oecd_stratified['IS_EU']
 
         oecd_stratified['tax_deficit'] = oecd_stratified[
             ['tax_deficit_x_domestic', 'tax_deficit_x_tax_haven', 'tax_deficit_x_non_haven']
@@ -2089,7 +2090,9 @@ class TaxDeficitCalculator:
         self,
         minimum_ETR=0.25,
         CbCR_reporting_countries_only=False,
-        save_countries_replaced=True
+        save_countries_replaced=True,
+        exclude_non_EU_domestic_TDs=True,
+        upgrade_to_2021=True
     ):
         """
         This method encapsulates most of the computations for the multilateral agreement scenario.
@@ -2105,7 +2108,9 @@ class TaxDeficitCalculator:
             raise Exception('You first need to load clean data with the dedicated method and inplace=True.')
 
         # We use the method defined above and will use its output as a base for the following computations
-        oecd_stratified = self.get_stratified_oecd_data(minimum_ETR=minimum_ETR)
+        oecd_stratified = self.get_stratified_oecd_data(
+            minimum_ETR=minimum_ETR, exclude_non_EU_domestic_TDs=exclude_non_EU_domestic_TDs
+        )
 
         twz = self.twz.copy()
 
@@ -2150,7 +2155,7 @@ class TaxDeficitCalculator:
                 use_TWZ_for_CbCR_newcomers=self.use_TWZ_for_CbCR_newcomers,
             )
             calculator.load_clean_data()
-            _ = calculator.compute_all_tax_deficits(minimum_ETR=minimum_ETR)
+            _ = calculator.compute_all_tax_deficits(minimum_ETR=minimum_ETR, upgrade_to_2021=upgrade_to_2021)
 
             countries_replaced = calculator.countries_replaced.copy()
 
@@ -2221,7 +2226,8 @@ class TaxDeficitCalculator:
 
         # However, we assume that non-EU countries do not collect their domestic tax deficit
         # We therefore restrict the table of TWZ domestic profits and ETRs to EU countries
-        twz_domestic = twz_domestic[twz_domestic['Alpha-3 country code'].isin(self.eu_27_country_codes)].copy()
+        if exclude_non_EU_domestic_TDs:
+            twz_domestic = twz_domestic[twz_domestic['Alpha-3 country code'].isin(self.eu_27_country_codes)].copy()
 
         # We only consider countries whose domestic ETR is stricly below the minimum ETR
         # (otherwise, there is no tax deficit to collect from domestic profits)
@@ -2236,11 +2242,28 @@ class TaxDeficitCalculator:
         # - Combining the different forms of tax deficit
 
         # We merge the two DataFrames to complement twz_not_in_oecd with domestic tax deficit results
+        # twz_not_in_oecd = twz_not_in_oecd.merge(
+        #     twz_domestic[['Alpha-3 country code', 'tax_deficit_x_domestic']],
+        #     how='left',
+        #     on='Alpha-3 country code'
+        # )
+        twz_domestic = twz_domestic[
+            ~twz_domestic['Alpha-3 country code'].isin(self.oecd['Parent jurisdiction (alpha-3 code)'])
+        ].copy()
         twz_not_in_oecd = twz_not_in_oecd.merge(
             twz_domestic[['Alpha-3 country code', 'tax_deficit_x_domestic']],
-            how='left',
+            how='outer',
             on='Alpha-3 country code'
         )
+
+        # BES is in domestic TWZ data but not in tax haven TWZ data (at least for 2018)
+        twz_not_in_oecd['Country'] = twz_not_in_oecd.apply(
+            lambda row: 'Bonaire' if row['Alpha-3 country code'] == 'BES' else row['Country'],
+            axis=1
+        )
+        twz_not_in_oecd['tax_deficit_x_tax_haven_TWZ'] = twz_not_in_oecd['tax_deficit_x_tax_haven_TWZ'].fillna(0)
+        twz_not_in_oecd['tax_deficit_x_domestic'] = twz_not_in_oecd['tax_deficit_x_domestic'].fillna(0)
+        twz_not_in_oecd['tax_deficit_x_non_haven'] = twz_not_in_oecd['tax_deficit_x_non_haven'].fillna(0)
 
         # As we filtered out countries whose domestic ETR is stricly below the minimum ETR, some missing values
         # appear during the merge; we impute 0 for these as they do not have any domestic tax deficit to collect
@@ -2291,17 +2314,33 @@ class TaxDeficitCalculator:
         # We convert 2016 USD results in 2016 EUR and extrapolate them to 2021 EUR
         for column_name in merged_df.columns[2:]:
 
-            if self.year == 2018 and self.China_treatment_2018 == "2017_CbCR":
+            if upgrade_to_2021:
 
-                multiplier = merged_df['Parent jurisdiction (alpha-3 code)'] == 'CHN'
-                multiplier *= self.USD_to_EUR_2017 * self.multiplier_2017_2021
-                multiplier = multiplier.map(
-                    lambda x: self.USD_to_EUR * self.multiplier_2021 if x == 0 else x
-                )
+                if self.year == 2018 and self.China_treatment_2018 == "2017_CbCR":
+
+                    multiplier = merged_df['Parent jurisdiction (alpha-3 code)'] == 'CHN'
+                    multiplier *= self.USD_to_EUR_2017 * self.multiplier_2017_2021
+                    multiplier = multiplier.map(
+                        lambda x: self.USD_to_EUR * self.multiplier_2021 if x == 0 else x
+                    )
+
+                else:
+
+                    multiplier = self.USD_to_EUR * self.multiplier_2021
 
             else:
 
-                multiplier = self.USD_to_EUR * self.multiplier_2021
+                if self.year == 2018 and self.China_treatment_2018 == "2017_CbCR":
+
+                    multiplier = merged_df['Parent jurisdiction (alpha-3 code)'] == 'CHN'
+
+                    multiplier *= self.growth_rates.set_index('CountryGroupName').loc['World', 'uprusd1817']
+
+                    multiplier = multiplier.map(lambda x: 1 if x == 0 else x)
+
+                else:
+
+                    multiplier = 1
 
             merged_df[column_name] = merged_df[column_name] * multiplier
 
@@ -2316,7 +2355,8 @@ class TaxDeficitCalculator:
             # We compute all tax deficits at the reference rate (25% in the report)
             df = self.compute_all_tax_deficits(
                 minimum_ETR=self.reference_rate_for_alternative_imputation,
-                save_countries_replaced=False
+                save_countries_replaced=False,
+                upgrade_to_2021=upgrade_to_2021
             )
 
             # What is the set of countries not concerned by this alternative imputation?
@@ -3090,14 +3130,14 @@ class TaxDeficitCalculator:
         minimum_breakdown,
         weight_UPR, weight_employees, weight_assets,
         among_countries_implementing=False,
-        countries_implementing=[]
+        countries_implementing=None
     ):
 
         share_UPR = weight_UPR / (weight_UPR + weight_employees + weight_assets)
         share_employees = weight_employees / (weight_UPR + weight_employees + weight_assets)
         share_assets = weight_assets / (weight_UPR + weight_employees + weight_assets)
 
-        if among_countries_implementing and len(countries_implementing) == 0:
+        if among_countries_implementing and countries_implementing is None:
             raise Exception(
                 'If you want to restrict the allocation to the set of countries implementing the deal (such that 100%'
                 + 'of tax deficits end up being distributed), you must specify the list of implementing countries.'
@@ -3144,20 +3184,45 @@ class TaxDeficitCalculator:
         # Removing foreign jurisdiction totals
         oecd = oecd[oecd['JUR'] != 'FJT'].copy()
 
+        # Removing stateless entities
+        oecd = oecd[oecd['JUR'] != 'STA'].copy()
+
         # Focusing on partners implementing the deal if relevant
         if among_countries_implementing:
             oecd = oecd[oecd['JUR'].isin(countries_implementing)].copy()
 
-        # Adding parent-level totals and deducing shares
-        for col in ['UPR', 'EMPLOYEES', 'ASSETS']:
-            oecd[f'{col}_TOTAL'] = oecd.groupby('COU').transform('sum')[col]
-            oecd[f'{col}_TOTAL'] = oecd[f'{col}_TOTAL'].astype(float)
-            oecd[f'SHARE_{col}'] = oecd[col] / oecd[f'{col}_TOTAL']
+        if not oecd.empty:
 
-        oecd['KEY'] = share_UPR * oecd['UPR'] + share_employees * oecd['EMPLOYEES'] + share_assets * oecd['ASSETS']
-        oecd['KEY_TOTAL'] = oecd.groupby('COU').transform('sum')['KEY']
-        oecd['KEY_TOTAL'] = oecd['KEY_TOTAL'].astype(float)
-        oecd['SHARE_KEY'] = oecd['KEY'] / oecd['KEY_TOTAL']
+            # Adding parent-level totals and deducing shares
+            for col in ['UPR', 'EMPLOYEES', 'ASSETS']:
+                # Missings are considered as 0s as a simplification
+                oecd[col] = oecd[col].fillna(0)
+                # Negative values (for unrelated-party revenues) are considered as 0s, again as a simplification
+                oecd[col] = oecd[col].map(lambda x: max(x, 0))
+
+                oecd[f'{col}_TOTAL'] = oecd.groupby('COU').transform('sum')[col]
+                oecd[f'{col}_TOTAL'] = oecd[f'{col}_TOTAL'].astype(float)
+                oecd[f'SHARE_{col}'] = oecd[col] / oecd[f'{col}_TOTAL']
+
+            # oecd['KEY'] = (
+            #     share_UPR * oecd['UPR'] + share_employees * oecd['EMPLOYEES'] + share_assets * oecd['ASSETS']
+            # )
+            # oecd['KEY_TOTAL'] = oecd.groupby('COU').transform('sum')['KEY']
+            # oecd['KEY_TOTAL'] = oecd['KEY_TOTAL'].astype(float)
+            oecd['SHARE_KEY'] = (
+                share_UPR * oecd['SHARE_UPR']
+                + share_employees * oecd['SHARE_EMPLOYEES']
+                + share_assets * oecd['SHARE_ASSETS']
+            )
+
+        else:
+
+            for col in ['UPR', 'EMPLOYEES', 'ASSETS']:
+
+                oecd[f'{col}_TOTAL'] = None
+                oecd[f'SHARE_{col}'] = None
+
+            oecd['SHARE_KEY'] = None
 
         return other_parent_countries, oecd.copy()
 
@@ -3213,16 +3278,28 @@ class TaxDeficitCalculator:
         # Removing foreign jurisdiction totals
         oecd = oecd[oecd['JUR'] != 'FJT'].copy()
 
+        # Removing stateless entities
+        oecd = oecd[oecd['JUR'] != 'STA'].copy()
+
         # Adding parent-level totals and deducing shares
         for col in ['UPR', 'EMPLOYEES', 'ASSETS']:
+            # Missings are considered as 0s as a simplification
+            oecd[col] = oecd[col].fillna(0)
+            # Negative values (for unrelated-party revenues) are considered as 0s, again as a simplification
+            oecd[col] = oecd[col].map(lambda x: max(x, 0))
+
             oecd[f'{col}_TOTAL'] = oecd.groupby('COU').transform('sum')[col]
             oecd[f'{col}_TOTAL'] = oecd[f'{col}_TOTAL'].astype(float)
             oecd[f'SHARE_{col}'] = oecd[col] / oecd[f'{col}_TOTAL']
 
-        oecd['KEY'] = share_UPR * oecd['UPR'] + share_employees * oecd['EMPLOYEES'] + share_assets * oecd['ASSETS']
-        oecd['KEY_TOTAL'] = oecd.groupby('COU').transform('sum')['KEY']
-        oecd['KEY_TOTAL'] = oecd['KEY_TOTAL'].astype(float)
-        oecd['SHARE_KEY'] = oecd['KEY'] / oecd['KEY_TOTAL']
+        # oecd['KEY'] = share_UPR * oecd['UPR'] + share_employees * oecd['EMPLOYEES'] + share_assets * oecd['ASSETS']
+        # oecd['KEY_TOTAL'] = oecd.groupby('COU').transform('sum')['KEY']
+        # oecd['KEY_TOTAL'] = oecd['KEY_TOTAL'].astype(float)
+        oecd['SHARE_KEY'] = (
+            share_UPR * oecd['SHARE_UPR']
+            + share_employees * oecd['SHARE_EMPLOYEES']
+            + share_assets * oecd['SHARE_ASSETS']
+        )
 
         # Adjusting domestic observations depending on the "full_own_tax_deficit" argument
         if full_own_tax_deficit:
@@ -3239,11 +3316,17 @@ class TaxDeficitCalculator:
         among_countries_implementing=False,
         minimum_ETR=0.15,
         minimum_breakdown=60,
-        weight_UPR=1, weight_employees=0, weight_assets=0
+        weight_UPR=1, weight_employees=0, weight_assets=0,
+        exclude_non_implementing_domestic_TDs=True,
+        upgrade_to_2021=True
     ):
 
         # We start by computing the total tax deficits of all in-sample countries (those of the multilateral scenario)
-        tax_deficits = self.compute_all_tax_deficits(minimum_ETR=minimum_ETR)
+        tax_deficits = self.compute_all_tax_deficits(
+            minimum_ETR=minimum_ETR,
+            exclude_non_EU_domestic_TDs=exclude_non_implementing_domestic_TDs,
+            upgrade_to_2021=upgrade_to_2021
+        )
 
         tax_deficits = tax_deficits[
             [
@@ -3267,16 +3350,21 @@ class TaxDeficitCalculator:
         ].copy()
 
         # We remove non-implementing countries' domestic tax deficit from the sales-based allocation
-        not_implementing_tax_deficits['tax_deficit'] -= not_implementing_tax_deficits['tax_deficit_x_domestic']
-        not_implementing_tax_deficits = not_implementing_tax_deficits.drop(columns=['tax_deficit_x_domestic'])
+        if exclude_non_implementing_domestic_TDs:
+            not_implementing_tax_deficits['tax_deficit'] -= not_implementing_tax_deficits['tax_deficit_x_domestic']
+            not_implementing_tax_deficits = not_implementing_tax_deficits.drop(columns=['tax_deficit_x_domestic'])
 
         # Let us get the relevant allocation keys
         parents_insufficient_brkdown, available_allocation_keys = self.get_tax_deficit_allocation_keys_intermediary(
             minimum_breakdown=minimum_breakdown,
-            among_countries_implementing=among_countries_implementing,
+            among_countries_implementing=False,
             countries_implementing=countries_implementing,
             weight_UPR=weight_UPR, weight_employees=weight_employees, weight_assets=weight_assets
         )
+
+        share_UPR = weight_UPR / (weight_UPR + weight_employees + weight_assets)
+        share_employees = weight_employees / (weight_UPR + weight_employees + weight_assets)
+        share_assets = weight_assets / (weight_UPR + weight_employees + weight_assets)
 
         # Among non-implementing countries, we further focus on those for which we have allocation keys:
         # (i) TWZ countries are left aside
@@ -3302,6 +3390,24 @@ class TaxDeficitCalculator:
             left_on='Parent jurisdiction (alpha-3 code)', right_on='COU'
         )
 
+        if among_countries_implementing:
+
+            allocable_non_implementing_TDs = allocable_non_implementing_TDs[
+                allocable_non_implementing_TDs['JUR'].isin(countries_implementing)
+            ].copy()
+
+            if allocable_non_implementing_TDs['SHARE_KEY'].sum() > 0:
+
+                allocable_non_implementing_TDs['SHARE_KEY_TOTAL'] = allocable_non_implementing_TDs.groupby(
+                    'Parent jurisdiction (alpha-3 code)'
+                ).transform('sum')['SHARE_KEY']
+
+                allocable_non_implementing_TDs['RESCALING_FACTOR'] = (
+                    1 / allocable_non_implementing_TDs['SHARE_KEY_TOTAL']
+                )
+
+                allocable_non_implementing_TDs['SHARE_KEY'] *= allocable_non_implementing_TDs['RESCALING_FACTOR']
+
         allocable_non_implementing_TDs['directly_allocated'] = (
             allocable_non_implementing_TDs['tax_deficit'] * allocable_non_implementing_TDs['SHARE_KEY']
         ).astype(float)
@@ -3319,34 +3425,161 @@ class TaxDeficitCalculator:
         ).reset_index().rename(columns={'JUR': 'Parent jurisdiction (alpha-3 code)'})
 
         # Allocating the tax deficits that are not directly allocable
-        avg_allocation_keys = {'JUR': countries_implementing, 'SHARE_KEY': []}
+        # Alternative approach?
+        # sales_mapping = available_allocation_keys.copy()
+
+        # if not among_countries_implementing:
+
+        #     domestic_extract = sales_mapping[sales_mapping['COU'] == sales_mapping['JUR']].copy()
+
+        #     avg_domestic_share = (
+        #         share_UPR * domestic_extract['UPR'].sum() / sales_mapping['UPR'].sum()
+        #         + share_employees * domestic_extract['EMPLOYEES'].sum() / sales_mapping['EMPLOYEES'].sum()
+        #         + share_assets * domestic_extract['ASSETS'].sum() / sales_mapping['ASSETS'].sum()
+        #     )
+
+        # sales_mapping['IS_FOREIGN'] = sales_mapping['COU'] != sales_mapping['JUR']
+
+        # sales_mapping['UPR_x_IS_FOREIGN'] = sales_mapping['UPR'] * sales_mapping['IS_FOREIGN']
+        # sales_mapping['EMPLOYEES_x_IS_FOREIGN'] = sales_mapping['EMPLOYEES'] * sales_mapping['IS_FOREIGN']
+        # sales_mapping['ASSETS_x_IS_FOREIGN'] = sales_mapping['ASSETS'] * sales_mapping['IS_FOREIGN']
+
+        # if self.year == 2018 and self.China_treatment_2018 == "2017_CbCR":
+
+        #     multiplier = sales_mapping['COU'] == 'CHN'
+        #     multiplier *= self.growth_rates.set_index("CountryGroupName").loc['World', 'uprusd1817']
+        #     multiplier = multiplier.map(lambda x: {0: 1}.get(x, x))
+
+        # else:
+
+        #     multiplier = 1
+
+        # sales_mapping['UPR_x_IS_FOREIGN'] *= multiplier
+        # sales_mapping['EMPLOYEES_x_IS_FOREIGN'] *= multiplier
+        # sales_mapping['ASSETS_x_IS_FOREIGN'] *= multiplier
+
+        # sales_mapping = sales_mapping.groupby(
+        #     ['JUR', 'Partner Jurisdiction']
+        # ).sum()[
+        #     ['UPR_x_IS_FOREIGN', 'EMPLOYEES_x_IS_FOREIGN', 'ASSETS_x_IS_FOREIGN']
+        # ].reset_index()
+
+        # sales_mapping = sales_mapping.rename(
+        #     columns={col: col.replace('_x_IS_FOREIGN', '') for col in sales_mapping.columns}
+        # )
+
+        # for col in ['UPR', 'EMPLOYEES', 'ASSETS']:
+
+        #     sales_mapping[f'{col}_TOTAL'] = sales_mapping[col].sum()
+        #     sales_mapping[f'SHARE_{col}'] = sales_mapping[col] / sales_mapping[f'{col}_TOTAL']
+
+        # sales_mapping['SHARE_KEY'] = (
+        #     share_UPR * sales_mapping['SHARE_UPR']
+        #     + share_employees * sales_mapping['SHARE_EMPLOYEES']
+        #     + share_assets * sales_mapping['SHARE_ASSETS']
+        # )
+
+        # avg_allocation_keys = sales_mapping[['JUR', 'Partner Jurisdiction', 'SHARE_KEY']].copy()
+
+        # if not among_countries_implementing:
+
+        #     avg_allocation_keys['SHARE_KEY'] *= (1 - avg_domestic_share)
+
+        #     domestic_extract = other_non_implementing_TDs.copy()
+        #     domestic_extract['JUR'] = domestic_extract['Parent jurisdiction (alpha-3 code)']
+        #     domestic_extract['Partner Jurisdiction'] = domestic_extract['Parent jurisdiction (whitespaces cleaned)']
+        #     domestic_extract['SHARE_KEY'] = avg_domestic_share
+
+        # Allocating the tax deficits that are not directly allocable
+        avg_allocation_keys = {'JUR': [], 'SHARE_KEY': []}
 
         sales_mapping = available_allocation_keys.drop(
             columns=[
-                'UPR_TOTAL', 'ASSETS_TOTAL', 'EMPLOYEES_TOTAL', 'KEY_TOTAL',
+                'UPR_TOTAL', 'ASSETS_TOTAL', 'EMPLOYEES_TOTAL',
                 'SHARE_UPR', 'SHARE_ASSETS', 'SHARE_EMPLOYEES', 'SHARE_KEY'
             ]
         )
 
-        # We compute each implementing country's average share of foreign multinationals' sales among countries with
-        # sufficiently detailed country-by-country report statistics
-        for country in countries_implementing:
+        # For the computation of average allocation keys, we consider all the partner jurisdictions included in the
+        # OECD's country-by-country report statistics (not only in the sub-sample excluding loss-making entities but
+        # in the whole dataset since allocation keys are sourced in the overall dataset)
+        iteration = pd.read_csv(self.path_to_oecd, usecols=['JUR'])['JUR'].unique()
+        iteration = iteration[~np.isin(iteration, ['STA', 'FJT'])].copy()
+
+        # We extend this set to countries implementing the UTPR but never reported as partners in the data
+        # They will get a share of allocation key of 0 and thus 0 revenue gains (except if we have them as parents)
+        iteration = np.union1d(iteration, countries_implementing)
+
+        # if among_countries_implementing:
+        #     iteration = countries_implementing.copy()
+        # else:
+        #     iteration = np.union1d(
+        #         np.union1d(
+        #             tax_deficits['Parent jurisdiction (alpha-3 code)'].unique(),
+        #             self.oecd['Partner jurisdiction (alpha-3 code)'].unique()
+        #         ),
+        #         self.oecd['Parent jurisdiction (alpha-3 code)'].unique()
+        #     )
+
+        for country in iteration:
 
             sales_mapping_foreign_MNEs = sales_mapping[sales_mapping['COU'] != country].copy()
 
-            if among_countries_implementing:
-                sales_mapping_foreign_MNEs = sales_mapping_foreign_MNEs[
-                    sales_mapping_foreign_MNEs['JUR'].isin(countries_implementing)
-                ].copy()
+            sales_mapping_foreign_MNEs = sales_mapping_foreign_MNEs[
+                sales_mapping_foreign_MNEs['COU'] != sales_mapping_foreign_MNEs['JUR']
+            ].copy()
+
+            # if among_countries_implementing:
+            #     sales_mapping_foreign_MNEs = sales_mapping_foreign_MNEs[
+            #         sales_mapping_foreign_MNEs['JUR'].isin(countries_implementing)
+            #     ].copy()
 
             country_extract = sales_mapping_foreign_MNEs[sales_mapping_foreign_MNEs['JUR'] == country].copy()
 
+            avg_allocation_keys['JUR'].append(country)
+
             avg_allocation_keys['SHARE_KEY'].append(
-                country_extract['KEY'].sum() / sales_mapping_foreign_MNEs['KEY'].sum()
+                share_UPR * country_extract['UPR'].sum() / sales_mapping_foreign_MNEs['UPR'].sum()
+                + share_employees * country_extract['EMPLOYEES'].sum() / sales_mapping_foreign_MNEs['EMPLOYEES'].sum()
+                + share_assets * country_extract['ASSETS'].sum() / sales_mapping_foreign_MNEs['ASSETS'].sum()
             )
 
         avg_allocation_keys = pd.DataFrame(avg_allocation_keys)
         # avg_allocation_keys['SHARE_UPR'] = avg_allocation_keys['SHARE_UPR']
+
+        # We re-scale the average allocation keys so that they sum to 1:
+        #   - over the set of implementing countries if among_countries_implementing is True;
+        #   - else over the set of all partner jurisdictions`.
+
+        print(
+            'Average allocation key for France:',
+            avg_allocation_keys[avg_allocation_keys['JUR'] == 'FRA'].iloc[0, 1]
+        )
+
+        print(
+            "Before the re-scaling of the average allocation keys, they sum to:",
+            avg_allocation_keys['SHARE_KEY'].sum()
+        )
+
+        domestic_extract = sales_mapping[sales_mapping['COU'] == sales_mapping['JUR']].copy()
+        avg_domestic_share = (
+            share_UPR * domestic_extract['UPR'].sum() / sales_mapping['UPR'].sum()
+            + share_employees * domestic_extract['EMPLOYEES'].sum() / sales_mapping['EMPLOYEES'].sum()
+            + share_assets * domestic_extract['ASSETS'].sum() / sales_mapping['ASSETS'].sum()
+        )
+        print('Average domestic share:', avg_domestic_share)
+
+        # print(
+        #     "Before the re-scaling of the average allocation keys, they sum to:",
+        #     avg_allocation_keys['SHARE_KEY'].sum()
+        # )
+        # if among_countries_implementing:
+        #     rescaling_factor = 1 / avg_allocation_keys['SHARE_KEY'].sum()
+        # else:
+        #     rescaling_factor = (1 - avg_domestic_share) / avg_allocation_keys['SHARE_KEY'].sum()
+        # avg_allocation_keys['SHARE_KEY'] *= rescaling_factor
+
+        # avg_allocation_keys = avg_allocation_keys[avg_allocation_keys['JUR'].isin(countries_implementing)].copy()
 
         avg_allocation_keys['TEMP_KEY'] = 1
         other_non_implementing_TDs['TEMP_KEY'] = 1
@@ -3355,11 +3588,43 @@ class TaxDeficitCalculator:
             avg_allocation_keys,
             how='left',
             on='TEMP_KEY'
-        )
+        ).drop(columns=['TEMP_KEY'])
+
+        other_non_implementing_TDs = other_non_implementing_TDs[
+            other_non_implementing_TDs['Parent jurisdiction (alpha-3 code)'] != other_non_implementing_TDs['JUR']
+        ].copy()
+
+        if among_countries_implementing:
+            other_non_implementing_TDs = other_non_implementing_TDs[
+                other_non_implementing_TDs['JUR'].isin(countries_implementing)
+            ].copy()
+
+        other_non_implementing_TDs['SHARE_KEY_TOTAL'] = other_non_implementing_TDs.groupby(
+            'Parent jurisdiction (alpha-3 code)'
+        ).transform('sum')['SHARE_KEY']
+        if not among_countries_implementing:
+            other_non_implementing_TDs['RESCALING_FACTOR'] = (
+                1 - avg_domestic_share
+            ) / other_non_implementing_TDs['SHARE_KEY_TOTAL']
+        else:
+            other_non_implementing_TDs['RESCALING_FACTOR'] = 1 / other_non_implementing_TDs['SHARE_KEY_TOTAL']
+        other_non_implementing_TDs['SHARE_KEY'] *= other_non_implementing_TDs['RESCALING_FACTOR']
+
+        other_non_implementing_TDs = other_non_implementing_TDs[
+            other_non_implementing_TDs['JUR'].isin(countries_implementing)
+        ].copy()
+
+        # if not among_countries_implementing:
+
+        #     other_non_implementing_TDs = pd.concat([other_non_implementing_TDs, domestic_extract])
 
         other_non_implementing_TDs['imputed'] = (
             other_non_implementing_TDs['tax_deficit'] * other_non_implementing_TDs['SHARE_KEY']
         ).astype(float)
+
+        other_non_implementing_TDs = other_non_implementing_TDs[
+            other_non_implementing_TDs['JUR'].isin(countries_implementing)
+        ].copy()
 
         details_imputed = other_non_implementing_TDs.copy()
 
@@ -3401,11 +3666,17 @@ class TaxDeficitCalculator:
         full_own_tax_deficit,
         minimum_ETR=0.15,
         minimum_breakdown=60,
-        weight_UPR=1, weight_employees=0, weight_assets=0
+        weight_UPR=1, weight_employees=0, weight_assets=0,
+        exclude_domestic_TDs=True,
+        upgrade_to_2021=True
     ):
 
         # We start by computing the total tax deficits of all in-sample countries (those of the multilateral scenario)
-        tax_deficits = self.compute_all_tax_deficits(minimum_ETR=minimum_ETR)
+        tax_deficits = self.compute_all_tax_deficits(
+            minimum_ETR=minimum_ETR,
+            exclude_non_EU_domestic_TDs=exclude_domestic_TDs,
+            upgrade_to_2021=upgrade_to_2021
+        )
 
         tax_deficits = tax_deficits[
             [
@@ -3415,7 +3686,8 @@ class TaxDeficitCalculator:
             ]
         ].copy()
 
-        if not full_own_tax_deficit:
+        # # if not full_own_tax_deficit:
+        if exclude_domestic_TDs:
             tax_deficits['tax_deficit'] -= tax_deficits['tax_deficit_x_domestic']
 
         tax_deficits = tax_deficits.drop(columns=['tax_deficit_x_domestic'])
@@ -3425,6 +3697,10 @@ class TaxDeficitCalculator:
             minimum_breakdown=minimum_breakdown, full_own_tax_deficit=full_own_tax_deficit,
             weight_UPR=weight_UPR, weight_employees=weight_employees, weight_assets=weight_assets
         )
+
+        share_UPR = weight_UPR / (weight_UPR + weight_employees + weight_assets)
+        share_employees = weight_employees / (weight_UPR + weight_employees + weight_assets)
+        share_assets = weight_assets / (weight_UPR + weight_employees + weight_assets)
 
         # We focus on the tax deficits for which we have allocation keys:
         # (i) TWZ countries are left aside
@@ -3451,6 +3727,14 @@ class TaxDeficitCalculator:
             left_on='Parent jurisdiction (alpha-3 code)', right_on='COU'
         )
 
+        # if not full_own_tax_deficit:
+
+        #     allocable_TDs['SHARE_KEY_TOTAL'] = allocable_TDs.groupby(
+        #         'Parent jurisdiction (alpha-3 code)'
+        #     ).transform('sum')['SHARE_KEY']
+        #     allocable_TDs['RESCALING_FACTOR'] = 1 / allocable_TDs['SHARE_KEY_TOTAL']
+        #     allocable_TDs['SHARE_KEY'] *= allocable_TDs['RESCALING_FACTOR']
+
         allocable_TDs['directly_allocated'] = (allocable_TDs['tax_deficit'] * allocable_TDs['SHARE_KEY']).astype(float)
         allocable_TDs['IS_DOMESTIC'] = allocable_TDs['COU'] == allocable_TDs['JUR']
         allocable_TDs['directly_allocated_dom'] = allocable_TDs['directly_allocated'] * allocable_TDs['IS_DOMESTIC']
@@ -3469,71 +3753,31 @@ class TaxDeficitCalculator:
 
         # Allocating the tax deficits that are not directly allocable
 
-        # (i) Allocating tax deficits to foreign countries / collected from foreign multinationals
-
-        other_TDs_foreign = other_TDs.copy()
-
-        avg_allocation_keys_foreign = {
-            'JUR': list(tax_deficits['Parent jurisdiction (alpha-3 code)'].unique()),
-            'SHARE_KEY': []
-        }
-
         sales_mapping = available_allocation_keys.drop(
             columns=[
-                'UPR_TOTAL', 'ASSETS_TOTAL', 'EMPLOYEES_TOTAL', 'KEY_TOTAL',
+                'UPR_TOTAL', 'ASSETS_TOTAL', 'EMPLOYEES_TOTAL',
                 'SHARE_UPR', 'SHARE_ASSETS', 'SHARE_EMPLOYEES', 'SHARE_KEY'
             ]
         )
 
-
-        # Among countries for which we have a tax deficit, we compute each country's average share of FOREIGN
-        # multinationals' sales among countries with sufficiently detailed country-by-country report statistics
-        for country in tax_deficits['Parent jurisdiction (alpha-3 code)'].unique():
-
-            sales_mapping_foreign_MNEs = sales_mapping[sales_mapping['COU'] != country].copy()
-
-            country_extract = sales_mapping_foreign_MNEs[sales_mapping_foreign_MNEs['JUR'] == country].copy()
-
-            avg_allocation_keys_foreign['SHARE_KEY'].append(
-                country_extract['KEY'].sum() / sales_mapping_foreign_MNEs['KEY'].sum()
-            )
-
-        avg_allocation_keys_foreign = pd.DataFrame(avg_allocation_keys_foreign)
-
-        avg_allocation_keys_foreign['TEMP_KEY'] = 1
-        other_TDs_foreign['TEMP_KEY'] = 1
-
-        other_TDs_foreign = other_TDs_foreign.merge(
-            avg_allocation_keys_foreign,
-            how='left',
-            on='TEMP_KEY'
-        )
-
-        other_TDs_foreign['imputed_foreign'] = (
-            other_TDs_foreign['tax_deficit'] * other_TDs_foreign['SHARE_KEY']
-        ).astype(float)
-
-        other_TDs_foreign = other_TDs_foreign[
-            other_TDs_foreign['Parent jurisdiction (alpha-3 code)'] != other_TDs_foreign['JUR']
-        ].copy()
-
-        details_imputed_foreign = other_TDs_foreign.copy()
-
-        other_TDs_foreign = other_TDs_foreign.groupby('JUR').agg(
-            {'imputed_foreign': 'sum'}
-        ).reset_index().rename(columns={'JUR': 'Parent jurisdiction (alpha-3 code)'})
-
-        # (ii) Allocating tax deficits collected from domestic multinationals
+        # (i) Allocating tax deficits collected from domestic multinationals
 
         other_TDs_domestic = other_TDs.copy()
+
+        domestic_extract = sales_mapping[sales_mapping['COU'] == sales_mapping['JUR']].copy()
+
+        # avg_domestic_share = domestic_extract['KEY'].sum() / sales_mapping['KEY'].sum()
+
+        avg_domestic_share = (
+            share_UPR * domestic_extract['UPR'].sum() / sales_mapping['UPR'].sum()
+            + share_employees * domestic_extract['EMPLOYEES'].sum() / sales_mapping['EMPLOYEES'].sum()
+            + share_assets * domestic_extract['ASSETS'].sum() / sales_mapping['ASSETS'].sum()
+        )
 
         if full_own_tax_deficit:
             other_TDs_domestic['SHARE_KEY'] = 1
 
         else:
-            domestic_extract = sales_mapping[sales_mapping['COU'] == sales_mapping['JUR']].copy()
-
-            avg_domestic_share = domestic_extract['KEY'].sum() / sales_mapping['KEY'].sum()
 
             other_TDs_domestic['SHARE_KEY'] = avg_domestic_share
 
@@ -3547,14 +3791,96 @@ class TaxDeficitCalculator:
 
         details_imputed_domestic = other_TDs_domestic.copy()
 
-        # TO BE COMPLETED ##############################################################################################
+        # (ii) Allocating tax deficits to foreign countries / collected from foreign multinationals
+
+        other_TDs_foreign = other_TDs.copy()
+
+        avg_allocation_keys_foreign = {
+            'JUR': [],
+            'SHARE_KEY': []
+        }
+
+        # For the computation of average allocation keys, we consider all the partner jurisdictions included in the
+        # OECD's country-by-country report statistics (not only in the sub-sample excluding loss-making entities but
+        # in the whole dataset since allocation keys are sourced in the overall dataset)
+        iteration = pd.read_csv(self.path_to_oecd, usecols=['JUR'])['JUR'].unique()
+        iteration = iteration[~np.isin(iteration, ['STA', 'FJT'])].copy()
+
+        # Among countries for which we have a tax deficit, we compute each country's average share of FOREIGN
+        # multinationals' sales among countries with sufficiently detailed country-by-country report statistics
+        for country in iteration:
+
+            sales_mapping_foreign_MNEs = sales_mapping[sales_mapping['COU'] != country].copy()
+
+            sales_mapping_foreign_MNEs = sales_mapping_foreign_MNEs[
+                sales_mapping_foreign_MNEs['COU'] != sales_mapping_foreign_MNEs['JUR']
+            ].copy()
+
+            country_extract = sales_mapping_foreign_MNEs[sales_mapping_foreign_MNEs['JUR'] == country].copy()
+
+            avg_allocation_keys_foreign['JUR'].append(country)
+
+            avg_allocation_keys_foreign['SHARE_KEY'].append(
+                share_UPR * country_extract['UPR'].sum() / sales_mapping_foreign_MNEs['UPR'].sum()
+                + share_employees * country_extract['EMPLOYEES'].sum() / sales_mapping_foreign_MNEs['EMPLOYEES'].sum()
+                + share_assets * country_extract['ASSETS'].sum() / sales_mapping_foreign_MNEs['ASSETS'].sum()
+            )
+
+        avg_allocation_keys_foreign = pd.DataFrame(avg_allocation_keys_foreign)
+
+        print(
+            'Average allocation key for France:',
+            avg_allocation_keys_foreign[avg_allocation_keys_foreign['JUR'] == 'FRA'].iloc[0, 1]
+        )
+
+        print(
+            "Before the re-scaling of the average allocation keys, they sum to:",
+            avg_allocation_keys_foreign['SHARE_KEY'].sum()
+        )
+        # rescaling_factor = 1 / avg_allocation_keys_foreign['SHARE_KEY'].sum()
+        # avg_allocation_keys_foreign['SHARE_KEY'] *= rescaling_factor
+
+        # avg_allocation_keys_foreign = avg_allocation_keys_foreign[
+        #     avg_allocation_keys_foreign['JUR'].isin(tax_deficits['Parent jurisdiction (alpha-3 code)'].unique())
+        # ].copy()
+
+        avg_allocation_keys_foreign['TEMP_KEY'] = 1
+        other_TDs_foreign['TEMP_KEY'] = 1
+
+        other_TDs_foreign = other_TDs_foreign.merge(
+            avg_allocation_keys_foreign,
+            how='left',
+            on='TEMP_KEY'
+        )
+
+        other_TDs_foreign = other_TDs_foreign[
+            other_TDs_foreign['Parent jurisdiction (alpha-3 code)'] != other_TDs_foreign['JUR']
+        ].copy()
+
+        other_TDs_foreign['SHARE_KEY_TOTAL'] = other_TDs_foreign.groupby(
+            'Parent jurisdiction (alpha-3 code)'
+        ).transform('sum')['SHARE_KEY']
+        other_TDs_foreign['RESCALING_FACTOR'] = (
+            1 - avg_domestic_share
+        ) / other_TDs_foreign['SHARE_KEY_TOTAL']
+        other_TDs_foreign['SHARE_KEY'] *= other_TDs_foreign['RESCALING_FACTOR']
+
+        other_TDs_foreign['imputed_foreign'] = (
+            other_TDs_foreign['tax_deficit'] * other_TDs_foreign['SHARE_KEY']
+        ).astype(float)
+
+        details_imputed_foreign = other_TDs_foreign.copy()
+
+        other_TDs_foreign = other_TDs_foreign.groupby('JUR').agg(
+            {'imputed_foreign': 'sum'}
+        ).reset_index().rename(columns={'JUR': 'Parent jurisdiction (alpha-3 code)'})
 
         tax_deficits = tax_deficits.merge(
-            allocable_TDs, how='left', on='Parent jurisdiction (alpha-3 code)'
+            allocable_TDs, how='outer', on='Parent jurisdiction (alpha-3 code)'
         ).merge(
-            other_TDs_foreign, how='left', on='Parent jurisdiction (alpha-3 code)'
+            other_TDs_foreign, how='outer', on='Parent jurisdiction (alpha-3 code)'
         ).merge(
-            other_TDs_domestic, how='left', on='Parent jurisdiction (alpha-3 code)'
+            other_TDs_domestic, how='outer', on='Parent jurisdiction (alpha-3 code)'
         )
 
         for col in [
@@ -3589,129 +3915,6 @@ class TaxDeficitCalculator:
             details_imputed_foreign.copy(),
             details_imputed_domestic.copy()
         )
-
-
-    # def compute_selected_intermediary_scenario_gain(self, countries_implementing, minimum_ETR=0.15):
-
-    #     # We start by computing the total tax deficits of all in-sample countries (those of the multilateral scenario)
-    #     tax_deficits = self.compute_all_tax_deficits(minimum_ETR=minimum_ETR)
-
-    #     tax_deficits = tax_deficits[
-    #         ['Parent jurisdiction (whitespaces cleaned)', 'Parent jurisdiction (alpha-3 code)', 'tax_deficit']
-    #     ].copy()
-
-    #     oecd = self.oecd.copy()
-
-    #     # We also deduce the list of countries that are not implementing the deal and whose TD we can distribute
-    #     # The condition is that (i) they must report CbCR data and (ii) do so with a sufficient breakdown of partners
-    #     temp = oecd['Parent jurisdiction (alpha-3 code)'].unique()
-    #     temp = temp
-    #     country_list_intermediary_scenario = temp[~temp.isin(countries_implementing)].copy()
-
-    #     # We extract the total tax deficit for selected countries implementing the deal
-    #     selected_tax_deficit = tax_deficits[
-    #         tax_deficits['Parent jurisdiction (alpha-3 code)'].isin(countries_implementing)
-    #     ]['tax_deficit'].sum()
-
-    #     # And we store in a separate DataFrame the tax deficits of selected countries implementing the deal
-    #     selected_tax_deficits = tax_deficits[
-    #         tax_deficits['Parent jurisdiction (alpha-3 code)'].isin(countries_implementing)
-    #     ].copy()
-
-    #     # We focus on non-implementing countries, defined when the TaxDeficitCalculator object is instantiated
-    #     tax_deficits = tax_deficits[
-    #         tax_deficits['Parent jurisdiction (alpha-3 code)'].isin(country_list_intermediary_scenario)
-    #     ].copy()
-
-    #     # We store the results in a dictionary, which we will map upon the eu_27_tax_deficits DataFrame
-    #     additional_revenue_gains = {}
-
-    #     # We iterate over EU-27 countries and compute for each the tax deficit collected from foreign multinationals
-    #     for impl_country in countries_implementing:
-
-    #         td_df = tax_deficits.copy()
-
-    #         # This dictionary will store the attribution ratios based on extra-group sales to be mapped upon td_df
-    #         attribution_ratios = {}
-
-    #         # We iterate over non-implementing countries in our list
-    #         for country in country_list_intermediary_scenario:
-
-    #             oecd_restricted = oecd[oecd['Parent jurisdiction (alpha-3 code)'] == country].copy()
-
-    #             # We fetch the extra-group sales registered by the non-implementing country's multinationals in the
-    #             # in the implementing country
-    #             # (defaults to 0 if the implementing country is not among the partners of the non-EU country)
-    #             sales_in_impl_country = oecd_restricted[
-    #                 oecd_restricted['Partner jurisdiction (alpha-3 code)'] == impl_country
-    #             ]['Unrelated Party Revenues'].sum()
-
-    #             # We compute the total extra-group sales registered by the non-EU country's multinationals worldwide
-    #             total_sales = oecd_restricted['Unrelated Party Revenues'].sum()
-
-    #             # We deduce the share of the non-implementing country's tax deficit attributable to the impl. country
-    #             attribution_ratios[country] = sales_in_impl_country / total_sales
-
-    #         # We map the attribution_ratios dictionary upon the td_df DataFrame
-    #         td_df['Attribution ratios'] = td_df['Parent jurisdiction (alpha-3 code)'].map(attribution_ratios)
-
-    #         # We deduce, for each non-EU country, the amount of its tax deficit that is collected by the impl. country
-    #         td_df['Collectible tax deficit'] = td_df['Attribution ratios'] * td_df['tax_deficit']
-
-    #         # We sum all these to estimate the total tax deficit that the impl. country could collect from foreign MNEs
-    #         additional_revenue_gains[eu_country] = (
-    #             td_df['Collectible tax deficit'].sum() * self.intermediary_scenario_imputation_ratio
-    #         )
-    #         # NB: Multiplication corresponds to the imputation strategy defined in Appendix C of the June 2021 report
-
-    #     # We map the resulting dictionary upon the selected_tax_deficits DataFrame
-    #     selected_tax_deficits['From foreign MNEs'] = selected_tax_deficits['Parent jurisdiction (alpha-3 code)'].map(
-    #         additional_revenue_gains
-    #     )
-
-    #     # And deduce total corporate tax revenue gains from such a scenario for all EU-27 countries
-    #     selected_tax_deficits['Total'] = (
-    #         selected_tax_deficits['tax_deficit'] + selected_tax_deficits['From foreign MNEs']
-    #     )
-
-    #     # We operate a similar process for "Europe" and "Other Europe" field
-    #     # additional_revenue_gains = {}
-
-    #     # for aggregate in ['Europe', 'Other Europe']:
-
-    #     #     td_df = tax_deficits.copy()
-
-    #     #     attribution_ratios = {}
-
-    #     #     for country in self.country_list_intermediary_scenario:
-
-    #     #         # We do not consider the "Other Europe" field in the US CbCR as it probably does not correspond to
-    #     #         # activities operated in EU-27 countries (sufficient country-by-country breakdown to exclude this)
-    #     #         if country in ['USA', 'IMN']:
-    #     #             attribution_ratios[country] = 0
-
-    #     #             continue
-
-    #     #         oecd_restricted = oecd[oecd['Parent jurisdiction (alpha-3 code)'] == country].copy()
-
-    #     #         sales_in_europe_or_other_europe = oecd_restricted[
-    #     #             oecd_restricted['Partner jurisdiction (whitespaces cleaned)'] == aggregate
-    #     #         ]['Unrelated Party Revenues'].sum()
-
-    #     #         total_sales = oecd_restricted['Unrelated Party Revenues'].sum()
-
-    #     #         attribution_ratios[country] = sales_in_europe_or_other_europe / total_sales
-
-    #     #     td_df['Attribution ratios'] = td_df['Parent jurisdiction (alpha-3 code)'].map(attribution_ratios)
-
-    #     #     td_df['Collectible tax deficit'] = td_df['Attribution ratios'] * td_df['tax_deficit']
-
-    #     #     if aggregate == 'Other Europe':
-    #     #         self.intermediary_scenario_temp = td_df.copy()
-
-    #     #     additional_revenue_gains[aggregate] = td_df['Collectible tax deficit'].sum()
-
-    #     return selected_tax_deficits.copy()
 
     def output_intermediary_scenario_gain_formatted(self, minimum_ETR=0.25):
         """
@@ -4714,7 +4917,7 @@ class TaxDeficitCalculator:
         return pd.DataFrame(output)
 
     def compute_qdmtt_revenue_gains(
-        self, minimum_ETR=0.15, upgrade_non_havens=True
+        self, minimum_ETR=0.15, upgrade_non_havens=True, verbose=False
     ):
         """
         This method is used to produce the revenue gain estimates under the "QDMTT scenario". In this simulation, all
@@ -4912,6 +5115,8 @@ class TaxDeficitCalculator:
         # Concatenating the three data sources
         full_sample = pd.concat([oecd, twz, twz_domestic], axis=0)
 
+        self.full_sample_df = full_sample.copy()
+
         # Non-EU countries are not assumed to collect their domestic tax deficit
         multiplier = np.logical_and(
             ~full_sample['PARENT_COUNTRY_CODE'].isin(self.eu_27_country_codes),
@@ -4946,6 +5151,12 @@ class TaxDeficitCalculator:
 
         full_sample = full_sample[full_sample['PARTNER_COUNTRY_CODE'] != 'REST'].copy()
 
+        if verbose:
+
+            print('Tax deficit already attributed bilaterally:', full_sample['TAX_DEFICIT'].sum() / 10**6, 'm USD')
+            print('Tax deficit in rest of non-EU tax havens:', to_be_distributed / 10**6, 'm USD')
+            print('___________________________________________________________________')
+
         full_sample['TEMP_DUMMY'] = np.logical_and(
             full_sample['PARTNER_COUNTRY_CODE'].isin(self.tax_haven_country_codes),
             ~full_sample['PARTNER_COUNTRY_CODE'].isin(self.eu_27_country_codes + ['CHE'])
@@ -4956,9 +5167,29 @@ class TaxDeficitCalculator:
             / full_sample[full_sample['TEMP_DUMMY'] == 1]['TAX_DEFICIT'].sum()
         )
 
-        full_sample['TAX_DEFICIT'] += full_sample['TEMP_SHARE'] * to_be_distributed
+        full_sample['IMPUTED_TAX_DEFICIT'] = full_sample['TEMP_SHARE'] * to_be_distributed
 
-        full_sample = full_sample.drop(columns=['TEMP_SHARE', 'TEMP_DUMMY'])
+        imputation = full_sample.groupby('PARTNER_COUNTRY_CODE').agg(
+            {
+                'PARTNER_COUNTRY_NAME': 'first',
+                'IMPUTED_TAX_DEFICIT': 'sum'
+            }
+        ).reset_index().rename(columns={'IMPUTED_TAX_DEFICIT': 'TAX_DEFICIT'})
+
+        imputation['PARENT_COUNTRY_CODE'] = 'IMPT_REST'
+        imputation['PARENT_COUNTRY_NAME'] = 'Imputation REST'
+
+        full_sample = full_sample.drop(columns=['TEMP_DUMMY', 'TEMP_SHARE', 'IMPUTED_TAX_DEFICIT'])
+
+        full_sample = pd.concat([full_sample, imputation])
+
+        if verbose:
+
+            print('Bilaterally attributed tax deficit after REST:', full_sample['TAX_DEFICIT'].sum() / 10**6, 'm USD')
+            print('Worth a quick check here?')
+            print('___________________________________________________________________')
+
+        self.full_sample_before_TWZ_NH = full_sample.copy()
 
         # --- Upgrading non-haven tax deficits
 
@@ -4981,9 +5212,23 @@ class TaxDeficitCalculator:
 
             to_be_distributed = headquarter_collects_scenario['tax_deficit'].sum() - full_sample['TAX_DEFICIT'].sum()
 
+            if verbose:
+
+                print(
+                    'Total tax deficit in the IIR scenario:',
+                    headquarter_collects_scenario['tax_deficit'].sum() / 10**6,
+                    'm USD'
+                )
+                print('Tax deficit currently bilaterally allocated:', full_sample['TAX_DEFICIT'].sum() / 10**6, 'm USD')
+                print('Tax deficit to be distributed among non-havens:', to_be_distributed / 10**6, 'm USD')
+                print('___________________________________________________________________')
+
             full_sample['TEMP_DUMMY'] = np.logical_and(
                 ~full_sample['PARTNER_COUNTRY_CODE'].isin(self.tax_haven_country_codes),
-                full_sample['PARENT_COUNTRY_CODE'] != full_sample['PARTNER_COUNTRY_CODE']
+                np.logical_and(
+                    full_sample['PARENT_COUNTRY_CODE'] != full_sample['PARTNER_COUNTRY_CODE'],
+                    full_sample['PARENT_COUNTRY_CODE'] != 'IMPT_REST'
+                )
             ) * 1
 
             full_sample['TEMP_SHARE'] = (
@@ -4991,9 +5236,31 @@ class TaxDeficitCalculator:
                 / full_sample[full_sample['TEMP_DUMMY'] == 1]['TAX_DEFICIT'].sum()
             )
 
-            full_sample['TAX_DEFICIT'] += full_sample['TEMP_SHARE'] * to_be_distributed
+            self.full_sample_before_issue = full_sample.copy()
 
-            full_sample = full_sample.drop(columns=['TEMP_SHARE', 'TEMP_DUMMY'])
+            full_sample['IMPUTED_TAX_DEFICIT'] = full_sample['TEMP_SHARE'] * to_be_distributed
+
+            imputation = full_sample.groupby('PARTNER_COUNTRY_CODE').agg(
+                {
+                    'PARTNER_COUNTRY_NAME': 'first',
+                    'IMPUTED_TAX_DEFICIT': 'sum'
+                }
+            ).reset_index().rename(columns={'IMPUTED_TAX_DEFICIT': 'TAX_DEFICIT'})
+
+            imputation['PARENT_COUNTRY_CODE'] = 'IMPT_TWZ_NH'
+            imputation['PARENT_COUNTRY_NAME'] = 'Imputation TWZ NH'
+
+            full_sample = full_sample.drop(columns=['TEMP_DUMMY', 'TEMP_SHARE', 'IMPUTED_TAX_DEFICIT'])
+
+            full_sample = pd.concat([full_sample, imputation])
+
+            if verbose:
+
+                print(
+                    'Tax deficit bilaterally allocated after imputation for non-havens:',
+                    full_sample['TAX_DEFICIT'].sum() / 10**6,
+                    'm USD'
+                )
 
         # Alternative method that avoids attributing revenues to the headquarter country itself
         # if upgrade_non_havens:
@@ -5054,6 +5321,8 @@ class TaxDeficitCalculator:
                 'TAX_DEFICIT': 'sum'
             }
         ).reset_index()
+
+        self.final_full_sample = full_sample.copy()
 
         return tax_deficits.copy()
 
@@ -5867,7 +6136,7 @@ class TaxDeficitCalculator:
 
         # Continent-level mean earnings
         regional_extract = earnings_merged.copy()
-        regional_extract['numerator'] = regional_extract['earn'] *  regional_extract['emp']
+        regional_extract['numerator'] = regional_extract['earn'] * regional_extract['emp']
         # Correcting a few continents to match Stata outputs
         regional_extract['GEO'] = regional_extract.apply(
             lambda row: 'Europe' if row['countryname'] == 'Russian Federation' else row['GEO'],
@@ -5930,6 +6199,1382 @@ class TaxDeficitCalculator:
         )
 
         return main_ILO_df.copy(), continental_imputation_df.copy()
+
+    def build_bilateral_data(self, minimum_rate, QDMTT_incl_domestic, QDMTT_excl_domestic, verbose=0):
+
+        # We need to have previously loaded and cleaned the OECD and TWZ data
+        if self.oecd is None or self.twz is None:
+            raise Exception('You first need to load clean data with the dedicated method and inplace=True.')
+
+        # We fetch the list of OECD-reporting parent countries whose tax haven tax deficit is taken from TWZ data and
+        # not from OECD data in the benchmark computations
+        # headquarter_collects_scenario = self.compute_all_tax_deficits(minimum_ETR=minimum_rate)
+        countries_replaced = self.countries_replaced.copy()
+
+        oecd = self.oecd.copy()
+
+        # --- Step common to OECD and TWZ data
+
+        # Depending on the chosen treatment of Belgian and Swedish CbCRs, we have to adapt the OECD data and therefore
+        # the list of parent countries to consider in TWZ data
+        unique_parent_countries = oecd['Parent jurisdiction (alpha-3 code)'].unique()
+
+        if self.sweden_exclude and self.belgium_treatment == 'exclude':
+            oecd = oecd[~oecd['Parent jurisdiction (alpha-3 code)'].isin(['BEL', 'SWE'])].copy()
+
+            unique_parent_countries = list(
+                unique_parent_countries[
+                    ~unique_parent_countries.isin(['BEL', 'SWE'])
+                ]
+            )
+
+        elif self.sweden_exclude and self.belgium_treatment != 'exclude':
+            oecd = oecd[oecd['Parent jurisdiction (alpha-3 code)'] != 'SWE'].copy()
+
+            unique_parent_countries = list(
+                unique_parent_countries[unique_parent_countries != 'SWE'].copy()
+            )
+
+        elif not self.sweden_exclude and self.belgium_treatment == 'exclude':
+            oecd = oecd[oecd['Parent jurisdiction (alpha-3 code)'] != 'BEL'].copy()
+
+            unique_parent_countries = list(
+                unique_parent_countries[unique_parent_countries != 'BEL'].copy()
+            )
+
+        else:
+            unique_parent_countries = list(unique_parent_countries)
+
+        self.unique_parent_countries_temp = unique_parent_countries.copy()
+
+        # --- Building the full sample table
+
+        # - OECD data
+
+        oecd = oecd.rename(
+            columns={
+                'Parent jurisdiction (alpha-3 code)': 'PARENT_COUNTRY_CODE',
+                'Partner jurisdiction (alpha-3 code)': 'PARTNER_COUNTRY_CODE',
+                'Parent jurisdiction (whitespaces cleaned)': 'PARENT_COUNTRY_NAME',
+                'Partner jurisdiction (whitespaces cleaned)': 'PARTNER_COUNTRY_NAME',
+                'Profit (Loss) before Income Tax': 'PROFITS_BEFORE_TAX_POST_CO'
+            }
+        )
+
+        oecd = oecd[
+            [
+                'PARENT_COUNTRY_CODE', 'PARTNER_COUNTRY_CODE',
+                'PARENT_COUNTRY_NAME', 'PARTNER_COUNTRY_NAME',
+                'PROFITS_BEFORE_TAX_POST_CO', 'ETR'
+            ]
+        ].copy()
+
+        oecd['SOURCE'] = 'oecd'
+
+        # - TWZ tax haven data
+
+        twz = load_and_clean_bilateral_twz_data(
+            path_to_excel_file=self.path_to_excel_file,
+            path_to_geographies=self.path_to_geographies
+        )
+
+        # We exclude OECD-reporting countries, except for those whose tax haven tax deficit is taken from TWZ data
+        twz = twz[
+            np.logical_or(
+                ~twz['PARENT_COUNTRY_CODE'].isin(unique_parent_countries),
+                twz['PARENT_COUNTRY_CODE'].isin(countries_replaced)
+            )
+        ].copy()
+
+        # We exclude the few observations for wich parent and partner countries are the same (only for MLT and CYP)
+        # This would otherwise induce double-counting with the domestic TWZ data
+        twz = twz[twz['PARENT_COUNTRY_CODE'] != twz['PARTNER_COUNTRY_CODE']].copy()
+
+        # Negative profits are brought to 0 (no tax deficit to collect)
+        twz['PROFITS'] = twz['PROFITS'].map(lambda x: max(x, 0))
+
+        # We move from millions of USD to USD
+        twz['PROFITS'] = twz['PROFITS'] * 10**6
+
+        # If carve-outs are applied, we need to apply the average reduction in tax haven profits implied by carve-outs
+        if self.carve_outs:
+            twz['PROFITS'] *= (1 - self.avg_carve_out_impact_tax_haven)
+
+        if self.behavioral_responses and self.behavioral_responses_include_TWZ:
+            if self.behavioral_responses_method == 'linear_elasticity':
+                twz['PROFITS'] *= (
+                    1 - self.behavioral_responses_TH_elasticity * max(
+                        15 - self.assumed_haven_ETR_TWZ * 100, 0
+                    )
+                )
+
+            else:
+                multiplier = 1 if self.assumed_haven_ETR_TWZ >= 0.15 else np.exp(
+                    self.behavioral_responses_beta_1 * 0.15
+                    + self.behavioral_responses_beta_2 * 0.15**2
+                    + self.behavioral_responses_beta_3 * 0.15**3
+                    - self.behavioral_responses_beta_1 * self.assumed_haven_ETR_TWZ
+                    - self.behavioral_responses_beta_2 * self.assumed_haven_ETR_TWZ**2
+                    - self.behavioral_responses_beta_3 * self.assumed_haven_ETR_TWZ**3
+                )
+
+                twz['PROFITS'] *= multiplier
+
+        twz = twz.rename(columns={'PROFITS': 'PROFITS_BEFORE_TAX_POST_CO'})
+
+        # Focusing on columns of interest
+        twz = twz[
+            [
+                'PARENT_COUNTRY_CODE', 'PARTNER_COUNTRY_CODE',
+                'PARENT_COUNTRY_NAME', 'PARTNER_COUNTRY_NAME',
+                'PROFITS_BEFORE_TAX_POST_CO'
+            ]
+        ].copy()
+
+        # Adding the variables that are still missing compared with the OECD sample
+        twz['ETR'] = self.assumed_haven_ETR_TWZ
+        twz['SOURCE'] = 'twz_th'
+
+        # - TWZ domestic data
+
+        twz_domestic = self.twz_domestic.copy()
+
+        # We filter out OECD-reporting countries to avoid double-counting their domestic tax deficit
+        twz_domestic = twz_domestic[~twz_domestic['Alpha-3 country code'].isin(unique_parent_countries)].copy()
+
+        # We filter non-EU countries as they are not assumed to collect their domestic tax deficit
+        # twz_domestic = twz_domestic[twz_domestic['Alpha-3 country code'].isin(self.eu_27_country_codes)].copy()
+
+        # We add country names to TWZ data on domestic profits and ETRs
+        geographies = pd.read_csv(self.path_to_geographies)
+        geographies = geographies.groupby('CODE').first().reset_index()   # To have only one name per country code
+
+        twz_domestic = twz_domestic.merge(
+            geographies[['CODE', 'NAME']],
+            how='left',
+            left_on='Alpha-3 country code', right_on='CODE'
+        )
+
+        if twz_domestic['CODE'].isnull().sum() > 0:
+            raise Exception('Some country codes in the TWZ domestic data could not be identified.')
+
+        twz_domestic = twz_domestic.drop(columns=['CODE'])
+
+        # Renaming columns in the standardized way
+        twz_domestic = twz_domestic.rename(
+            columns={
+                'Domestic profits': 'PROFITS_BEFORE_TAX_POST_CO',
+                'Domestic ETR': 'ETR',
+                'Alpha-3 country code': 'PARENT_COUNTRY_CODE',
+                'NAME': 'PARENT_COUNTRY_NAME'
+            }
+        )
+
+        # Adding the columns that are still missing for the concatenation into the full sample table
+        twz_domestic['PARTNER_COUNTRY_CODE'] = twz_domestic['PARENT_COUNTRY_CODE'].values
+        twz_domestic['PARTNER_COUNTRY_NAME'] = twz_domestic['PARENT_COUNTRY_NAME'].values
+
+        twz_domestic['SOURCE'] = 'twz_dom'
+
+        # --- Deducing the full sample table
+
+        # Concatenating the three data sources
+        full_sample_df = pd.concat([oecd, twz, twz_domestic], axis=0)
+
+        # --- Simplest case
+
+        # For OECD-reporting countries whose tax haven tax deficit is taken in TWZ data, we must avoid double-counting
+        # headquarter_collects_scenario = self.compute_all_tax_deficits(minimum_ETR=minimum_rate)
+        countries_replaced = self.countries_replaced.copy()
+
+        multiplier = np.logical_and(
+            full_sample_df['PARENT_COUNTRY_CODE'] != full_sample_df['PARTNER_COUNTRY_CODE'],
+            np.logical_and(
+                full_sample_df['PARENT_COUNTRY_CODE'].isin(countries_replaced),
+                np.logical_and(
+                    full_sample_df['PARTNER_COUNTRY_CODE'].isin(self.tax_haven_country_codes),
+                    full_sample_df['SOURCE'] == 'oecd'
+                )
+            )
+        )
+
+        multiplier = 1 - multiplier
+
+        full_sample_df['PROFITS_BEFORE_TAX_POST_CO'] *= multiplier
+
+        full_sample_df['IS_DOMESTIC'] = full_sample_df['PARENT_COUNTRY_CODE'] == full_sample_df['PARTNER_COUNTRY_CODE']
+
+        full_sample_df['ETR_diff'] = full_sample_df['ETR'].map(lambda x: max(minimum_rate - x, 0))
+        full_sample_df['TAX_DEFICIT'] = full_sample_df['ETR_diff'] * full_sample_df['PROFITS_BEFORE_TAX_POST_CO']
+
+        bilat_extract_df = full_sample_df[full_sample_df['PARTNER_COUNTRY_CODE'] != 'REST'].copy()
+
+        rest_extract = full_sample_df[full_sample_df['PARTNER_COUNTRY_CODE'] == 'REST'].copy()
+
+        if verbose:
+
+            print(
+                'Tax deficit already attributed bilaterally:',
+                bilat_extract_df[
+                    ~np.logical_and(
+                        bilat_extract_df['PARTNER_COUNTRY_CODE'] == bilat_extract_df['PARENT_COUNTRY_CODE'],
+                        bilat_extract_df['PARTNER_COUNTRY_CODE'].isin(QDMTT_excl_domestic)
+                    )
+                ]['TAX_DEFICIT'].sum() / 10**6,
+                'm USD'
+            )
+            print('Tax deficit in rest of non-EU tax havens:', rest_extract['TAX_DEFICIT'].sum() / 10**6, 'm USD')
+            print('___________________________________________________________________')
+
+        # --- Rest of non-EU tax havens
+
+        bilat_extract_df['collected_through_foreign_QDMTT'] = np.logical_or(
+            np.logical_and(
+                bilat_extract_df['PARTNER_COUNTRY_CODE'].isin(QDMTT_incl_domestic),
+                ~bilat_extract_df['IS_DOMESTIC']
+            ),
+            np.logical_and(
+                bilat_extract_df['PARTNER_COUNTRY_CODE'].isin(QDMTT_excl_domestic),
+                ~bilat_extract_df['IS_DOMESTIC']
+            )
+        )
+
+        # variable_mask = bilat_extract_df['PARENT_COUNTRY_CODE'].isin(self.eu_27_country_codes)
+        # variable_mask = bilat_extract_df['PARENT_COUNTRY_CODE'] != 'USA'
+
+        # relevant_extract_df = bilat_extract_df[
+        #     np.logical_and(
+        #         # Selection of relevant parent countries
+        #         np.logical_and(
+        #             variable_mask,
+        #             np.logical_and(
+        #                 ~bilat_extract_df['PARENT_COUNTRY_CODE'].isin(
+        #                     self.COUNTRIES_WITH_CONTINENTAL_REPORTING
+        #                     + self.COUNTRIES_WITH_MINIMUM_REPORTING
+        #                 ),
+        #                 ~bilat_extract_df['PARENT_COUNTRY_CODE'].isin(self.tax_haven_country_codes)
+        #             )
+        #         ),
+        #         # Selection of relevant partner countries
+        #         np.logical_and(
+        #             bilat_extract_df['PARTNER_COUNTRY_CODE'].isin(self.tax_haven_country_codes),
+        #             ~bilat_extract_df['PARTNER_COUNTRY_CODE'].isin(
+        #                 self.eu_27_country_codes + ['CHE']
+        #             )
+        #         )
+        #     )
+        # ].copy()
+
+        relevant_extract_df = bilat_extract_df[
+            np.logical_and(
+                bilat_extract_df['PARTNER_COUNTRY_CODE'].isin(self.tax_haven_country_codes),
+                ~bilat_extract_df['PARTNER_COUNTRY_CODE'].isin(
+                    self.eu_27_country_codes + ['CHE']
+                )
+            )
+        ].copy()
+
+        relevant_extract_df['TAX_DEFICIT_foreign_QDMTT'] = (
+            relevant_extract_df['TAX_DEFICIT'] * relevant_extract_df['collected_through_foreign_QDMTT']
+        )
+
+        total = relevant_extract_df[
+            relevant_extract_df['PARENT_COUNTRY_CODE'] != relevant_extract_df['PARTNER_COUNTRY_CODE']
+        ]['TAX_DEFICIT'].sum()
+
+        shares = relevant_extract_df[
+            relevant_extract_df['collected_through_foreign_QDMTT']
+        ].groupby(
+            ['PARTNER_COUNTRY_CODE', 'PARTNER_COUNTRY_NAME']
+        ).sum()[['TAX_DEFICIT_foreign_QDMTT']].reset_index()
+
+        shares = shares.rename(columns={'TAX_DEFICIT_foreign_QDMTT': 'KEY'})
+
+        shares['collected_through_foreign_QDMTT'] = True
+
+        idx = len(shares)
+
+        shares.loc[idx, 'PARTNER_COUNTRY_CODE'] = 'REST'
+        shares.loc[idx, 'PARTNER_COUNTRY_NAME'] = 'Rest'
+        shares.loc[idx, 'KEY'] = total - shares['KEY'].sum()
+        shares.loc[idx, 'collected_through_foreign_QDMTT'] = False
+
+        if verbose:
+
+            self.REST_shares_new = shares.copy()
+
+        rest_extract = rest_extract[
+            [
+                'PARENT_COUNTRY_CODE', 'PARENT_COUNTRY_NAME',
+                'SOURCE', 'IS_DOMESTIC', 'ETR', 'ETR_diff',
+                'PROFITS_BEFORE_TAX_POST_CO', 'TAX_DEFICIT'
+            ]
+        ].copy()
+
+        rest_extract['MERGE_TEMP'] = 1
+
+        shares['MERGE_TEMP'] = 1
+
+        rest_extract = rest_extract.merge(shares, how='outer', on='MERGE_TEMP').drop(columns='MERGE_TEMP')
+
+        if verbose:
+            print(rest_extract.shape)
+
+        # rest_extract = rest_extract[
+        #     rest_extract['PARENT_COUNTRY_CODE'] != rest_extract['PARTNER_COUNTRY_CODE']
+        # ].copy()
+
+        if verbose:
+            print(rest_extract.shape)
+
+        rest_extract['KEY_TOTAL'] = rest_extract.groupby('PARENT_COUNTRY_CODE').transform('sum')['KEY']
+
+        rest_extract['KEY_SHARE'] = rest_extract['KEY'] / rest_extract['KEY_TOTAL']
+
+        rest_extract['PROFITS_BEFORE_TAX_POST_CO'] *= rest_extract['KEY_SHARE']
+        rest_extract['TAX_DEFICIT'] *= rest_extract['KEY_SHARE']
+
+        rest_extract = rest_extract.drop(columns=['KEY_TOTAL', 'KEY', 'KEY_SHARE'])
+
+        rest_extract['EDGE_CASE'] = rest_extract['PARENT_COUNTRY_CODE'] == rest_extract['PARTNER_COUNTRY_CODE']
+        bilat_extract_df['EDGE_CASE'] = False
+
+        full_sample_df = pd.concat([bilat_extract_df, rest_extract], axis=0)
+
+        if verbose:
+            print(
+                'Bilaterally attributed tax deficit after REST:',
+                full_sample_df[
+                    ~np.logical_and(
+                        full_sample_df['PARTNER_COUNTRY_CODE'] == full_sample_df['PARENT_COUNTRY_CODE'],
+                        full_sample_df['PARTNER_COUNTRY_CODE'].isin(QDMTT_excl_domestic)
+                    )
+                ]['TAX_DEFICIT'].sum() / 10**6,
+                'm USD'
+            )
+            print('Worth a quick check here?')
+            print('___________________________________________________________________')
+
+        # --- TWZ countries' non-haven tax deficit
+
+        TWZ_extract = full_sample_df[
+            ~full_sample_df['PARENT_COUNTRY_CODE'].isin(
+                self.oecd['Parent jurisdiction (alpha-3 code)'].unique()
+            )
+        ].copy()
+
+        TWZ_extract = TWZ_extract[
+            np.logical_or(
+                TWZ_extract['PARENT_COUNTRY_CODE'] != TWZ_extract['PARTNER_COUNTRY_CODE'],
+                TWZ_extract['collected_through_foreign_QDMTT']
+            )
+        ].copy()
+
+        TWZ_extract = TWZ_extract[
+            TWZ_extract['PARTNER_COUNTRY_CODE'].isin(self.tax_haven_country_codes + ['REST'])
+        ].copy()
+
+        TWZ_extract['TAX_DEFICIT'] = TWZ_extract['TAX_DEFICIT'].astype(float)
+
+        HQ_scenario_TWZ = TWZ_extract.groupby(
+            ['PARENT_COUNTRY_CODE', 'PARENT_COUNTRY_NAME']
+        ).sum()['TAX_DEFICIT'].reset_index()
+        HQ_scenario_TWZ = HQ_scenario_TWZ.rename(
+            columns={
+                'PARENT_COUNTRY_CODE': 'Parent jurisdiction (alpha-3 code)',
+                'PARENT_COUNTRY_NAME': 'Parent jurisdiction (whitespaces cleaned)',
+                'TAX_DEFICIT': 'tax_deficit_x_non_haven'
+            }
+        )
+
+        factor = self.get_non_haven_imputation_ratio(
+            minimum_ETR=minimum_rate, selection=self.non_haven_TD_imputation_selection
+        )
+        HQ_scenario_TWZ['tax_deficit_x_non_haven'] *= factor
+
+        if minimum_rate <= 0.2 and self.alternative_imputation:
+
+            TWZ_extract = self.build_bilateral_data(
+                self.reference_rate_for_alternative_imputation, QDMTT_incl_domestic, QDMTT_excl_domestic
+            )
+
+            TWZ_extract = TWZ_extract[TWZ_extract['SOURCE'] == 'imputation'].copy()
+
+            TWZ_extract['TAX_DEFICIT'] = TWZ_extract['TAX_DEFICIT'].astype(float)
+
+            HQ_scenario_TWZ = TWZ_extract.groupby(
+                ['PARENT_COUNTRY_CODE', 'PARENT_COUNTRY_NAME']
+            ).sum()['TAX_DEFICIT'].reset_index()
+
+            HQ_scenario_TWZ = HQ_scenario_TWZ.rename(
+                columns={
+                    'PARENT_COUNTRY_CODE': 'Parent jurisdiction (alpha-3 code)',
+                    'PARENT_COUNTRY_NAME': 'Parent jurisdiction (whitespaces cleaned)',
+                    'TAX_DEFICIT': 'tax_deficit_x_non_haven'
+                }
+            )
+
+            factor = self.get_alternative_non_haven_factor(minimum_ETR=minimum_rate)
+
+            HQ_scenario_TWZ['tax_deficit_x_non_haven'] *= factor
+
+        HQ_scenario_TWZ = HQ_scenario_TWZ.rename(
+            columns={
+                'Parent jurisdiction (whitespaces cleaned)': 'PARENT_COUNTRY_NAME',
+                'Parent jurisdiction (alpha-3 code)': 'PARENT_COUNTRY_CODE',
+                'tax_deficit_x_non_haven': 'TAX_DEFICIT'
+            }
+        )
+
+        # variable_mask = bilat_extract_df['PARENT_COUNTRY_CODE'].isin(self.eu_27_country_codes)
+        # variable_mask = bilat_extract_df['PARENT_COUNTRY_CODE'] != 'USA'
+
+        # relevant_extract_df = bilat_extract_df[
+        #     np.logical_and(
+        #         # Selection of relevant parent countries
+        #         np.logical_and(
+        #             variable_mask,
+        #             np.logical_and(
+        #                 ~bilat_extract_df['PARENT_COUNTRY_CODE'].isin(
+        #                     self.COUNTRIES_WITH_CONTINENTAL_REPORTING
+        #                     + self.COUNTRIES_WITH_MINIMUM_REPORTING
+        #                 ),
+        #                 ~bilat_extract_df['PARENT_COUNTRY_CODE'].isin(self.tax_haven_country_codes)
+        #             )
+        #         ),
+        #         # Selection of relevant partner countries
+        #         np.logical_and(
+        #             ~bilat_extract_df['PARTNER_COUNTRY_CODE'].isin(self.tax_haven_country_codes),
+        #             bilat_extract_df['PARTNER_COUNTRY_CODE'] != bilat_extract_df['PARENT_COUNTRY_CODE']
+        #         )
+        #     )
+        # ].copy()
+
+        relevant_extract_df = bilat_extract_df[
+            np.logical_and(
+                ~bilat_extract_df['PARTNER_COUNTRY_CODE'].isin(self.tax_haven_country_codes),
+                bilat_extract_df['PARTNER_COUNTRY_CODE'] != bilat_extract_df['PARENT_COUNTRY_CODE']
+            )
+        ].copy()
+
+        shares = relevant_extract_df.groupby(
+            ['PARTNER_COUNTRY_CODE', 'PARTNER_COUNTRY_NAME']
+        ).sum()[
+            'TAX_DEFICIT'
+        ].reset_index()
+
+        shares = shares.rename(columns={'TAX_DEFICIT': 'KEY'})
+
+        shares = shares[shares['KEY'] > 0].copy()
+
+        shares['MERGE_TEMP'] = 1
+
+        HQ_scenario_TWZ['MERGE_TEMP'] = 1
+
+        TWZ_countries_non_havens = HQ_scenario_TWZ.merge(
+            shares, how='outer', on='MERGE_TEMP').drop(
+            columns=['MERGE_TEMP']
+        )
+
+        # TWZ_countries_non_havens = TWZ_countries_non_havens[
+        #     TWZ_countries_non_havens['PARTNER_COUNTRY_CODE'] != TWZ_countries_non_havens['PARENT_COUNTRY_CODE']
+        # ].copy()
+
+        TWZ_countries_non_havens['KEY_TOTAL'] = TWZ_countries_non_havens.groupby(
+            'PARENT_COUNTRY_CODE'
+        ).transform('sum')['KEY']
+
+        TWZ_countries_non_havens['SHARE_KEY'] = TWZ_countries_non_havens['KEY'] / TWZ_countries_non_havens['KEY_TOTAL']
+
+        TWZ_countries_non_havens['TAX_DEFICIT'] *= TWZ_countries_non_havens['SHARE_KEY']
+
+        TWZ_countries_non_havens = TWZ_countries_non_havens[
+            [
+                'PARENT_COUNTRY_CODE', 'PARENT_COUNTRY_NAME',
+                'PARTNER_COUNTRY_CODE', 'PARTNER_COUNTRY_NAME',
+                'TAX_DEFICIT'
+            ]
+        ].copy()
+
+        TWZ_countries_non_havens['IS_DOMESTIC'] = False
+        TWZ_countries_non_havens['SOURCE'] = 'imputation'
+        TWZ_countries_non_havens['EDGE_CASE'] = (
+            TWZ_countries_non_havens['PARENT_COUNTRY_CODE'] == TWZ_countries_non_havens['PARTNER_COUNTRY_CODE']
+        )
+
+        full_sample_df = full_sample_df.drop(columns=['collected_through_foreign_QDMTT'])
+
+        full_sample_df = pd.concat([full_sample_df, TWZ_countries_non_havens], axis=0)
+
+        return full_sample_df.copy()
+
+    def allocate_bilateral_tax_deficits(
+        self,
+        minimum_rate,
+        QDMTT_incl_domestic,
+        IIR_incl_domestic,
+        UTPR_incl_domestic,
+        QDMTT_excl_domestic,
+        IIR_excl_domestic,
+        UTPR_excl_domestic,
+        stat_rate_condition_for_UTPR=False,
+        min_stat_rate_for_UTPR_safe_harbor=None,
+        weight_UPR=1, weight_employees=0, weight_assets=0,
+        minimum_breakdown=60,
+        among_countries_implementing=True,
+        return_bilateral_details=False,
+        verbose=1
+    ):
+
+        if stat_rate_condition_for_UTPR and min_stat_rate_for_UTPR_safe_harbor is None:
+            raise Exception(
+                'To condition the application of the UTPR on the statutory corporate income tax rate, '
+                + 'you must provide the corresponding threshold rate.'
+            )
+
+        full_sample_df = self.build_bilateral_data(
+            minimum_rate,
+            QDMTT_incl_domestic, QDMTT_excl_domestic,
+            verbose=verbose
+        )
+
+        # --- Generalities
+
+        # Indicator variables for the QDMTT
+        full_sample_df['collected_through_domestic_QDMTT'] = np.logical_and(
+            full_sample_df['PARTNER_COUNTRY_CODE'].isin(QDMTT_incl_domestic),
+            full_sample_df['PARENT_COUNTRY_CODE'] == full_sample_df['PARTNER_COUNTRY_CODE']
+        )
+        # full_sample_df['collected_through_foreign_QDMTT'] = np.logical_and(
+        #     full_sample_df['PARTNER_COUNTRY_CODE'].isin(QDMTT_incl_domestic + QDMTT_excl_domestic),
+        #     full_sample_df['PARENT_COUNTRY_CODE'] != full_sample_df['PARTNER_COUNTRY_CODE']
+        # )
+        full_sample_df['collected_through_foreign_QDMTT'] = np.logical_and(
+            ~full_sample_df['collected_through_domestic_QDMTT'],
+            np.logical_or(
+                np.logical_and(
+                    full_sample_df['PARTNER_COUNTRY_CODE'].isin(QDMTT_incl_domestic + QDMTT_excl_domestic),
+                    full_sample_df['PARENT_COUNTRY_CODE'] != full_sample_df['PARTNER_COUNTRY_CODE']
+                ),
+                np.logical_and(
+                    full_sample_df['PARTNER_COUNTRY_CODE'].isin(QDMTT_incl_domestic + QDMTT_excl_domestic),
+                    full_sample_df['EDGE_CASE']
+                )
+            )
+        )
+
+        # Indicator variables for the IIR
+        full_sample_df['collected_through_domestic_IIR'] = np.logical_and(
+            ~full_sample_df['collected_through_domestic_QDMTT'],
+            np.logical_and(
+                full_sample_df['PARENT_COUNTRY_CODE'] == full_sample_df['PARTNER_COUNTRY_CODE'],
+                full_sample_df['PARENT_COUNTRY_CODE'].isin(IIR_incl_domestic)
+            )
+        )
+        full_sample_df['collected_through_foreign_IIR'] = np.logical_and(
+            ~full_sample_df['collected_through_foreign_QDMTT'],
+            np.logical_or(
+                np.logical_and(
+                    full_sample_df['PARENT_COUNTRY_CODE'] != full_sample_df['PARTNER_COUNTRY_CODE'],
+                    full_sample_df['PARENT_COUNTRY_CODE'].isin(IIR_incl_domestic + IIR_excl_domestic)
+                ),
+                np.logical_and(
+                    full_sample_df['EDGE_CASE'].astype(bool),
+                    np.logical_and(
+                        full_sample_df['PARENT_COUNTRY_CODE'].isin(IIR_incl_domestic + IIR_excl_domestic),
+                        ~full_sample_df['collected_through_domestic_IIR']
+                    )
+                )
+            )
+        )
+
+        # Indicator variables for the UTPR
+        if stat_rate_condition_for_UTPR:
+
+            # Reading Tax Foundation's corporate income tax rates for 2022
+            stat_rates_2022 = pd.read_csv(
+                (
+                    "https://raw.githubusercontent.com/TaxFoundation/worldwide-corporate-tax-rates/"
+                    + "master/final_outputs/all_rates_2022.csv"
+                )
+            )
+
+            # Adding the tax rate for the Marshall Islands based on that of the Micronesia Federation
+            new_idx = len(stat_rates_2022)
+
+            stat_rates_2022.loc[new_idx, 'ISO3'] = 'MHL'
+
+            stat_rates_2022.loc[new_idx, 'Corporate Tax Rate'] = stat_rates_2022[
+                stat_rates_2022['ISO3'] == 'FSM'
+            ]['Corporate Tax Rate'].unique()
+
+            # Adding statutory tax rates to the main DataFrame
+            full_sample_df = full_sample_df.merge(
+                stat_rates_2022,
+                how='left',
+                left_on='PARENT_COUNTRY_CODE', right_on='ISO3'
+            ).drop(columns='ISO3').rename(columns={'Corporate Tax Rate': 'STAT_RATE'})
+
+            full_sample_df['collected_through_domestic_UTPR'] = np.logical_and(
+                full_sample_df['PARENT_COUNTRY_CODE'] == full_sample_df['PARTNER_COUNTRY_CODE'],
+                np.logical_and(
+                    ~full_sample_df['collected_through_domestic_QDMTT'],
+                    np.logical_and(
+                        ~full_sample_df['collected_through_domestic_IIR'],
+                        full_sample_df['STAT_RATE'] < min_stat_rate_for_UTPR_safe_harbor
+                    )
+                )
+            )
+            full_sample_df['collected_through_foreign_UTPR'] = np.logical_and(
+                full_sample_df['PARENT_COUNTRY_CODE'] != full_sample_df['PARTNER_COUNTRY_CODE'],
+                np.logical_and(
+                    ~full_sample_df['collected_through_foreign_QDMTT'],
+                    np.logical_and(
+                        ~full_sample_df['collected_through_foreign_IIR'],
+                        full_sample_df['STAT_RATE'] < min_stat_rate_for_UTPR_safe_harbor
+                    )
+                )
+            )
+
+            full_sample_df = full_sample_df.drop(columns=['STAT_RATE'])
+
+        else:
+
+            # full_sample_df['collected_through_domestic_UTPR'] = np.logical_and(
+            #     full_sample_df['PARENT_COUNTRY_CODE'] == full_sample_df['PARTNER_COUNTRY_CODE'],
+            #     np.logical_and(
+            #         ~full_sample_df['collected_through_domestic_QDMTT'],
+            #         ~full_sample_df['collected_through_domestic_IIR']
+            #     )
+            # )
+            full_sample_df['collected_through_domestic_UTPR'] = np.logical_and(
+                full_sample_df['PARENT_COUNTRY_CODE'] == full_sample_df['PARTNER_COUNTRY_CODE'],
+                np.logical_and(
+                    ~full_sample_df['EDGE_CASE'].astype(bool),
+                    full_sample_df[
+                        [
+                            'collected_through_foreign_QDMTT',
+                            'collected_through_domestic_QDMTT',
+                            'collected_through_domestic_IIR'
+                        ]
+                    ].sum(axis=1) == 0
+                )
+            )
+            full_sample_df['collected_through_foreign_UTPR'] = np.logical_and(
+                np.logical_or(
+                    full_sample_df['PARENT_COUNTRY_CODE'] != full_sample_df['PARTNER_COUNTRY_CODE'],
+                    full_sample_df['EDGE_CASE'].astype(bool)
+                ),
+                full_sample_df[
+                    [
+                        'collected_through_foreign_QDMTT', 'collected_through_foreign_IIR',
+                        'collected_through_domestic_QDMTT', 'collected_through_domestic_IIR'
+                    ]
+                ].sum(axis=1) == 0
+            )
+
+        print(full_sample_df[['collected_through_foreign_UTPR', 'collected_through_domestic_UTPR']].sum(axis=1).max())
+
+        # --- Applying the UTPR
+
+        domestic_UTPR_extract = full_sample_df[full_sample_df['collected_through_domestic_UTPR']].copy()
+        foreign_UTPR_extract = full_sample_df[full_sample_df['collected_through_foreign_UTPR']].copy()
+
+        share_UPR = weight_UPR / (weight_UPR + weight_employees + weight_assets)
+        share_employees = weight_employees / (weight_UPR + weight_employees + weight_assets)
+        share_assets = weight_assets / (weight_UPR + weight_employees + weight_assets)
+
+        (
+            parents_insufficient_brkdown, available_allocation_keys_domestic
+        ) = self.get_tax_deficit_allocation_keys_intermediary(
+            minimum_breakdown=minimum_breakdown,
+            among_countries_implementing=False,
+            countries_implementing=UTPR_incl_domestic,
+            weight_UPR=weight_UPR, weight_employees=weight_employees, weight_assets=weight_assets
+        )
+
+        (_, available_allocation_keys_foreign) = self.get_tax_deficit_allocation_keys_intermediary(
+            minimum_breakdown=minimum_breakdown,
+            among_countries_implementing=False,
+            countries_implementing=UTPR_incl_domestic + UTPR_excl_domestic,
+            weight_UPR=weight_UPR, weight_employees=weight_employees, weight_assets=weight_assets
+        )
+
+        temp = full_sample_df['PARENT_COUNTRY_CODE'].unique()
+        TWZ_countries = temp[
+            ~np.isin(temp, self.oecd['Parent jurisdiction (alpha-3 code)'].unique())
+        ].copy()
+
+        allocable_domestic_UTPR_TDs = domestic_UTPR_extract[
+            ~np.logical_or(
+                domestic_UTPR_extract['PARENT_COUNTRY_CODE'].isin(TWZ_countries),
+                domestic_UTPR_extract['PARENT_COUNTRY_CODE'].isin(parents_insufficient_brkdown)
+            )
+        ].copy()
+
+        allocable_foreign_UTPR_TDs = foreign_UTPR_extract[
+            ~np.logical_or(
+                foreign_UTPR_extract['PARENT_COUNTRY_CODE'].isin(TWZ_countries),
+                foreign_UTPR_extract['PARENT_COUNTRY_CODE'].isin(parents_insufficient_brkdown)
+            )
+        ].copy()
+
+        other_domestic_UTPR_TDs = domestic_UTPR_extract[
+            np.logical_or(
+                domestic_UTPR_extract['PARENT_COUNTRY_CODE'].isin(TWZ_countries),
+                domestic_UTPR_extract['PARENT_COUNTRY_CODE'].isin(parents_insufficient_brkdown)
+            )
+        ].copy()
+
+        other_foreign_UTPR_TDs = foreign_UTPR_extract[
+            np.logical_or(
+                foreign_UTPR_extract['PARENT_COUNTRY_CODE'].isin(TWZ_countries),
+                foreign_UTPR_extract['PARENT_COUNTRY_CODE'].isin(parents_insufficient_brkdown)
+            )
+        ].copy()
+
+        allocable_domestic_UTPR_TDs = allocable_domestic_UTPR_TDs.merge(
+            available_allocation_keys_domestic,
+            how='left',
+            left_on='PARENT_COUNTRY_CODE', right_on='COU'
+        )
+
+        if among_countries_implementing:
+
+            allocable_domestic_UTPR_TDs = allocable_domestic_UTPR_TDs[
+                allocable_domestic_UTPR_TDs['JUR'].isin(UTPR_incl_domestic)
+            ].copy()
+
+            if allocable_domestic_UTPR_TDs['SHARE_KEY'].sum() > 0:
+                allocable_domestic_UTPR_TDs['SHARE_KEY_TOTAL'] = allocable_domestic_UTPR_TDs.groupby(
+                    ['PARENT_COUNTRY_CODE', 'PARTNER_COUNTRY_CODE', 'SOURCE']
+                ).transform('sum')['SHARE_KEY']
+                allocable_domestic_UTPR_TDs['RESCALING_FACTOR'] = 1 / allocable_domestic_UTPR_TDs['SHARE_KEY_TOTAL']
+                allocable_domestic_UTPR_TDs['SHARE_KEY'] *= allocable_domestic_UTPR_TDs['RESCALING_FACTOR']
+
+        allocable_foreign_UTPR_TDs = allocable_foreign_UTPR_TDs.merge(
+            available_allocation_keys_foreign,
+            how='left',
+            left_on='PARENT_COUNTRY_CODE', right_on='COU'
+        )
+
+        if among_countries_implementing:
+
+            allocable_foreign_UTPR_TDs = allocable_foreign_UTPR_TDs[
+                allocable_foreign_UTPR_TDs['JUR'].isin(UTPR_incl_domestic + UTPR_excl_domestic)
+            ].copy()
+
+            if allocable_foreign_UTPR_TDs['SHARE_KEY'].sum() > 0:
+                allocable_foreign_UTPR_TDs['SHARE_KEY_TOTAL'] = allocable_foreign_UTPR_TDs.groupby(
+                    ['PARENT_COUNTRY_CODE', 'PARTNER_COUNTRY_CODE', 'SOURCE']
+                ).transform('sum')['SHARE_KEY']
+                allocable_foreign_UTPR_TDs['RESCALING_FACTOR'] = 1 / allocable_foreign_UTPR_TDs['SHARE_KEY_TOTAL']
+                allocable_foreign_UTPR_TDs['SHARE_KEY'] *= allocable_foreign_UTPR_TDs['RESCALING_FACTOR']
+
+        allocable_domestic_UTPR_TDs = allocable_domestic_UTPR_TDs[
+            [
+                'PARENT_COUNTRY_CODE', 'PARTNER_COUNTRY_CODE',
+                'PARENT_COUNTRY_NAME', 'PARTNER_COUNTRY_NAME',
+                'PROFITS_BEFORE_TAX_POST_CO', 'ETR', 'SOURCE',
+                'IS_DOMESTIC', 'ETR_diff', 'TAX_DEFICIT',
+                'collected_through_domestic_QDMTT', 'collected_through_foreign_QDMTT',
+                'collected_through_domestic_IIR', 'collected_through_foreign_IIR',
+                'collected_through_foreign_UTPR', 'collected_through_domestic_UTPR',
+                'JUR', 'Partner Jurisdiction', 'SHARE_KEY',
+            ]
+        ].copy()
+
+        allocable_domestic_UTPR_TDs = allocable_domestic_UTPR_TDs.rename(
+            columns={
+                'JUR': 'COLLECTING_COUNTRY_CODE',
+                'Partner Jurisdiction': 'COLLECTING_COUNTRY_NAME',
+                'SHARE_KEY': 'SHARE_COLLECTED'
+            }
+        )
+
+        allocable_foreign_UTPR_TDs = allocable_foreign_UTPR_TDs[
+            [
+                'PARENT_COUNTRY_CODE', 'PARTNER_COUNTRY_CODE',
+                'PARENT_COUNTRY_NAME', 'PARTNER_COUNTRY_NAME',
+                'PROFITS_BEFORE_TAX_POST_CO', 'ETR', 'SOURCE',
+                'IS_DOMESTIC', 'ETR_diff', 'TAX_DEFICIT',
+                'collected_through_domestic_QDMTT', 'collected_through_foreign_QDMTT',
+                'collected_through_domestic_IIR', 'collected_through_foreign_IIR',
+                'collected_through_foreign_UTPR', 'collected_through_domestic_UTPR',
+                'JUR', 'Partner Jurisdiction', 'SHARE_KEY'
+            ]
+        ].copy()
+
+        allocable_foreign_UTPR_TDs = allocable_foreign_UTPR_TDs.rename(
+            columns={
+                'JUR': 'COLLECTING_COUNTRY_CODE',
+                'Partner Jurisdiction': 'COLLECTING_COUNTRY_NAME',
+                'SHARE_KEY': 'SHARE_COLLECTED'
+            }
+        )
+
+        allocable_domestic_UTPR_TDs['COLLECTING_COUNTRY_CODE'].unique()
+
+        # Allocating the tax deficits that are not directly allocable
+        avg_allocation_keys_domestic = {'JUR': [], 'SHARE_KEY': []}
+        avg_allocation_keys_foreign = {'JUR': [], 'SHARE_KEY': []}
+
+        sales_mapping = available_allocation_keys_domestic.drop(
+            columns=[
+                'UPR_TOTAL', 'ASSETS_TOTAL', 'EMPLOYEES_TOTAL',
+                'SHARE_UPR', 'SHARE_ASSETS', 'SHARE_EMPLOYEES', 'SHARE_KEY'
+            ]
+        )
+
+        if len(UTPR_incl_domestic) + len(UTPR_excl_domestic) > 0:
+
+            domestic_extract = sales_mapping[sales_mapping['COU'] == sales_mapping['JUR']].copy()
+            avg_domestic_share_domestic = (
+                share_UPR * domestic_extract['UPR'].sum() / sales_mapping['UPR'].sum()
+                + share_employees * domestic_extract['EMPLOYEES'].sum() / sales_mapping['EMPLOYEES'].sum()
+                + share_assets * domestic_extract['ASSETS'].sum() / sales_mapping['ASSETS'].sum()
+            )
+
+            print(avg_domestic_share_domestic)
+
+        else:
+
+            avg_domestic_share_domestic = 0
+
+        # Domestic UTPR
+
+        # For the computation of average allocation keys, we consider all the partner jurisdictions included in the
+        # OECD's country-by-country report statistics (not only in the sub-sample excluding loss-making entities but
+        # in the whole dataset since allocation keys are sourced in the overall dataset)
+        iteration = pd.read_csv(self.path_to_oecd, usecols=['JUR'])['JUR'].unique()
+
+        # We extend this set to countries implementing the UTPR but never reported as partners in the data
+        # They will get a share of allocation key of 0 and thus 0 revenue gains (except if we have them as parents)
+        iteration = np.union1d(np.union1d(iteration, UTPR_incl_domestic), UTPR_excl_domestic)
+
+        # if among_countries_implementing:
+        #     iteration = UTPR_incl_domestic.copy()
+        # else:
+        #     iteration = np.union1d(
+        #         UTPR_incl_domestic,
+        #         np.union1d(
+        #             self.oecd['Partner jurisdiction (alpha-3 code)'].unique(),
+        #             np.union1d(
+        #                 self.oecd['Parent jurisdiction (alpha-3 code)'].unique(),
+        #                 full_sample_df['PARENT_COUNTRY_CODE'].unique()
+        #             )
+        #         )
+        #     )
+
+        for country in iteration:
+
+            sales_mapping_foreign_MNEs = sales_mapping[sales_mapping['COU'] != country].copy()
+
+            sales_mapping_foreign_MNEs = sales_mapping_foreign_MNEs[
+                sales_mapping_foreign_MNEs['COU'] != sales_mapping_foreign_MNEs['JUR']
+            ].copy()
+
+            country_extract = sales_mapping_foreign_MNEs[sales_mapping_foreign_MNEs['JUR'] == country].copy()
+
+            avg_allocation_keys_domestic['JUR'].append(country)
+
+            avg_allocation_keys_domestic['SHARE_KEY'].append(
+                share_UPR * country_extract['UPR'].sum() / sales_mapping_foreign_MNEs['UPR'].sum()
+                + share_employees * country_extract['EMPLOYEES'].sum() / sales_mapping_foreign_MNEs['EMPLOYEES'].sum()
+                + share_assets * country_extract['ASSETS'].sum() / sales_mapping_foreign_MNEs['ASSETS'].sum()
+            )
+
+        avg_allocation_keys_domestic = pd.DataFrame(avg_allocation_keys_domestic)
+
+        print(
+            "Average domestic allocation key for France:",
+            avg_allocation_keys_domestic[avg_allocation_keys_domestic['JUR'] == 'FRA'].iloc[0, 1]
+        )
+        print(
+            "Before the re-scaling of the domestic average allocation keys, they sum to:",
+            avg_allocation_keys_domestic['SHARE_KEY'].sum()
+        )
+        # avg_allocation_keys['SHARE_UPR'] = avg_allocation_keys['SHARE_UPR']
+
+        # We re-scale the average allocation keys so that they sum to 1:
+        #   - over the set of implementing countries if among_countries_implementing is True;
+        #   - else over the set of all partner jurisdictions.
+        # if among_countries_implementing:
+        #     print(
+        #         "Before the re-scaling of the average allocation keys, they sum to:",
+        #         avg_allocation_keys_domestic['SHARE_KEY'].sum()
+        #     )
+        #     if avg_allocation_keys_domestic['SHARE_KEY'].sum() > 0:
+        #         rescaling_factor = 1 / avg_allocation_keys_domestic['SHARE_KEY'].sum()
+        #     else:
+        #         rescaling_factor = 1
+        #     avg_allocation_keys_domestic['SHARE_KEY'] *= rescaling_factor
+
+        #     avg_allocation_keys_domestic = avg_allocation_keys_domestic[
+        #         avg_allocation_keys_domestic['JUR'].isin(UTPR_incl_domestic)
+        #     ].copy()
+
+        # Foreign UTPR
+        sales_mapping = available_allocation_keys_foreign.drop(
+            columns=[
+                'UPR_TOTAL', 'ASSETS_TOTAL', 'EMPLOYEES_TOTAL',
+                'SHARE_UPR', 'SHARE_ASSETS', 'SHARE_EMPLOYEES', 'SHARE_KEY'
+            ]
+        )
+
+        if len(UTPR_incl_domestic) + len(UTPR_excl_domestic) > 0:
+
+            domestic_extract = sales_mapping[sales_mapping['COU'] == sales_mapping['JUR']].copy()
+            avg_domestic_share_foreign = (
+                share_UPR * domestic_extract['UPR'].sum() / sales_mapping['UPR'].sum()
+                + share_employees * domestic_extract['EMPLOYEES'].sum() / sales_mapping['EMPLOYEES'].sum()
+                + share_assets * domestic_extract['ASSETS'].sum() / sales_mapping['ASSETS'].sum()
+            )
+
+            print(avg_domestic_share_foreign)
+
+        else:
+
+            avg_domestic_share_foreign = 0
+
+        # For the computation of average allocation keys, we consider all the partner jurisdictions included in the
+        # OECD's country-by-country report statistics (not only in the sub-sample excluding loss-making entities but
+        # in the whole dataset since allocation keys are sourced in the overall dataset)
+        iteration = pd.read_csv(self.path_to_oecd, usecols=['JUR'])['JUR'].unique()
+        iteration = iteration[~np.isin(iteration, ['STA', 'FJT'])].copy()
+
+        # We extend this set to countries implementing the UTPR but never reported as partners in the data
+        # They will get a share of allocation key of 0 and thus 0 revenue gains (except if we have them as parents)
+        iteration = np.union1d(np.union1d(iteration, UTPR_incl_domestic), UTPR_excl_domestic)
+
+        # if among_countries_implementing:
+        #     iteration = UTPR_incl_domestic + UTPR_excl_domestic
+        # else:
+        #     iteration = np.union1d(
+        #         UTPR_incl_domestic + UTPR_excl_domestic,
+        #         np.union1d(
+        #             self.oecd['Partner jurisdiction (alpha-3 code)'].unique(),
+        #             np.union1d(
+        #                 self.oecd['Parent jurisdiction (alpha-3 code)'].unique(),
+        #                 full_sample_df['PARENT_COUNTRY_CODE'].unique()
+        #             )
+        #         )
+        #     )
+
+        for country in iteration:
+
+            sales_mapping_foreign_MNEs = sales_mapping[sales_mapping['COU'] != country].copy()
+
+            sales_mapping_foreign_MNEs = sales_mapping_foreign_MNEs[
+                sales_mapping_foreign_MNEs['COU'] != sales_mapping_foreign_MNEs['JUR']
+            ].copy()
+
+            country_extract = sales_mapping_foreign_MNEs[sales_mapping_foreign_MNEs['JUR'] == country].copy()
+
+            avg_allocation_keys_foreign['JUR'].append(country)
+
+            avg_allocation_keys_foreign['SHARE_KEY'].append(
+                share_UPR * country_extract['UPR'].sum() / sales_mapping_foreign_MNEs['UPR'].sum()
+                + share_employees * country_extract['EMPLOYEES'].sum() / sales_mapping_foreign_MNEs['EMPLOYEES'].sum()
+                + share_assets * country_extract['ASSETS'].sum() / sales_mapping_foreign_MNEs['ASSETS'].sum()
+            )
+
+        avg_allocation_keys_foreign = pd.DataFrame(avg_allocation_keys_foreign)
+
+        print(
+            "Average foreign allocation key for France:",
+            avg_allocation_keys_foreign[avg_allocation_keys_foreign['JUR'] == 'FRA'].iloc[0, 1]
+        )
+        print(
+            "Before the re-scaling of the foreign average allocation keys, they sum to:",
+            avg_allocation_keys_foreign['SHARE_KEY'].sum()
+        )
+        # avg_allocation_keys['SHARE_UPR'] = avg_allocation_keys['SHARE_UPR']
+
+        # We re-scale the average allocation keys so that they sum to 1:
+        #   - over the set of implementing countries if among_countries_implementing is True;
+        #   - else over the set of all partner jurisdictions.
+        # if among_countries_implementing:
+        #     print(
+        #         "Before the re-scaling of the average allocation keys, they sum to:",
+        #         avg_allocation_keys_foreign['SHARE_KEY'].sum()
+        #     )
+        #     if avg_allocation_keys_foreign['SHARE_KEY'].sum() > 0:
+        #         rescaling_factor = 1 / avg_allocation_keys_foreign['SHARE_KEY'].sum()
+        #     else:
+        #         rescaling_factor = 1
+        #     avg_allocation_keys_foreign['SHARE_KEY'] *= rescaling_factor
+
+        #     avg_allocation_keys_foreign = avg_allocation_keys_foreign[
+        #         avg_allocation_keys_foreign['JUR'].isin(UTPR_incl_domestic + UTPR_excl_domestic)
+        #     ].copy()
+
+        # Alternative approach for determining average allocation keys?
+        # if not among_countries_implementing:
+
+        #     sales_mapping = available_allocation_keys_domestic.copy()
+
+        #     domestic_extract = sales_mapping[sales_mapping['COU'] == sales_mapping['JUR']].copy()
+
+        #     avg_domestic_share = (
+        #         share_UPR * domestic_extract['UPR'].sum() / sales_mapping['UPR'].sum()
+        #         + share_employees * domestic_extract['EMPLOYEES'].sum() / sales_mapping['EMPLOYEES'].sum()
+        #         + share_assets * domestic_extract['ASSETS'].sum() / sales_mapping['ASSETS'].sum()
+        #     )
+
+        # avg_allocation_keys = {}
+
+        # for UTPR_type, sales_mapping in zip(
+        #     ['domestic', 'foreign'],
+        #     [available_allocation_keys_domestic.copy(), available_allocation_keys_foreign.copy()]
+        # ):
+
+        #     sales_mapping['IS_FOREIGN'] = sales_mapping['COU'] != sales_mapping['JUR']
+
+        #     sales_mapping['UPR_x_IS_FOREIGN'] = sales_mapping['UPR'] * sales_mapping['IS_FOREIGN']
+        #     sales_mapping['EMPLOYEES_x_IS_FOREIGN'] = sales_mapping['EMPLOYEES'] * sales_mapping['IS_FOREIGN']
+        #     sales_mapping['ASSETS_x_IS_FOREIGN'] = sales_mapping['ASSETS'] * sales_mapping['IS_FOREIGN']
+
+        #     if self.year == 2018 and self.China_treatment_2018 == "2017_CbCR":
+
+        #         multiplier = sales_mapping['COU'] == 'CHN'
+        #         multiplier *= self.growth_rates.set_index("CountryGroupName").loc['World', 'uprusd1817']
+        #         multiplier = multiplier.map(lambda x: {0: 1}.get(x, x))
+
+        #     else:
+
+        #         multiplier = 1
+
+        #     sales_mapping['UPR_x_IS_FOREIGN'] *= multiplier
+        #     sales_mapping['EMPLOYEES_x_IS_FOREIGN'] *= multiplier
+        #     sales_mapping['ASSETS_x_IS_FOREIGN'] *= multiplier
+
+        #     sales_mapping['UPR_x_IS_FOREIGN'] = sales_mapping['UPR_x_IS_FOREIGN'].astype(float)
+        #     sales_mapping['EMPLOYEES_x_IS_FOREIGN'] = sales_mapping['EMPLOYEES_x_IS_FOREIGN'].astype(float)
+        #     sales_mapping['ASSETS_x_IS_FOREIGN'] = sales_mapping['ASSETS_x_IS_FOREIGN'].astype(float)
+
+        #     sales_mapping = sales_mapping.groupby(
+        #         ['JUR', 'Partner Jurisdiction']
+        #     ).sum()[
+        #         ['UPR_x_IS_FOREIGN', 'EMPLOYEES_x_IS_FOREIGN', 'ASSETS_x_IS_FOREIGN']
+        #     ].reset_index()
+
+        #     sales_mapping = sales_mapping.rename(
+        #         columns={col: col.replace('_x_IS_FOREIGN', '') for col in sales_mapping.columns}
+        #     )
+
+        #     for col in ['UPR', 'EMPLOYEES', 'ASSETS']:
+
+        #         sales_mapping[f'{col}_TOTAL'] = sales_mapping[col].sum()
+        #         sales_mapping[f'SHARE_{col}'] = sales_mapping[col] / sales_mapping[f'{col}_TOTAL']
+
+        #     sales_mapping['SHARE_KEY'] = (
+        #         share_UPR * sales_mapping['SHARE_UPR']
+        #         + share_employees * sales_mapping['SHARE_EMPLOYEES']
+        #         + share_assets * sales_mapping['SHARE_ASSETS']
+        #     )
+
+        #     avg_allocation_keys[UTPR_type] = sales_mapping[['JUR', 'Partner Jurisdiction', 'SHARE_KEY']].copy()
+
+        # avg_allocation_keys_domestic = avg_allocation_keys['domestic'].copy()
+        # avg_allocation_keys_foreign = avg_allocation_keys['foreign'].copy()
+
+        # if not among_countries_implementing:
+
+        #     avg_allocation_keys_domestic['SHARE_KEY'] *= (1 - avg_domestic_share)
+        #     avg_allocation_keys_foreign['SHARE_KEY'] *= (1 - avg_domestic_share)
+
+        #     domestic_UTPR_domestic_extract = other_domestic_UTPR_TDs.copy()
+        #     foreign_UTPR_domestic_extract = other_foreign_UTPR_TDs.copy()
+
+        #     domestic_UTPR_domestic_extract['JUR'] = domestic_UTPR_domestic_extract['PARENT_COUNTRY_CODE'].values
+        #     domestic_UTPR_domestic_extract['Partner Jurisdiction'] = domestic_UTPR_domestic_extract[
+        #         'PARENT_COUNTRY_NAME'
+        #     ].values
+        #     domestic_UTPR_domestic_extract['SHARE_KEY'] = avg_domestic_share
+
+        #     foreign_UTPR_domestic_extract['JUR'] = foreign_UTPR_domestic_extract['PARENT_COUNTRY_CODE'].values
+        #     foreign_UTPR_domestic_extract['Partner Jurisdiction'] = foreign_UTPR_domestic_extract[
+        #         'PARENT_COUNTRY_NAME'
+        #     ].values
+        #     foreign_UTPR_domestic_extract['SHARE_KEY'] = avg_domestic_share
+
+        avg_allocation_keys_domestic['TEMP_KEY'] = 1
+        other_domestic_UTPR_TDs['TEMP_KEY'] = 1
+
+        other_domestic_UTPR_TDs = other_domestic_UTPR_TDs.merge(
+            avg_allocation_keys_domestic,
+            how='left',
+            on='TEMP_KEY'
+        ).drop(columns=['TEMP_KEY'])
+
+        print("Check 1")
+
+        other_domestic_UTPR_TDs = other_domestic_UTPR_TDs[
+            other_domestic_UTPR_TDs['PARENT_COUNTRY_CODE'] != other_domestic_UTPR_TDs['JUR']
+        ].copy()
+
+        if among_countries_implementing:
+            other_domestic_UTPR_TDs = other_domestic_UTPR_TDs[
+                other_domestic_UTPR_TDs['JUR'].isin(UTPR_incl_domestic)
+            ].copy()
+
+        if not other_domestic_UTPR_TDs.empty:
+            other_domestic_UTPR_TDs['SHARE_KEY_TOTAL'] = other_domestic_UTPR_TDs.groupby(
+                ['PARENT_COUNTRY_CODE', 'PARTNER_COUNTRY_CODE', 'SOURCE']
+            ).transform('sum')['SHARE_KEY']
+
+            if among_countries_implementing:
+                other_domestic_UTPR_TDs['RESCALING_FACTOR'] = other_domestic_UTPR_TDs['PARENT_COUNTRY_CODE'].isin(
+                    UTPR_incl_domestic
+                )
+                other_domestic_UTPR_TDs['RESCALING_FACTOR'] *= (
+                    1 - avg_domestic_share_domestic
+                ) / other_domestic_UTPR_TDs['SHARE_KEY_TOTAL']
+                other_domestic_UTPR_TDs['RESCALING_FACTOR'] = other_domestic_UTPR_TDs.apply(
+                    lambda row: {0: 1 / row['SHARE_KEY_TOTAL']}.get(
+                        row['RESCALING_FACTOR'], row['RESCALING_FACTOR']
+                    ),
+                    axis=1
+                )
+            else:
+                other_domestic_UTPR_TDs['RESCALING_FACTOR'] = (
+                    1 - avg_domestic_share_domestic
+                ) / other_domestic_UTPR_TDs['SHARE_KEY_TOTAL']
+
+        else:
+
+            other_domestic_UTPR_TDs['SHARE_KEY_TOTAL'] = other_domestic_UTPR_TDs['SHARE_KEY']
+            other_domestic_UTPR_TDs['RESCALING_FACTOR'] = other_domestic_UTPR_TDs['SHARE_KEY']
+
+        print("Check 2")
+
+        other_domestic_UTPR_TDs['SHARE_KEY'] *= other_domestic_UTPR_TDs['RESCALING_FACTOR']
+
+        self.other_domestic_UTPR_TDs = other_domestic_UTPR_TDs.copy()
+
+        for parent_country in other_domestic_UTPR_TDs['PARENT_COUNTRY_CODE'].unique():
+            if parent_country in UTPR_incl_domestic:
+                ser = other_domestic_UTPR_TDs[other_domestic_UTPR_TDs['PARENT_COUNTRY_CODE'] == parent_country].copy()
+                ser = ser.iloc[0].copy()
+
+                ser.loc['JUR'] = parent_country
+                ser.loc['SHARE_KEY'] = avg_domestic_share_domestic
+
+                other_domestic_UTPR_TDs = pd.concat([other_domestic_UTPR_TDs, pd.DataFrame(ser).T], axis=0)
+
+            else:
+                continue
+
+        # other_domestic_UTPR_TDs = other_domestic_UTPR_TDs.drop(columns=['SHARE_KEY_TOTAL', 'RESCALING_FACTOR'])
+
+        # if not among_countries_implementing:
+
+        #     other_domestic_UTPR_TDs = pd.concat([other_domestic_UTPR_TDs, domestic_UTPR_domestic_extract])
+
+        other_domestic_UTPR_TDs = other_domestic_UTPR_TDs.rename(
+            columns={
+                'JUR': 'COLLECTING_COUNTRY_CODE',
+                'Partner Jurisdiction': 'COLLECTING_COUNTRY_NAME',
+                'SHARE_KEY': 'SHARE_COLLECTED'
+            }
+        )
+
+        avg_allocation_keys_foreign['TEMP_KEY'] = 1
+        other_foreign_UTPR_TDs['TEMP_KEY'] = 1
+
+        other_foreign_UTPR_TDs = other_foreign_UTPR_TDs.merge(
+            avg_allocation_keys_foreign,
+            how='left',
+            on='TEMP_KEY'
+        ).drop(columns=['TEMP_KEY'])
+
+        print("Check 3")
+
+        other_foreign_UTPR_TDs = other_foreign_UTPR_TDs[
+            other_foreign_UTPR_TDs['PARENT_COUNTRY_CODE'] != other_foreign_UTPR_TDs['JUR']
+        ].copy()
+
+        import time
+
+        start_time = time.time()
+
+        if among_countries_implementing:
+            other_foreign_UTPR_TDs = other_foreign_UTPR_TDs[
+                other_foreign_UTPR_TDs['JUR'].isin(np.union1d(UTPR_incl_domestic, UTPR_excl_domestic))
+            ].copy()
+
+        print('Check 3bis')
+
+        end_time = time.time()
+
+        print(end_time - start_time, 'seconds')
+
+        if not other_foreign_UTPR_TDs.empty:
+
+            start_time = time.time()
+
+            other_foreign_UTPR_TDs['SHARE_KEY_TOTAL'] = other_foreign_UTPR_TDs.groupby(
+                ['PARENT_COUNTRY_CODE', 'PARTNER_COUNTRY_CODE', 'SOURCE']
+            ).transform('sum')['SHARE_KEY']
+
+            print('Check 3c')
+
+            end_time = time.time()
+
+            print(end_time - start_time, 'seconds')
+
+            start_time = time.time()
+            if among_countries_implementing:
+                other_foreign_UTPR_TDs['RESCALING_FACTOR'] = other_foreign_UTPR_TDs['PARENT_COUNTRY_CODE'].isin(
+                    UTPR_incl_domestic + UTPR_excl_domestic
+                )
+                other_foreign_UTPR_TDs['RESCALING_FACTOR'] *= (
+                    1 - avg_domestic_share_foreign
+                ) / other_foreign_UTPR_TDs['SHARE_KEY_TOTAL']
+                other_foreign_UTPR_TDs['RESCALING_FACTOR'] = other_foreign_UTPR_TDs.apply(
+                    lambda row: {0: 1 / row['SHARE_KEY_TOTAL']}.get(
+                        row['RESCALING_FACTOR'], row['RESCALING_FACTOR']
+                    ),
+                    axis=1
+                )
+            else:
+                other_foreign_UTPR_TDs['RESCALING_FACTOR'] = (
+                    1 - avg_domestic_share_foreign
+                ) / other_foreign_UTPR_TDs['SHARE_KEY_TOTAL']
+
+            print('Check 3d')
+
+            end_time = time.time()
+
+            print(end_time - start_time, 'seconds')
+
+        else:
+
+            other_foreign_UTPR_TDs['SHARE_KEY_TOTAL'] = other_foreign_UTPR_TDs['SHARE_KEY']
+            other_foreign_UTPR_TDs['RESCALING_FACTOR'] = other_foreign_UTPR_TDs['SHARE_KEY']
+
+        other_foreign_UTPR_TDs['SHARE_KEY'] *= other_foreign_UTPR_TDs['RESCALING_FACTOR']
+
+        print("Check 4")
+
+        for parent_country in other_foreign_UTPR_TDs['PARENT_COUNTRY_CODE'].unique():
+            if parent_country in UTPR_incl_domestic + UTPR_excl_domestic:
+                df = other_foreign_UTPR_TDs[other_foreign_UTPR_TDs['PARENT_COUNTRY_CODE'] == parent_country].copy()
+
+                jur = df['JUR'].unique()
+                jur = jur[0]
+
+                df = df[df['JUR'] == jur].copy()
+
+                df['JUR'] = parent_country
+                df['SHARE_KEY'] = avg_domestic_share_domestic
+
+                other_foreign_UTPR_TDs = pd.concat([other_foreign_UTPR_TDs, df], axis=0)
+
+            else:
+                continue
+
+        # other_foreign_UTPR_TDs = other_foreign_UTPR_TDs.drop(columns=['SHARE_KEY_TOTAL', 'RESCALING_FACTOR'])
+
+        # if not among_countries_implementing:
+
+        #     other_foreign_UTPR_TDs = pd.concat([other_foreign_UTPR_TDs, foreign_UTPR_domestic_extract])
+
+        other_foreign_UTPR_TDs = other_foreign_UTPR_TDs.rename(
+            columns={
+                'JUR': 'COLLECTING_COUNTRY_CODE',
+                'Partner Jurisdiction': 'COLLECTING_COUNTRY_NAME',
+                'SHARE_KEY': 'SHARE_COLLECTED'
+            }
+        )
+
+        # --- Other than UTPR
+
+        non_UTPR_extract = full_sample_df[
+            np.logical_and(
+                ~full_sample_df['collected_through_domestic_UTPR'],
+                ~full_sample_df['collected_through_foreign_UTPR']
+            )
+        ].copy()
+
+        print("Check 5")
+
+        if not non_UTPR_extract.empty:
+
+            non_UTPR_extract['SHARE_COLLECTED'] = 1
+
+            non_UTPR_extract['COLLECTING_COUNTRY_CODE'] = non_UTPR_extract.apply(
+                (
+                    lambda row: row['PARENT_COUNTRY_CODE']
+                    if row['collected_through_domestic_IIR'] or row['collected_through_foreign_IIR']
+                    else row['PARTNER_COUNTRY_CODE']
+                ),
+                axis=1
+            )
+
+            non_UTPR_extract['COLLECTING_COUNTRY_NAME'] = non_UTPR_extract.apply(
+                (
+                    lambda row: row['PARENT_COUNTRY_NAME']
+                    if row['collected_through_domestic_IIR'] or row['collected_through_foreign_IIR']
+                    else row['PARTNER_COUNTRY_NAME']
+                ),
+                axis=1
+            )
+
+        full_sample_df = pd.concat(
+            [
+                non_UTPR_extract,
+                allocable_domestic_UTPR_TDs, allocable_foreign_UTPR_TDs,
+                other_foreign_UTPR_TDs, other_domestic_UTPR_TDs
+            ],
+            axis=0
+        )
+
+        full_sample_df['collected_through_domestic_UTPR'] *= full_sample_df['COLLECTING_COUNTRY_CODE'].isin(
+            UTPR_incl_domestic
+        )
+        full_sample_df['collected_through_foreign_UTPR'] *= full_sample_df['COLLECTING_COUNTRY_CODE'].isin(
+            UTPR_incl_domestic + UTPR_excl_domestic
+        )
+
+        collected_columns = list(
+            np.unique(
+                full_sample_df.columns[
+                    full_sample_df.columns.map(lambda x: x.startswith("collected_through_"))
+                ]
+            )
+        )
+
+        full_sample_df['ALLOCATED_TAX_DEFICIT'] = (
+            full_sample_df['TAX_DEFICIT']
+            * full_sample_df['SHARE_COLLECTED']
+            * full_sample_df[collected_columns].sum(axis=1)
+        )
+        full_sample_df['ALLOCATED_TAX_DEFICIT'] = full_sample_df['ALLOCATED_TAX_DEFICIT'].astype(float)
+
+        if not return_bilateral_details:
+
+            if self.year == 2018 and self.China_treatment_2018 == '2017_CbCR':
+
+                multiplier = self.growth_rates.set_index('CountryGroupName').loc['World', 'uprusd1817']
+
+                multiplier = full_sample_df['PARENT_COUNTRY_CODE'].map(
+                    lambda x: {'CHN': multiplier}.get(x, 1)
+                )
+
+                for col in ['PROFITS_BEFORE_TAX_POST_CO', 'TAX_DEFICIT', 'ALLOCATED_TAX_DEFICIT']:
+                    full_sample_df[col] *= multiplier
+
+            return full_sample_df.groupby(
+                ['COLLECTING_COUNTRY_CODE']
+            ).agg(
+                {'COLLECTING_COUNTRY_NAME': 'first', 'ALLOCATED_TAX_DEFICIT': 'sum'}
+            ).reset_index()
+
+        else:
+
+            return full_sample_df.copy()
 
 
 if __name__ == '__main__':

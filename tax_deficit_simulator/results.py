@@ -4,14 +4,429 @@ import pandas as pd
 import os
 import re
 
+import requests
+
 from tax_deficit_simulator.calculator import TaxDeficitCalculator
+
+
+path_to_dir = os.path.dirname(os.path.abspath(__file__))
 
 
 class TaxDeficitResults:
 
-    def __init__(self, output_folder):
+    def __init__(self, output_folder, load_online_data=True):
 
         self.output_folder = output_folder
+
+        # --- EU country codes
+
+        path_to_EU = os.path.join(path_to_dir, 'data', 'listofeucountries_csv.csv')
+        eu_27_country_codes = list(pd.read_csv(path_to_EU, delimiter=';')['Alpha-3 code'].unique())
+        eu_27_country_codes.remove('GBR')
+
+        self.eu_27_country_codes = eu_27_country_codes.copy()
+
+        # --- Tax haven country codes
+
+        path_to_tax_haven_list = os.path.join(path_to_dir, 'data', 'tax_haven_list.csv')
+        tax_haven_country_codes = list(pd.read_csv(path_to_tax_haven_list, delimiter=';')['Alpha-3 code'])
+        self.tax_haven_country_codes = tax_haven_country_codes.copy()
+
+        # --- Country classification by income group
+
+        path_to_classification = os.path.join(path_to_dir, 'data', 'CLASS.xlsx')
+        country_classification = pd.read_excel(path_to_classification, engine='openpyxl')
+
+        country_classification = country_classification[
+            ~country_classification['Income group'].isnull()
+        ].copy()
+
+        country_classification = country_classification[['Code', 'Income group']].rename(
+            columns={'Code': 'CODE', 'Income group': 'INCOME_GROUP'}
+        )
+
+        row1 = {'CODE': 'AIA', 'INCOME_GROUP': 'High income'}
+        row2 = {'CODE': 'JEY', 'INCOME_GROUP': 'High income'}
+        row3 = {'CODE': 'GGY', 'INCOME_GROUP': 'High income'}
+
+        country_classification = country_classification.append(row1, ignore_index=True)
+        country_classification = country_classification.append(row2, ignore_index=True)
+        country_classification = country_classification.append(row3, ignore_index=True)
+
+        country_classification['INCOME_GROUP'] = country_classification.apply(
+            lambda row: 'EU' if row['CODE'] in eu_27_country_codes else row['INCOME_GROUP'],
+            axis=1
+        )
+        country_classification['INCOME_GROUP'] = country_classification.apply(
+            lambda row: 'US' if row['CODE'] == 'USA' else row['INCOME_GROUP'],
+            axis=1
+        )
+        country_classification['INCOME_GROUP'] = country_classification['INCOME_GROUP'].map(
+            lambda x: {'High income': 'Other high income'}.get(x, x)
+        )
+
+        country_classification = country_classification.append(
+            {'CODE': 'VEN', 'INCOME_GROUP': 'Upper middle income'}, ignore_index=True
+        )
+
+        self.country_classification = country_classification.copy()
+
+        # --- Listing as many countries as possible (useful for full implementation scenarios)
+
+        WorldBank_codes = country_classification['CODE'].unique()
+        CbCR_COU_codes = pd.read_csv(os.path.join(path_to_dir, 'data', 'oecd.csv'))['COU'].unique()
+        CbCR_JUR_codes = pd.read_csv(os.path.join(path_to_dir, 'data', 'oecd.csv'))['JUR'].unique()
+
+        self.all_countries = np.union1d(WorldBank_codes, CbCR_COU_codes)
+        self.all_countries = np.union1d(self.all_countries, CbCR_JUR_codes)
+        self.all_countries = self.all_countries[self.all_countries != 'STA'].copy()
+
+        self.all_countries_but_EU = list(
+            self.all_countries[
+                ~np.isin(self.all_countries, self.eu_27_country_codes)
+            ].copy()
+        )
+
+        self.all_countries = list(self.all_countries) + ['BES']
+        self.all_countries_but_EU = list(self.all_countries_but_EU) + ['BES']
+
+        # --- GDP data
+
+        if load_online_data:
+
+            self.URL_to_GDP_data = "https://www.imf.org/external/datamapper/api/v1/NGDPD"
+
+            response = requests.get(self.URL_to_GDP_data)
+
+            GDP_data = pd.DataFrame(response.json()['values']['NGDPD'])
+
+            GDP_data = GDP_data.stack().reset_index(1, name='GDP').rename(
+                columns={'level_1': 'CODE'}
+            ).reset_index().rename(
+                columns={'index': 'YEAR'}
+            )
+
+            self.GDP_data = GDP_data.copy()
+
+        # --- CIT revenues
+
+        self.path_to_CIT_revenues = os.path.join(path_to_dir, 'data', 'merged_data.xlsx')
+
+        CIT_revenues = pd.read_excel(self.path_to_CIT_revenues, engine='openpyxl')
+
+        CIT_revenues = CIT_revenues[
+            ['CountryCode', 'year', 'corporate_tax_%gdp', 'corporate_revenue']
+        ].rename(
+            columns={
+                'CountryCode': 'CODE',
+                'year': 'YEAR',
+                'corporate_tax_%gdp': 'AS_SHARE_GDP',
+                'corporate_revenue': 'CIT_REVENUES'
+            }
+        )
+
+        CIT_revenues = CIT_revenues.dropna(subset=['AS_SHARE_GDP']).copy()
+
+        CIT_revenues['LATEST_YEAR'] = CIT_revenues.groupby('CODE').transform('max')['YEAR']
+        CIT_revenues = CIT_revenues[CIT_revenues['YEAR'] == CIT_revenues['LATEST_YEAR']].copy()
+
+        CIT_revenues = CIT_revenues.reset_index(drop=True)
+        CIT_revenues = CIT_revenues.drop(columns=['YEAR', 'LATEST_YEAR', 'CIT_REVENUES'])
+
+        self.CIT_revenues = CIT_revenues.copy()
+
+    def upgrade_results_to_2023_and_add_CIT_revenues(self, df, base_year):
+
+        GDP_data = self.GDP_data.copy()
+
+        world_GDP_2023 = GDP_data[np.logical_and(GDP_data['YEAR'] == '2023', GDP_data['CODE'] == 'WEOWORLD')].iloc[0, 2]
+        world_GDP_base = GDP_data[
+            np.logical_and(GDP_data['YEAR'] == str(base_year), GDP_data['CODE'] == 'WEOWORLD')
+        ].iloc[0, 2]
+        world_GDP_growth_factor = world_GDP_2023 / world_GDP_base
+
+        GDP_data['KEY'] = GDP_data['CODE'] + GDP_data['YEAR']
+
+        df['KEY_INITIAL'] = df['COLLECTING_COUNTRY_CODE'] + str(base_year)
+        df['KEY_TARGET'] = df['COLLECTING_COUNTRY_CODE'] + '2023'
+
+        df = df.merge(
+            GDP_data[['KEY', 'GDP']],
+            how='left',
+            left_on='KEY_INITIAL', right_on='KEY'
+        ).drop(columns=['KEY']).rename(columns={'GDP': 'GDP_INITIAL'})
+
+        df = df.merge(
+            GDP_data[['KEY', 'GDP']],
+            how='left',
+            left_on='KEY_TARGET', right_on='KEY'
+        ).drop(columns=['KEY']).rename(columns={'GDP': 'GDP_TARGET'})
+
+        df['GDP_TARGET'] = df.apply(
+            (
+                lambda row: row['GDP_INITIAL'] * world_GDP_growth_factor
+                if np.isnan(row['GDP_TARGET']) else row['GDP_TARGET']
+            ),
+            axis=1
+        )
+
+        df['REVENUE_GAINS'] = (
+            df['ALLOCATED_TAX_DEFICIT']
+            / (10**9 * df['GDP_INITIAL']) * df['GDP_TARGET']
+        )
+
+        df['REVENUE_GAINS'] = df.apply(
+            (
+                lambda row: row['ALLOCATED_TAX_DEFICIT'] * world_GDP_growth_factor / 10**9
+                if np.isnan(row['REVENUE_GAINS']) else row['REVENUE_GAINS']
+            ),
+            axis=1
+        )
+
+        df = df.merge(
+            self.CIT_revenues,
+            how='left',
+            left_on='COLLECTING_COUNTRY_CODE', right_on='CODE'
+        ).drop(columns=['CODE'])
+
+        df['CIT_REVENUES'] = df['GDP_TARGET'] * df['AS_SHARE_GDP']
+
+        return df[
+            ['COLLECTING_COUNTRY_CODE', 'COLLECTING_COUNTRY_NAME', 'REVENUE_GAINS', 'CIT_REVENUES']
+        ].rename(columns={'COLLECTING_COUNTRY_CODE': 'COUNTRY_CODE', 'COLLECTING_COUNTRY_NAME': 'COUNTRY_NAME'})
+
+    def aggregate_results(self, df, for_country_by_country_table=False):
+
+        df['BOTH_AVAILABLE'] = np.logical_and(
+            ~df['REVENUE_GAINS'].isnull(), ~df['CIT_REVENUES'].isnull()
+        )
+        df['REVENUE_GAINS_x_BOTH_AVAILABLE'] = df['REVENUE_GAINS'] * df['BOTH_AVAILABLE']
+        df['CIT_REVENUES_x_BOTH_AVAILABLE'] = df['CIT_REVENUES'] * df['BOTH_AVAILABLE']
+
+        df['IS_TAX_HAVEN'] = df['COUNTRY_CODE'].isin(self.tax_haven_country_codes)
+        tax_haven_revenue_gains = df[df['IS_TAX_HAVEN']]['REVENUE_GAINS'].sum()
+        tax_haven_perc_CIT = (
+            df[df['IS_TAX_HAVEN']]['REVENUE_GAINS_x_BOTH_AVAILABLE'].sum()
+            / df[df['IS_TAX_HAVEN']]['CIT_REVENUES_x_BOTH_AVAILABLE'].sum() * 100
+        )
+
+        df = df.merge(
+            self.country_classification,
+            how='left',
+            left_on='COUNTRY_CODE', right_on='CODE'
+        )
+
+        if for_country_by_country_table:
+
+            df['INCOME_GROUP'] = df['INCOME_GROUP'].map(
+                lambda x: {'US': 'Non-EU high income', 'Other high income': 'Non-EU high income'}.get(x, x)
+            )
+
+        df = df.groupby('INCOME_GROUP').sum()[
+            ['REVENUE_GAINS', 'REVENUE_GAINS_x_BOTH_AVAILABLE', 'CIT_REVENUES_x_BOTH_AVAILABLE']
+        ].reset_index()
+
+        if 'Low income' not in df['INCOME_GROUP'].unique():
+
+            row = {
+                'INCOME_GROUP': 'Low income',
+                'REVENUE_GAINS': 0,
+                'REVENUE_GAINS_x_BOTH_AVAILABLE': 0,
+                'CIT_REVENUES_x_BOTH_AVAILABLE': 1
+            }
+            df = df.append(row, ignore_index=True)
+
+        if not for_country_by_country_table:
+
+            df['CATEGORY'] = df['INCOME_GROUP'].map(
+                {
+                    'EU': 1,
+                    'US': 2,
+                    'Other high income': 3,
+                    'Upper middle income': 4,
+                    'Lower middle income': 5,
+                    'Low income': 6
+                }
+            )
+
+        else:
+
+            df['CATEGORY'] = df['INCOME_GROUP'].map(
+                {
+                    'EU': 1,
+                    'Non-EU high income': 2,
+                    'Upper middle income': 4,
+                    'Lower middle income': 5,
+                    'Low income': 6
+                }
+            )
+
+        df['AS_SHARE_CIT'] = df['REVENUE_GAINS_x_BOTH_AVAILABLE'] / df['CIT_REVENUES_x_BOTH_AVAILABLE'] * 100
+
+        total_revenue_gains = df['REVENUE_GAINS'].sum()
+        total_perc_CIT = df['REVENUE_GAINS_x_BOTH_AVAILABLE'].sum() / df['CIT_REVENUES_x_BOTH_AVAILABLE'].sum() * 100
+        total_row = {
+            'INCOME_GROUP': 'Total',
+            'REVENUE_GAINS': total_revenue_gains,
+            'AS_SHARE_CIT': total_perc_CIT,
+            'CATEGORY': 6.5
+        }
+
+        if not for_country_by_country_table:
+
+            mask_high_income = df['INCOME_GROUP'].isin(['EU', 'US', 'Other high income'])
+
+        else:
+
+            mask_high_income = df['INCOME_GROUP'].isin(['EU', 'Non-EU high income'])
+
+        high_income_revenue_gains = df[mask_high_income]['REVENUE_GAINS'].sum()
+        high_income_perc_CIT = (
+            df[mask_high_income]['REVENUE_GAINS_x_BOTH_AVAILABLE'].sum()
+            / df[mask_high_income]['CIT_REVENUES_x_BOTH_AVAILABLE'].sum() * 100
+        )
+        high_income_total_row = {
+            'INCOME_GROUP': 'High income',
+            'REVENUE_GAINS': high_income_revenue_gains,
+            'AS_SHARE_CIT': high_income_perc_CIT,
+            'CATEGORY': 3.5
+        }
+
+        tax_havens_row = {
+            'INCOME_GROUP': 'Of which tax havens',
+            'REVENUE_GAINS': tax_haven_revenue_gains,
+            'AS_SHARE_CIT': tax_haven_perc_CIT,
+            'CATEGORY': 6.7
+        }
+
+        df = df[['INCOME_GROUP', 'REVENUE_GAINS', 'AS_SHARE_CIT', 'CATEGORY']].copy()
+
+        df = df.append(total_row, ignore_index=True)
+        df = df.append(high_income_total_row, ignore_index=True)
+        df = df.append(tax_havens_row, ignore_index=True)
+
+        df = df.sort_values(by='CATEGORY').drop(columns=['CATEGORY'])
+
+        return df.copy()
+
+    def format_country_by_country_estimates(self, df):
+
+        df = df.copy()
+
+        aggregated_results = self.aggregate_results(df, for_country_by_country_table=True)
+        aggregated_results['COUNTRY_NAME'] = aggregated_results['INCOME_GROUP']
+
+        df['IS_TAX_HAVEN'] = df['COUNTRY_CODE'].isin(self.tax_haven_country_codes)
+        df['COUNTRY_NAME'] = df.apply(
+            lambda row: row['COUNTRY_NAME'] + '*' if row['IS_TAX_HAVEN'] else row['COUNTRY_NAME'],
+            axis=1
+        )
+
+        df = df.merge(
+            self.country_classification,
+            how='left',
+            left_on='COUNTRY_CODE', right_on='CODE'
+        ).drop(columns=['COUNTRY_CODE', 'CODE', 'IS_TAX_HAVEN'])
+
+        df = df.drop(columns=['BOTH_AVAILABLE', 'REVENUE_GAINS_x_BOTH_AVAILABLE', 'CIT_REVENUES_x_BOTH_AVAILABLE'])
+
+        df['INCOME_GROUP'] = df['INCOME_GROUP'].map(
+            lambda x: {'US': 'Non-EU high income', 'Other high income': 'Non-EU high income'}.get(x, x)
+        )
+
+        df['AS_SHARE_CIT'] = df['REVENUE_GAINS'] / df['CIT_REVENUES'] * 100
+        df = df.drop(columns=['CIT_REVENUES'])
+
+        df = pd.concat([df, aggregated_results], axis=0)
+
+        df['CATEGORY'] = df['INCOME_GROUP'].map(
+            {
+                'EU': 1,
+                'Non-EU high income': 2,
+                'High income': 3,
+                'Upper middle income': 4,
+                'Lower middle income': 5,
+                'Low income': 6,
+                'Total': 7,
+                'Of which tax havens': 8
+            }
+        )
+        df['CATEGORY'] = df.apply(
+            lambda row: row['CATEGORY'] + 0.1 if row['COUNTRY_NAME'] == row['INCOME_GROUP'] else row['CATEGORY'],
+            axis=1
+        )
+
+        df = df.sort_values(by=['CATEGORY', 'COUNTRY_NAME'])
+
+        df = df.drop(columns=['CATEGORY', 'INCOME_GROUP'])
+
+        return df.reset_index(drop=True)
+
+    def load_benchmark_data_without_carve_outs(self, year):
+
+        # --- Loading required data
+
+        if year == 2016:
+
+            calculator_noCO = TaxDeficitCalculator(
+                year=2016,
+                alternative_imputation=True,
+                non_haven_TD_imputation_selection='EU',
+                sweden_treatment='adjust', belgium_treatment='replace', SGP_CYM_treatment='replace',
+                use_adjusted_profits=True,
+                average_ETRs=True,
+                years_for_avg_ETRs=[2016, 2017],
+                carve_outs=False,
+                de_minimis_exclusion=True,
+                extended_dividends_adjustment=False,
+                behavioral_responses=False,
+                fetch_data_online=False
+            )
+            calculator_noCO.load_clean_data()
+
+        elif year == 2017:
+
+            calculator_noCO = TaxDeficitCalculator(
+                year=2017,
+                alternative_imputation=True,
+                non_haven_TD_imputation_selection='EU',
+                sweden_treatment='adjust', belgium_treatment='replace', SGP_CYM_treatment='replace',
+                use_adjusted_profits=True,
+                average_ETRs=True,
+                years_for_avg_ETRs=[2016, 2017],
+                carve_outs=False,
+                de_minimis_exclusion=True,
+                add_AUT_AUT_row=True,
+                extended_dividends_adjustment=False,
+                behavioral_responses=False,
+                fetch_data_online=False
+            )
+            calculator_noCO.load_clean_data()
+
+        elif year == 2018:
+
+            calculator_noCO = TaxDeficitCalculator(
+                year=2018,
+                alternative_imputation=True,
+                non_haven_TD_imputation_selection='EU',
+                sweden_treatment='adjust', belgium_treatment='replace', SGP_CYM_treatment='replace',
+                China_treatment_2018="2017_CbCR",
+                use_adjusted_profits=True,
+                average_ETRs=True,
+                years_for_avg_ETRs=[2016, 2017, 2018],
+                carve_outs=False,
+                de_minimis_exclusion=True,
+                add_AUT_AUT_row=True,
+                extended_dividends_adjustment=False,
+                behavioral_responses=False,
+                fetch_data_online=False
+            )
+            calculator_noCO.load_clean_data()
+
+        else:
+            raise Exception("Three years are available for now: 2016, 2017, and 2018.")
+
+        return calculator_noCO
 
     def load_benchmark_data_with_LT_carve_outs(self, year):
 
@@ -338,7 +753,7 @@ class TaxDeficitResults:
             index=False,
             longtable=True,
             caption=f"Parent countries with sufficiently granular CbCR statistics ({year})",
-            label=f"tab:relevantparentcountries"
+            label="tab:relevantparentcountries"
         )
 
         modified_string = str_table
@@ -766,18 +1181,25 @@ class TaxDeficitResults:
 
         print("Table saved as", f"{year}_benchmark_QDMTT_with_different_carve_outs.tex", "!")
 
-    def benchmark_IIR_with_different_minimum_rates(self, year):
+    def benchmark_IIR_with_different_minimum_rates(self, year, carve_outs='long_term'):
 
         # --- Loading required data
 
-        calculator_longtermCO = self.load_benchmark_data_with_LT_carve_outs(year)
+        if carve_outs == 'long_term':
+            calculator = self.load_benchmark_data_with_LT_carve_outs(year)
+
+        elif carve_outs == 'none':
+            calculator = self.load_benchmark_data_without_carve_outs(year)
+
+        else:
+            raise Exception('This table can only be produced with long-term carve-outs or no carve-outs at all.')
 
         # --- Building the table
 
-        CbC_Countries = list(calculator_longtermCO.oecd['Parent jurisdiction (alpha-3 code)'].unique())
+        CbC_Countries = list(calculator.oecd['Parent jurisdiction (alpha-3 code)'].unique())
 
         # Computing tax deficits with a 15% minimum rate
-        tds = calculator_longtermCO.compute_all_tax_deficits(minimum_ETR=0.15)
+        tds = calculator.compute_all_tax_deficits(minimum_ETR=0.15)
 
         extract1 = tds[
             [
@@ -798,7 +1220,7 @@ class TaxDeficitResults:
         )
 
         # Computing tax deficits with a 20% minimum rate
-        tds = calculator_longtermCO.compute_all_tax_deficits(minimum_ETR=0.2)
+        tds = calculator.compute_all_tax_deficits(minimum_ETR=0.2)
 
         extract2 = tds[
             [
@@ -819,7 +1241,7 @@ class TaxDeficitResults:
         )
 
         # Computing tax deficits with a 25% minimum rate
-        tds = calculator_longtermCO.compute_all_tax_deficits(minimum_ETR=0.25)
+        tds = calculator.compute_all_tax_deficits(minimum_ETR=0.25)
 
         extract3 = tds[
             [
@@ -840,7 +1262,7 @@ class TaxDeficitResults:
         )
 
         # Computing tax deficits with a 30% minimum rate
-        tds = calculator_longtermCO.compute_all_tax_deficits(minimum_ETR=0.3)
+        tds = calculator.compute_all_tax_deficits(minimum_ETR=0.3)
 
         extract4 = tds[
             [
@@ -870,8 +1292,8 @@ class TaxDeficitResults:
         )
 
         # Determining each country's category (and ultimately the position in the table)
-        extract['IS_EU'] = extract['CODE'].isin(calculator_longtermCO.eu_27_country_codes)
-        extract['IS_TH'] = extract['CODE'].isin(calculator_longtermCO.tax_haven_country_codes)
+        extract['IS_EU'] = extract['CODE'].isin(calculator.eu_27_country_codes)
+        extract['IS_TH'] = extract['CODE'].isin(calculator.tax_haven_country_codes)
         extract['IS_CBC'] = extract['CODE'].isin(CbC_Countries)
 
         extract['CATEGORY'] = extract.apply(lambda row: 2 if row['IS_CBC'] else 3, axis=1)
@@ -986,25 +1408,32 @@ class TaxDeficitResults:
                     bold_row = ' & '.join(['\\textit{' + cell + '}' for cell in cells]) + ' \\\\\n'
                     modified_string = modified_string.replace(row, '\\midrule\n' + '\\hskip 10pt ' + bold_row)
 
-        path = os.path.join(self.output_folder, f"{year}_benchmark_IIR_with_minimum_rates.tex")
+        path = os.path.join(self.output_folder, f"{year}_benchmark_IIR_with_minimum_rates_CO_{carve_outs}.tex")
 
         with open(path, 'w') as file:
             file.write(modified_string)
 
-        print("Table saved as", f"{year}_benchmark_IIR_with_minimum_rates.tex", "!")
+        print("Table saved as", f"{year}_benchmark_IIR_with_minimum_rates_CO_{carve_outs}.tex", "!")
 
-    def benchmark_QDMTT_with_different_minimum_rates(self, year):
+    def benchmark_QDMTT_with_different_minimum_rates(self, year, carve_outs='long_term'):
 
         # --- Loading required data
 
-        calculator_longtermCO = self.load_benchmark_data_with_LT_carve_outs(year)
+        if carve_outs == 'long_term':
+            calculator = self.load_benchmark_data_with_LT_carve_outs(year)
+
+        elif carve_outs == 'none':
+            calculator = self.load_benchmark_data_without_carve_outs(year)
+
+        else:
+            raise Exception('This table can only be produced with long-term carve-outs or no carve-outs at all.')
 
         # --- Building the table
 
-        CbC_Countries = list(calculator_longtermCO.oecd['Parent jurisdiction (alpha-3 code)'].unique())
+        CbC_Countries = list(calculator.oecd['Parent jurisdiction (alpha-3 code)'].unique())
 
         # Computing tax deficits without carve-outs
-        tds = calculator_longtermCO.compute_qdmtt_revenue_gains(minimum_ETR=0.15)
+        tds = calculator.compute_qdmtt_revenue_gains(minimum_ETR=0.15)
 
         extract1 = tds.copy()
 
@@ -1019,7 +1448,7 @@ class TaxDeficitResults:
         )
 
         # Computing tax deficits with first-year carve-outs
-        tds = calculator_longtermCO.compute_qdmtt_revenue_gains(minimum_ETR=0.2)
+        tds = calculator.compute_qdmtt_revenue_gains(minimum_ETR=0.2)
 
         extract2 = tds.copy()
 
@@ -1034,7 +1463,7 @@ class TaxDeficitResults:
         )
 
         # Computing tax deficits with long-term carve-outs
-        tds = calculator_longtermCO.compute_qdmtt_revenue_gains(minimum_ETR=0.25)
+        tds = calculator.compute_qdmtt_revenue_gains(minimum_ETR=0.25)
 
         extract3 = tds.copy()
 
@@ -1049,7 +1478,7 @@ class TaxDeficitResults:
         )
 
         # Computing tax deficits with long-term carve-outs
-        tds = calculator_longtermCO.compute_qdmtt_revenue_gains(minimum_ETR=0.3)
+        tds = calculator.compute_qdmtt_revenue_gains(minimum_ETR=0.3)
 
         extract4 = tds.copy()
 
@@ -1073,8 +1502,8 @@ class TaxDeficitResults:
         )
 
         # Determining each country's category (and ultimately the position in the table)
-        extract['IS_EU'] = extract['CODE'].isin(calculator_longtermCO.eu_27_country_codes)
-        extract['IS_TH'] = extract['CODE'].isin(calculator_longtermCO.tax_haven_country_codes)
+        extract['IS_EU'] = extract['CODE'].isin(calculator.eu_27_country_codes)
+        extract['IS_TH'] = extract['CODE'].isin(calculator.tax_haven_country_codes)
         extract['IS_CBC'] = extract['CODE'].isin(CbC_Countries)
 
         extract['CATEGORY'] = extract.apply(lambda row: 3 if row['IS_TH'] else 4, axis=1)
@@ -1205,24 +1634,31 @@ class TaxDeficitResults:
                     bold_row = ' & '.join(['\\textit{' + cell + '}' for cell in cells]) + ' \\\\\n'
                     modified_string = modified_string.replace(row, '\\midrule\n' + '\\hskip 10pt ' + bold_row)
 
-        path = os.path.join(self.output_folder, f"{year}_benchmark_QDMTT_with_minimum_rates.tex")
+        path = os.path.join(self.output_folder, f"{year}_benchmark_QDMTT_with_minimum_rates_CO_{carve_outs}.tex")
 
         with open(path, 'w') as file:
             file.write(modified_string)
 
-        print("Table saved as", f"{year}_benchmark_QDMTT_with_minimum_rates.tex", "!")
+        print("Table saved as", f"{year}_benchmark_QDMTT_with_minimum_rates_CO_{carve_outs}.tex", "!")
 
-    def benchmark_IIR_with_origin_decomposed(self, year):
+    def benchmark_IIR_with_origin_decomposed(self, year, carve_outs='long_term'):
 
         # --- Loading required data
 
-        calculator_longtermCO = self.load_benchmark_data_with_LT_carve_outs(year)
+        if carve_outs == 'long_term':
+            calculator = self.load_benchmark_data_with_LT_carve_outs(year)
+
+        elif carve_outs == 'none':
+            calculator = self.load_benchmark_data_without_carve_outs(year)
+
+        else:
+            raise Exception('This table can only be produced with long-term carve-outs or no carve-outs at all.')
 
         # --- Building the table
 
-        CbC_Countries = list(calculator_longtermCO.oecd['Parent jurisdiction (alpha-3 code)'].unique())
+        CbC_Countries = list(calculator.oecd['Parent jurisdiction (alpha-3 code)'].unique())
 
-        extract = calculator_longtermCO.compute_all_tax_deficits(minimum_ETR=0.15)
+        extract = calculator.compute_all_tax_deficits(minimum_ETR=0.15)
 
         for col in ['tax_deficit', 'tax_deficit_x_domestic', 'tax_deficit_x_non_haven', 'tax_deficit_x_tax_haven']:
             extract[col] /= 10**9
@@ -1239,8 +1675,8 @@ class TaxDeficitResults:
         )
 
         # Determining each country's category (and ultimately the position in the table)
-        extract['IS_EU'] = extract['CODE'].isin(calculator_longtermCO.eu_27_country_codes)
-        extract['IS_TH'] = extract['CODE'].isin(calculator_longtermCO.tax_haven_country_codes)
+        extract['IS_EU'] = extract['CODE'].isin(calculator.eu_27_country_codes)
+        extract['IS_TH'] = extract['CODE'].isin(calculator.tax_haven_country_codes)
         extract['IS_CBC'] = extract['CODE'].isin(CbC_Countries)
 
         extract['CATEGORY'] = extract.apply(lambda row: 2 if row['IS_CBC'] else 3, axis=1)
@@ -1355,14 +1791,14 @@ class TaxDeficitResults:
                     bold_row = ' & '.join(['\\textit{' + cell + '}' for cell in cells]) + ' \\\\\n'
                     modified_string = modified_string.replace(row, '\\midrule\n' + '\\hskip 10pt ' + bold_row)
 
-        path = os.path.join(self.output_folder, f"{year}_benchmark_IIR_with_origin_decomposed.tex")
+        path = os.path.join(self.output_folder, f"{year}_benchmark_IIR_with_origin_decomposed_CO_{carve_outs}.tex")
 
         with open(path, 'w') as file:
             file.write(modified_string)
 
-        print("Table saved as", f"{year}_benchmark_IIR_with_origin_decomposed.tex", "!")
+        print("Table saved as", f"{year}_benchmark_IIR_with_origin_decomposed_CO_{carve_outs}.tex", "!")
 
-    def benchmark_IIR_compare_years(self, year1, year2):
+    def benchmark_IIR_compare_years(self, year1, year2, carve_outs='long_term'):
 
         if year1 == year2:
             raise Exception(
@@ -1377,16 +1813,24 @@ class TaxDeficitResults:
 
         # --- Loading required data
 
-        calculator_longtermCO_year1 = self.load_benchmark_data_with_LT_carve_outs(year1)
-        calculator_longtermCO_year2 = self.load_benchmark_data_with_LT_carve_outs(year2)
+        if carve_outs == 'long_term':
+            calculator_year1 = self.load_benchmark_data_with_LT_carve_outs(year1)
+            calculator_year2 = self.load_benchmark_data_with_LT_carve_outs(year2)
+
+        elif carve_outs == 'none':
+            calculator_year1 = self.load_benchmark_data_without_carve_outs(year1)
+            calculator_year1 = self.load_benchmark_data_without_carve_outs(year2)
+
+        else:
+            raise Exception('This table can only be produced with long-term carve-outs or no carve-outs at all.')
 
         # --- Building the table
 
-        CbC_Countries_year1 = list(calculator_longtermCO_year1.oecd['Parent jurisdiction (alpha-3 code)'].unique())
-        CbC_Countries_year2 = list(calculator_longtermCO_year2.oecd['Parent jurisdiction (alpha-3 code)'].unique())
+        CbC_Countries_year1 = list(calculator_year1.oecd['Parent jurisdiction (alpha-3 code)'].unique())
+        CbC_Countries_year2 = list(calculator_year2.oecd['Parent jurisdiction (alpha-3 code)'].unique())
 
         # Computing tax deficits with a 15% minimum rate
-        tds = calculator_longtermCO_year1.compute_all_tax_deficits(minimum_ETR=0.15)
+        tds = calculator_year1.compute_all_tax_deficits(minimum_ETR=0.15)
 
         extract1 = tds[
             [
@@ -1411,7 +1855,7 @@ class TaxDeficitResults:
         extract1 = extract1.drop(columns=['temp'])
 
         # Computing tax deficits with a 20% minimum rate
-        tds = calculator_longtermCO_year2.compute_all_tax_deficits(minimum_ETR=0.15)
+        tds = calculator_year2.compute_all_tax_deficits(minimum_ETR=0.15)
 
         extract2 = tds[
             [
@@ -1448,8 +1892,8 @@ class TaxDeficitResults:
         extract = extract.drop(columns=['Parent Jur._x', 'Parent Jur._y'])
 
         # Determining each country's category (and ultimately the position in the table)
-        extract['IS_EU'] = extract['CODE'].isin(calculator_longtermCO_year1.eu_27_country_codes)
-        extract['IS_TH'] = extract['CODE'].isin(calculator_longtermCO_year1.tax_haven_country_codes)
+        extract['IS_EU'] = extract['CODE'].isin(calculator_year1.eu_27_country_codes)
+        extract['IS_TH'] = extract['CODE'].isin(calculator_year1.tax_haven_country_codes)
         extract['IS_CBC'] = np.logical_or(
             extract['CODE'].isin(CbC_Countries_year1), extract['CODE'].isin(CbC_Countries_year2)
         )
@@ -1523,7 +1967,11 @@ class TaxDeficitResults:
         extract = extract.drop(columns=['CATEGORY'])
 
         extract = extract[
-            ['Parent Jur.', f'{year1} data source', f'{year2} data source', f'{year1} tax deficit', f'{year2} tax deficit']
+            [
+                'Parent Jur.',
+                f'{year1} data source', f'{year2} data source',
+                f'{year1} tax deficit', f'{year2} tax deficit'
+            ]
         ].copy()
 
         extract = extract.applymap(lambda x: str(round(x, 1)) if isinstance(x, float) else x).reset_index(drop=True)
@@ -1592,25 +2040,32 @@ class TaxDeficitResults:
                     bold_row = ' & '.join(['\\textit{' + cell + '}' for cell in cells]) + ' \\\\\n'
                     modified_string = modified_string.replace(row, '\\midrule\n' + '\\hskip 10pt ' + bold_row)
 
-        path = os.path.join(self.output_folder, f"{year1}comp{year2}_benchmark_IIR.tex")
+        path = os.path.join(self.output_folder, f"{year1}comp{year2}_benchmark_IIR_CO_{carve_outs}.tex")
 
         with open(path, 'w') as file:
             file.write(modified_string)
 
-        print("Table saved as", f"{year1}comp{year2}_benchmark_IIR.tex", "!")
+        print("Table saved as", f"{year1}comp{year2}_benchmark_IIR_CO_{carve_outs}.tex", "!")
 
-    def benchmark_EU_partial_cooperation_with_decomposition(self, year):
+    def benchmark_EU_partial_cooperation_with_decomposition(self, year, carve_outs='long_term'):
 
         # --- Loading required data
 
-        calculator_longtermCO = self.load_benchmark_data_with_LT_carve_outs(year)
+        if carve_outs == 'long_term':
+            calculator = self.load_benchmark_data_with_LT_carve_outs(year)
+
+        elif carve_outs == 'none':
+            calculator = self.load_benchmark_data_without_carve_outs(year)
+
+        else:
+            raise Exception('This table can only be produced with long-term carve-outs or no carve-outs at all.')
 
         # --- Building the table
 
         (
             selected_tax_deficits, details_directly_allocated, details_imputed
-        ) = calculator_longtermCO.compute_selected_intermediary_scenario_gain(
-            countries_implementing=calculator_longtermCO.eu_27_country_codes,
+        ) = calculator.compute_selected_intermediary_scenario_gain(
+            countries_implementing=calculator.eu_27_country_codes,
             minimum_ETR=0.15,
             among_countries_implementing=False,
             minimum_breakdown=60
@@ -1715,12 +2170,15 @@ class TaxDeficitResults:
                     bold_row = ' & '.join(['\\textit{' + cell + '}' for cell in cells]) + ' \\\\\n'
                     modified_string = modified_string.replace(row, '\\midrule\n' + '\\hskip 10pt ' + bold_row)
 
-        path = os.path.join(self.output_folder, f"{year}_benchmark_EU_partial_cooperation_with_decomposition.tex")
+        path = os.path.join(
+            self.output_folder,
+            f"{year}_benchmark_EU_partial_cooperation_with_decomposition_CO_{carve_outs}.tex"
+        )
 
         with open(path, 'w') as file:
             file.write(modified_string)
 
-        print("Table saved as", f"{year}_benchmark_EU_partial_cooperation_with_decomposition.tex", "!")
+        print("Table saved as", f"{year}_benchmark_EU_partial_cooperation_with_decomposition_CO_{carve_outs}.tex", "!")
 
     def benchmark_EU_partial_cooperation_with_different_carve_outs(self, year):
 
@@ -1732,7 +2190,7 @@ class TaxDeficitResults:
 
         # --- Building the table
 
-        CbC_Countries = list(calculator_longtermCO.oecd['Parent jurisdiction (alpha-3 code)'].unique())
+        # CbC_Countries = list(calculator_longtermCO.oecd['Parent jurisdiction (alpha-3 code)'].unique())
 
         # Computing tax deficits without carve-outs
         (
@@ -1861,7 +2319,10 @@ class TaxDeficitResults:
             column_format='lK{2.5cm}K{2.5cm}K{2.5cm}K{2.5cm}',
             index=False,
             longtable=True,
-            caption=f"Revenue gain estimates in the partial cooperation scenario restricted to the EU, for various minimum rates ({year})",
+            caption=(
+                "Revenue gain estimates in the partial cooperation scenario restricted to the EU,"
+                + f" for various minimum rates ({year})"
+            ),
             label=f"tab:benchmarkpartialEU{year}carveouts"
         )
 
@@ -1908,26 +2369,36 @@ class TaxDeficitResults:
                     bold_row = ' & '.join(['\\textit{' + cell + '}' for cell in cells]) + ' \\\\\n'
                     modified_string = modified_string.replace(row, '\\midrule\n' + '\\hskip 10pt ' + bold_row)
 
-        path = os.path.join(self.output_folder, f"{year}_benchmark_EU_partial_cooperation_with_different_carve_outs.tex")
+        path = os.path.join(
+            self.output_folder,
+            f"{year}_benchmark_EU_partial_cooperation_with_different_carve_outs.tex"
+        )
 
         with open(path, 'w') as file:
             file.write(modified_string)
 
         print("Table saved as", f"{year}_benchmark_EU_partial_cooperation_with_different_carve_outs.tex", "!")
 
-    def benchmark_EU_partial_cooperation_with_different_min_rates(self, year):
+    def benchmark_EU_partial_cooperation_with_different_min_rates(self, year, carve_outs='long_term'):
 
         # --- Loading required data
 
-        calculator_longtermCO = self.load_benchmark_data_with_LT_carve_outs(year)
+        if carve_outs == 'long_term':
+            calculator = self.load_benchmark_data_with_LT_carve_outs(year)
+
+        elif carve_outs == 'none':
+            calculator = self.load_benchmark_data_without_carve_outs(year)
+
+        else:
+            raise Exception('This table can only be produced with long-term carve-outs or no carve-outs at all.')
 
         # --- Building the table
 
         # Computing tax deficits with a 15% minimum rate
         (
             tds, _, _
-        ) = calculator_longtermCO.compute_selected_intermediary_scenario_gain(
-            countries_implementing=calculator_longtermCO.eu_27_country_codes,
+        ) = calculator.compute_selected_intermediary_scenario_gain(
+            countries_implementing=calculator.eu_27_country_codes,
             minimum_ETR=0.15,
             among_countries_implementing=False,
             minimum_breakdown=60
@@ -1954,8 +2425,8 @@ class TaxDeficitResults:
         # Computing tax deficits with a 20% minimum rate
         (
             tds, _, _
-        ) = calculator_longtermCO.compute_selected_intermediary_scenario_gain(
-            countries_implementing=calculator_longtermCO.eu_27_country_codes,
+        ) = calculator.compute_selected_intermediary_scenario_gain(
+            countries_implementing=calculator.eu_27_country_codes,
             minimum_ETR=0.2,
             among_countries_implementing=False,
             minimum_breakdown=60
@@ -1982,8 +2453,8 @@ class TaxDeficitResults:
         # Computing tax deficits with a 25% minimum rate
         (
             tds, _, _
-        ) = calculator_longtermCO.compute_selected_intermediary_scenario_gain(
-            countries_implementing=calculator_longtermCO.eu_27_country_codes,
+        ) = calculator.compute_selected_intermediary_scenario_gain(
+            countries_implementing=calculator.eu_27_country_codes,
             minimum_ETR=0.25,
             among_countries_implementing=False,
             minimum_breakdown=60
@@ -2010,8 +2481,8 @@ class TaxDeficitResults:
         # Computing tax deficits with a 30% minimum rate
         (
             tds, _, _
-        ) = calculator_longtermCO.compute_selected_intermediary_scenario_gain(
-            countries_implementing=calculator_longtermCO.eu_27_country_codes,
+        ) = calculator.compute_selected_intermediary_scenario_gain(
+            countries_implementing=calculator.eu_27_country_codes,
             minimum_ETR=0.3,
             among_countries_implementing=False,
             minimum_breakdown=60
@@ -2081,7 +2552,10 @@ class TaxDeficitResults:
             column_format='lK{2.5cm}K{2.5cm}K{2.5cm}K{2.5cm}',
             index=False,
             longtable=True,
-            caption=f"Revenue gain estimates in the partial cooperation scenario restricted to the EU, for various minimum rates ({year})",
+            caption=(
+                "Revenue gain estimates in the partial cooperation scenario restricted to the EU,"
+                + f" for various minimum rates ({year})"
+            ),
             label=f"tab:benchmarkpartialEU{year}minETR"
         )
 
@@ -2128,12 +2602,15 @@ class TaxDeficitResults:
                     bold_row = ' & '.join(['\\textit{' + cell + '}' for cell in cells]) + ' \\\\\n'
                     modified_string = modified_string.replace(row, '\\midrule\n' + '\\hskip 10pt ' + bold_row)
 
-        path = os.path.join(self.output_folder, f"{year}_benchmark_EU_partial_cooperation_with_minimum_rates.tex")
+        path = os.path.join(
+            self.output_folder,
+            f"{year}_benchmark_EU_partial_cooperation_with_minimum_rates_CO_{carve_outs}.tex"
+        )
 
         with open(path, 'w') as file:
             file.write(modified_string)
 
-        print("Table saved as", f"{year}_benchmark_EU_partial_cooperation_with_minimum_rates.tex", "!")
+        print("Table saved as", f"{year}_benchmark_EU_partial_cooperation_with_minimum_rates_CO_{carve_outs}.tex", "!")
 
     def list_implementing_countries_TaxPolicyAssociates(self):
 
@@ -2202,8 +2679,8 @@ class TaxDeficitResults:
             column_format='lK{2.5cm}K{2.5cm}',
             index=False,
             longtable=True,
-            caption=f"Jurisdictions implementing Pillar Two according to Tax Policy Associates",
-            label=f"tab:implementingcountriesTaxPolicyAssociates"
+            caption="Jurisdictions implementing Pillar Two according to Tax Policy Associates",
+            label="tab:implementingcountriesTaxPolicyAssociates"
         )
 
         modified_string = str_table
@@ -2231,19 +2708,26 @@ class TaxDeficitResults:
                     modified_string = modified_string.replace(row, '\\midrule\n' + bold_row)
 
         path = os.path.join(
-            self.output_folder, f"implementing_countries_TaxPolicyAssociates.tex"
+            self.output_folder, "implementing_countries_TaxPolicyAssociates.tex"
         )
 
         with open(path, 'w') as file:
             file.write(modified_string)
 
-        print("Table saved as", f"implementing_countries_TaxPolicyAssociates.tex", "!")
+        print("Table saved as", "implementing_countries_TaxPolicyAssociates.tex", "!")
 
-    def benchmark_EUandothers_partial_cooperation_with_decomposition(self, year):
+    def benchmark_EUandothers_partial_cooperation_with_decomposition(self, year, carve_outs='long_term'):
 
         # --- Loading required data
 
-        calculator_longtermCO = self.load_benchmark_data_with_LT_carve_outs(year)
+        if carve_outs == 'long_term':
+            calculator = self.load_benchmark_data_with_LT_carve_outs(year)
+
+        elif carve_outs == 'none':
+            calculator = self.load_benchmark_data_without_carve_outs(year)
+
+        else:
+            raise Exception('This table can only be produced with long-term carve-outs or no carve-outs at all.')
 
         # --- Listing countries implementing Pillar Two
 
@@ -2267,7 +2751,7 @@ class TaxDeficitResults:
 
         (
             selected_tax_deficits, details_directly_allocated, details_imputed
-        ) = calculator_longtermCO.compute_selected_intermediary_scenario_gain(
+        ) = calculator.compute_selected_intermediary_scenario_gain(
             countries_implementing=countries_implementing,
             minimum_ETR=0.15,
             among_countries_implementing=False,
@@ -2297,8 +2781,8 @@ class TaxDeficitResults:
         )
 
         # Determining each country's category (and ultimately the position in the table)
-        extract['IS_EU'] = extract['CODE'].isin(calculator_longtermCO.eu_27_country_codes)
-        extract['IS_NON_EU'] = ~extract['CODE'].isin(calculator_longtermCO.eu_27_country_codes)
+        extract['IS_EU'] = extract['CODE'].isin(calculator.eu_27_country_codes)
+        extract['IS_NON_EU'] = ~extract['CODE'].isin(calculator.eu_27_country_codes)
 
         extract['CATEGORY'] = extract.apply(lambda row: 1 if row['IS_EU'] else 2, axis=1)
 
@@ -2412,12 +2896,18 @@ class TaxDeficitResults:
                     bold_row = ' & '.join(['\\textit{' + cell + '}' for cell in cells]) + ' \\\\\n'
                     modified_string = modified_string.replace(row, '\\midrule\n' + '\\hskip 10pt ' + bold_row)
 
-        path = os.path.join(self.output_folder, f"{year}_benchmark_EUandothers_partial_cooperation_with_decomposition.tex")
+        path = os.path.join(
+            self.output_folder,
+            f"{year}_benchmark_EUandothers_partial_cooperation_with_decomposition_CO_{carve_outs}.tex"
+        )
 
         with open(path, 'w') as file:
             file.write(modified_string)
 
-        print("Table saved as", f"{year}_benchmark_EUandothers_partial_cooperation_with_decomposition.tex", "!")
+        print(
+            "Table saved as",
+            f"{year}_benchmark_EUandothers_partial_cooperation_with_decomposition_CO_{carve_outs}.tex", "!"
+        )
 
     def benchmark_EUandothers_partial_cooperation_with_different_carve_outs(self, year):
 
@@ -2447,7 +2937,7 @@ class TaxDeficitResults:
 
         # --- Building the table
 
-        CbC_Countries = list(calculator_longtermCO.oecd['Parent jurisdiction (alpha-3 code)'].unique())
+        # CbC_Countries = list(calculator_longtermCO.oecd['Parent jurisdiction (alpha-3 code)'].unique())
 
         # Computing tax deficits without carve-outs
         (
@@ -2641,18 +3131,28 @@ class TaxDeficitResults:
                     bold_row = ' & '.join(['\\textit{' + cell + '}' for cell in cells]) + ' \\\\\n'
                     modified_string = modified_string.replace(row, '\\midrule\n' + '\\hskip 10pt ' + bold_row)
 
-        path = os.path.join(self.output_folder, f"{year}_benchmark_EUandothers_partial_cooperation_with_different_carve_outs.tex")
+        path = os.path.join(
+            self.output_folder,
+            f"{year}_benchmark_EUandothers_partial_cooperation_with_different_carve_outs.tex"
+        )
 
         with open(path, 'w') as file:
             file.write(modified_string)
 
         print("Table saved as", f"{year}_benchmark_EUandothers_partial_cooperation_with_different_carve_outs.tex", "!")
 
-    def benchmark_EUandothers_partial_cooperation_with_different_min_rates(self, year):
+    def benchmark_EUandothers_partial_cooperation_with_different_min_rates(self, year, carve_outs='long_term'):
 
         # --- Loading required data
 
-        calculator_longtermCO = self.load_benchmark_data_with_LT_carve_outs(year)
+        if carve_outs == 'long_term':
+            calculator = self.load_benchmark_data_with_LT_carve_outs(year)
+
+        elif carve_outs == 'none':
+            calculator = self.load_benchmark_data_without_carve_outs(year)
+
+        else:
+            raise Exception('This table can only be produced with long-term carve-outs or no carve-outs at all.')
 
         # --- Listing countries implementing Pillar Two
 
@@ -2674,12 +3174,12 @@ class TaxDeficitResults:
 
         # --- Building the table
 
-        CbC_Countries = list(calculator_longtermCO.oecd['Parent jurisdiction (alpha-3 code)'].unique())
+        # CbC_Countries = list(calculator.oecd['Parent jurisdiction (alpha-3 code)'].unique())
 
         # Computing tax deficits with a 15% minimum rate
         (
             selected_tax_deficits, _, _
-        ) = calculator_longtermCO.compute_selected_intermediary_scenario_gain(
+        ) = calculator.compute_selected_intermediary_scenario_gain(
             countries_implementing=countries_implementing,
             minimum_ETR=0.15,
             among_countries_implementing=False,
@@ -2703,7 +3203,7 @@ class TaxDeficitResults:
         # Computing tax deficits with a 20% minimum rate
         (
             selected_tax_deficits, _, _
-        ) = calculator_longtermCO.compute_selected_intermediary_scenario_gain(
+        ) = calculator.compute_selected_intermediary_scenario_gain(
             countries_implementing=countries_implementing,
             minimum_ETR=0.2,
             among_countries_implementing=False,
@@ -2727,7 +3227,7 @@ class TaxDeficitResults:
         # Computing tax deficits with a 25% minimum rate
         (
             selected_tax_deficits, _, _
-        ) = calculator_longtermCO.compute_selected_intermediary_scenario_gain(
+        ) = calculator.compute_selected_intermediary_scenario_gain(
             countries_implementing=countries_implementing,
             minimum_ETR=0.25,
             among_countries_implementing=False,
@@ -2751,7 +3251,7 @@ class TaxDeficitResults:
         # Computing tax deficits with a 30% minimum rate
         (
             selected_tax_deficits, _, _
-        ) = calculator_longtermCO.compute_selected_intermediary_scenario_gain(
+        ) = calculator.compute_selected_intermediary_scenario_gain(
             countries_implementing=countries_implementing,
             minimum_ETR=0.3,
             among_countries_implementing=False,
@@ -2782,8 +3282,8 @@ class TaxDeficitResults:
         )
 
         # Determining each country's category (and ultimately the position in the table)
-        extract['IS_EU'] = extract['CODE'].isin(calculator_longtermCO.eu_27_country_codes)
-        extract['IS_NON_EU'] = ~extract['CODE'].isin(calculator_longtermCO.eu_27_country_codes)
+        extract['IS_EU'] = extract['CODE'].isin(calculator.eu_27_country_codes)
+        extract['IS_NON_EU'] = ~extract['CODE'].isin(calculator.eu_27_country_codes)
 
         extract['CATEGORY'] = extract.apply(lambda row: 1 if row['IS_EU'] else 2, axis=1)
 
@@ -2897,26 +3397,40 @@ class TaxDeficitResults:
                     bold_row = ' & '.join(['\\textit{' + cell + '}' for cell in cells]) + ' \\\\\n'
                     modified_string = modified_string.replace(row, '\\midrule\n' + '\\hskip 10pt ' + bold_row)
 
-        path = os.path.join(self.output_folder, f"{year}_benchmark_EUandothers_partial_cooperation_with_minimum_rates.tex")
+        path = os.path.join(
+            self.output_folder,
+            f"{year}_benchmark_EUandothers_partial_cooperation_with_minimum_rates_CO_{carve_outs}.tex"
+        )
 
         with open(path, 'w') as file:
             file.write(modified_string)
 
-        print("Table saved as", f"{year}_benchmark_EUandothers_partial_cooperation_with_minimum_rates.tex", "!")
+        print(
+            "Table saved as",
+            f"{year}_benchmark_EUandothers_partial_cooperation_with_minimum_rates_CO_{carve_outs}.tex",
+            "!"
+        )
 
-    def benchmark_unilateral_with_decomposition(self, year):
+    def benchmark_unilateral_with_decomposition(self, year, carve_outs='long_term'):
 
         # --- Loading required data
 
-        calculator_longtermCO = self.load_benchmark_data_with_LT_carve_outs(year)
+        if carve_outs == 'long_term':
+            calculator = self.load_benchmark_data_with_LT_carve_outs(year)
+
+        elif carve_outs == 'none':
+            calculator = self.load_benchmark_data_without_carve_outs(year)
+
+        else:
+            raise Exception('This table can only be produced with long-term carve-outs or no carve-outs at all.')
 
         # --- Building the table
 
-        CbC_Countries = list(calculator_longtermCO.oecd['Parent jurisdiction (alpha-3 code)'].unique())
+        CbC_Countries = list(calculator.oecd['Parent jurisdiction (alpha-3 code)'].unique())
 
         (
             extract, details_directly_allocated, details_imputed_foreign, details_imputed_domestic
-        ) = calculator_longtermCO.compute_unilateral_scenario_revenue_gains(
+        ) = calculator.compute_unilateral_scenario_revenue_gains(
             full_own_tax_deficit=True,
             minimum_ETR=0.15,
             minimum_breakdown=60
@@ -2949,8 +3463,8 @@ class TaxDeficitResults:
         )
 
         # Determining each country's category (and ultimately the position in the table)
-        extract['IS_EU'] = extract['CODE'].isin(calculator_longtermCO.eu_27_country_codes)
-        extract['IS_TH'] = extract['CODE'].isin(calculator_longtermCO.tax_haven_country_codes)
+        extract['IS_EU'] = extract['CODE'].isin(calculator.eu_27_country_codes)
+        extract['IS_TH'] = extract['CODE'].isin(calculator.tax_haven_country_codes)
         extract['IS_CBC'] = extract['CODE'].isin(CbC_Countries)
 
         extract['CATEGORY'] = extract.apply(lambda row: 2 if row['IS_CBC'] else 3, axis=1)
@@ -3068,12 +3582,12 @@ class TaxDeficitResults:
                     bold_row = ' & '.join(['\\textit{' + cell + '}' for cell in cells]) + ' \\\\\n'
                     modified_string = modified_string.replace(row, '\\midrule\n' + '\\hskip 10pt ' + bold_row)
 
-        path = os.path.join(self.output_folder, f"{year}_benchmark_unilateral_with_decomposition.tex")
+        path = os.path.join(self.output_folder, f"{year}_benchmark_unilateral_with_decomposition_CO_{carve_outs}.tex")
 
         with open(path, 'w') as file:
             file.write(modified_string)
 
-        print("Table saved as", f"{year}_benchmark_unilateral_with_decomposition.tex", "!")
+        print("Table saved as", f"{year}_benchmark_unilateral_with_decomposition_CO_{carve_outs}.tex", "!")
 
     def benchmark_unilateral_with_different_carve_outs(self, year):
 
@@ -3278,18 +3792,25 @@ class TaxDeficitResults:
 
         print("Table saved as", f"{year}_benchmark_unilateral_with_different_carve_outs.tex", "!")
 
-    def benchmark_unilateral_with_different_min_rates(self, year):
+    def benchmark_unilateral_with_different_min_rates(self, year, carve_outs='long_term'):
 
         # --- Loading required data
 
-        calculator_longtermCO = self.load_benchmark_data_with_LT_carve_outs(year)
+        if carve_outs == 'long_term':
+            calculator = self.load_benchmark_data_with_LT_carve_outs(year)
+
+        elif carve_outs == 'none':
+            calculator = self.load_benchmark_data_without_carve_outs(year)
+
+        else:
+            raise Exception('This table can only be produced with long-term carve-outs or no carve-outs at all.')
 
         # --- Building the table
 
-        CbC_Countries = list(calculator_longtermCO.oecd['Parent jurisdiction (alpha-3 code)'].unique())
+        CbC_Countries = list(calculator.oecd['Parent jurisdiction (alpha-3 code)'].unique())
 
         # Computing tax deficits with a 15% minimum rate
-        (tds, _, _, _) = calculator_longtermCO.compute_unilateral_scenario_revenue_gains(
+        (tds, _, _, _) = calculator.compute_unilateral_scenario_revenue_gains(
             full_own_tax_deficit=True,
             minimum_ETR=0.15,
             minimum_breakdown=60
@@ -3310,7 +3831,7 @@ class TaxDeficitResults:
         )
 
         # Computing tax deficits with a 20% minimum rate
-        (tds, _, _, _) = calculator_longtermCO.compute_unilateral_scenario_revenue_gains(
+        (tds, _, _, _) = calculator.compute_unilateral_scenario_revenue_gains(
             full_own_tax_deficit=True,
             minimum_ETR=0.2,
             minimum_breakdown=60
@@ -3331,7 +3852,7 @@ class TaxDeficitResults:
         )
 
         # Computing tax deficits with a 25% minimum rate
-        (tds, _, _, _) = calculator_longtermCO.compute_unilateral_scenario_revenue_gains(
+        (tds, _, _, _) = calculator.compute_unilateral_scenario_revenue_gains(
             full_own_tax_deficit=True,
             minimum_ETR=0.25,
             minimum_breakdown=60
@@ -3352,7 +3873,7 @@ class TaxDeficitResults:
         )
 
         # Computing tax deficits with a 30% minimum rate
-        (tds, _, _, _) = calculator_longtermCO.compute_unilateral_scenario_revenue_gains(
+        (tds, _, _, _) = calculator.compute_unilateral_scenario_revenue_gains(
             full_own_tax_deficit=True,
             minimum_ETR=0.3,
             minimum_breakdown=60
@@ -3382,8 +3903,8 @@ class TaxDeficitResults:
         )
 
         # Determining each country's category (and ultimately the position in the table)
-        extract['IS_EU'] = extract['CODE'].isin(calculator_longtermCO.eu_27_country_codes)
-        extract['IS_TH'] = extract['CODE'].isin(calculator_longtermCO.tax_haven_country_codes)
+        extract['IS_EU'] = extract['CODE'].isin(calculator.eu_27_country_codes)
+        extract['IS_TH'] = extract['CODE'].isin(calculator.tax_haven_country_codes)
         extract['IS_CBC'] = extract['CODE'].isin(CbC_Countries)
 
         extract['CATEGORY'] = extract.apply(lambda row: 2 if row['IS_CBC'] else 3, axis=1)
@@ -3498,26 +4019,33 @@ class TaxDeficitResults:
                     bold_row = ' & '.join(['\\textit{' + cell + '}' for cell in cells]) + ' \\\\\n'
                     modified_string = modified_string.replace(row, '\\midrule\n' + '\\hskip 10pt ' + bold_row)
 
-        path = os.path.join(self.output_folder, f"{year}_benchmark_unilateral_with_minimum_rates.tex")
+        path = os.path.join(self.output_folder, f"{year}_benchmark_unilateral_with_minimum_rates_CO_{carve_outs}.tex")
 
         with open(path, 'w') as file:
             file.write(modified_string)
 
-        print("Table saved as", f"{year}_benchmark_unilateral_with_minimum_rates.tex", "!")
+        print("Table saved as", f"{year}_benchmark_unilateral_with_minimum_rates_CO_{carve_outs}.tex", "!")
 
-    def benchmark_fullapportionment_with_decomposition(self, year):
+    def benchmark_fullapportionment_with_decomposition(self, year, carve_outs='long_term'):
 
         # --- Loading required data
 
-        calculator_longtermCO = self.load_benchmark_data_with_LT_carve_outs(year)
+        if carve_outs == 'long_term':
+            calculator = self.load_benchmark_data_with_LT_carve_outs(year)
+
+        elif carve_outs == 'none':
+            calculator = self.load_benchmark_data_without_carve_outs(year)
+
+        else:
+            raise Exception('This table can only be produced with long-term carve-outs or no carve-outs at all.')
 
         # --- Building the table
 
-        CbC_Countries = list(calculator_longtermCO.oecd['Parent jurisdiction (alpha-3 code)'].unique())
+        CbC_Countries = list(calculator.oecd['Parent jurisdiction (alpha-3 code)'].unique())
 
         (
             extract, details_directly_allocated, details_imputed_foreign, details_imputed_domestic
-        ) = calculator_longtermCO.compute_unilateral_scenario_revenue_gains(
+        ) = calculator.compute_unilateral_scenario_revenue_gains(
             full_own_tax_deficit=False,
             minimum_ETR=0.15,
             minimum_breakdown=60
@@ -3550,8 +4078,8 @@ class TaxDeficitResults:
         )
 
         # Determining each country's category (and ultimately the position in the table)
-        extract['IS_EU'] = extract['CODE'].isin(calculator_longtermCO.eu_27_country_codes)
-        extract['IS_TH'] = extract['CODE'].isin(calculator_longtermCO.tax_haven_country_codes)
+        extract['IS_EU'] = extract['CODE'].isin(calculator.eu_27_country_codes)
+        extract['IS_TH'] = extract['CODE'].isin(calculator.tax_haven_country_codes)
         extract['IS_CBC'] = extract['CODE'].isin(CbC_Countries)
 
         extract['CATEGORY'] = extract.apply(lambda row: 2 if row['IS_CBC'] else 3, axis=1)
@@ -3669,12 +4197,15 @@ class TaxDeficitResults:
                     bold_row = ' & '.join(['\\textit{' + cell + '}' for cell in cells]) + ' \\\\\n'
                     modified_string = modified_string.replace(row, '\\midrule\n' + '\\hskip 10pt ' + bold_row)
 
-        path = os.path.join(self.output_folder, f"{year}_benchmark_fullapportionment_with_decomposition.tex")
+        path = os.path.join(
+            self.output_folder,
+            f"{year}_benchmark_fullapportionment_with_decomposition_CO_{carve_outs}.tex"
+        )
 
         with open(path, 'w') as file:
             file.write(modified_string)
 
-        print("Table saved as", f"{year}_fullapportionment_with_decomposition.tex", "!")
+        print("Table saved as", f"{year}_fullapportionment_with_decomposition_CO_{carve_outs}.tex", "!")
 
     def benchmark_fullapportionment_with_different_carve_outs(self, year):
 
@@ -3879,18 +4410,25 @@ class TaxDeficitResults:
 
         print("Table saved as", f"{year}_benchmark_fullapportionment_with_different_carve_outs.tex", "!")
 
-    def benchmark_fullapportionment_with_different_min_rates(self, year):
+    def benchmark_fullapportionment_with_different_min_rates(self, year, carve_outs='long_term'):
 
         # --- Loading required data
 
-        calculator_longtermCO = self.load_benchmark_data_with_LT_carve_outs(year)
+        if carve_outs == 'long_term':
+            calculator = self.load_benchmark_data_with_LT_carve_outs(year)
+
+        elif carve_outs == 'none':
+            calculator = self.load_benchmark_data_without_carve_outs(year)
+
+        else:
+            raise Exception('This table can only be produced with long-term carve-outs or no carve-outs at all.')
 
         # --- Building the table
 
-        CbC_Countries = list(calculator_longtermCO.oecd['Parent jurisdiction (alpha-3 code)'].unique())
+        CbC_Countries = list(calculator.oecd['Parent jurisdiction (alpha-3 code)'].unique())
 
         # Computing tax deficits with a 15% minimum rate
-        (tds, _, _, _) = calculator_longtermCO.compute_unilateral_scenario_revenue_gains(
+        (tds, _, _, _) = calculator.compute_unilateral_scenario_revenue_gains(
             full_own_tax_deficit=False,
             minimum_ETR=0.15,
             minimum_breakdown=60
@@ -3911,7 +4449,7 @@ class TaxDeficitResults:
         )
 
         # Computing tax deficits with a 20% minimum rate
-        (tds, _, _, _) = calculator_longtermCO.compute_unilateral_scenario_revenue_gains(
+        (tds, _, _, _) = calculator.compute_unilateral_scenario_revenue_gains(
             full_own_tax_deficit=False,
             minimum_ETR=0.2,
             minimum_breakdown=60
@@ -3932,7 +4470,7 @@ class TaxDeficitResults:
         )
 
         # Computing tax deficits with a 25% minimum rate
-        (tds, _, _, _) = calculator_longtermCO.compute_unilateral_scenario_revenue_gains(
+        (tds, _, _, _) = calculator.compute_unilateral_scenario_revenue_gains(
             full_own_tax_deficit=False,
             minimum_ETR=0.25,
             minimum_breakdown=60
@@ -3953,7 +4491,7 @@ class TaxDeficitResults:
         )
 
         # Computing tax deficits with a 30% minimum rate
-        (tds, _, _, _) = calculator_longtermCO.compute_unilateral_scenario_revenue_gains(
+        (tds, _, _, _) = calculator.compute_unilateral_scenario_revenue_gains(
             full_own_tax_deficit=False,
             minimum_ETR=0.3,
             minimum_breakdown=60
@@ -3983,8 +4521,8 @@ class TaxDeficitResults:
         )
 
         # Determining each country's category (and ultimately the position in the table)
-        extract['IS_EU'] = extract['CODE'].isin(calculator_longtermCO.eu_27_country_codes)
-        extract['IS_TH'] = extract['CODE'].isin(calculator_longtermCO.tax_haven_country_codes)
+        extract['IS_EU'] = extract['CODE'].isin(calculator.eu_27_country_codes)
+        extract['IS_TH'] = extract['CODE'].isin(calculator.tax_haven_country_codes)
         extract['IS_CBC'] = extract['CODE'].isin(CbC_Countries)
 
         extract['CATEGORY'] = extract.apply(lambda row: 2 if row['IS_CBC'] else 3, axis=1)
@@ -4099,9 +4637,130 @@ class TaxDeficitResults:
                     bold_row = ' & '.join(['\\textit{' + cell + '}' for cell in cells]) + ' \\\\\n'
                     modified_string = modified_string.replace(row, '\\midrule\n' + '\\hskip 10pt ' + bold_row)
 
-        path = os.path.join(self.output_folder, f"{year}_benchmark_fullapportionment_with_minimum_rates.tex")
+        path = os.path.join(
+            self.output_folder,
+            f"{year}_benchmark_fullapportionment_with_minimum_rates_CO_{carve_outs}.tex"
+        )
 
         with open(path, 'w') as file:
             file.write(modified_string)
 
-        print("Table saved as", f"{year}_benchmark_fullapportionment_with_minimum_rates.tex", "!")
+        print("Table saved as", f"{year}_benchmark_fullapportionment_with_minimum_rates_CO_{carve_outs}.tex", "!")
+
+    def illustrate_EU_partial_cooperation_scenario(self, year, carve_outs='long_term'):
+
+        # --- Loading required data
+
+        if carve_outs == 'long_term':
+            calculator = self.load_benchmark_data_with_LT_carve_outs(year)
+
+        elif carve_outs == 'none':
+            calculator = self.load_benchmark_data_without_carve_outs(year)
+
+        else:
+            raise Exception('This table can only be produced with long-term carve-outs or no carve-outs at all.')
+
+        # --- Building the table
+
+        (
+            selected_tax_deficits, details_directly_allocated, details_imputed
+        ) = calculator.compute_selected_intermediary_scenario_gain(
+            countries_implementing=calculator.eu_27_country_codes,
+            minimum_ETR=0.15,
+            among_countries_implementing=False,
+            minimum_breakdown=60
+        )
+
+        for df, col, expression, label in zip(
+            [details_directly_allocated, details_imputed],
+            ['directly_allocated', 'imputed'],
+            ['directly allocated', 'allocated via an imputation'],
+            ['alloc', 'imput']
+        ):
+
+            df = df[df['JUR'] == 'FRA'].copy()
+
+            df = df[
+                ['Parent jurisdiction (whitespaces cleaned)', 'tax_deficit', 'SHARE_KEY', col]
+            ].copy()
+
+            df['Partner country'] = 'France'
+
+            df['tax_deficit'] /= 10**6
+            df['SHARE_KEY'] *= 100
+            df[col] /= 10**6
+
+            df = df.rename(
+                columns={
+                    'Parent jurisdiction (whitespaces cleaned)': 'Parent country',
+                    'tax_deficit': 'Total tax deficit (m. EUR)',
+                    'SHARE_KEY': 'Share of the allocation key (%)',
+                    col: 'French revenue gains (m. EUR)'
+                }
+            )
+
+            df = df[
+                [
+                    'Parent country', 'Partner country',
+                    'Total tax deficit (m. EUR)',
+                    'Share of the allocation key (%)',
+                    'French revenue gains (m. EUR)'
+                ]
+            ].copy()
+
+            df = df.sort_values(by='Parent country')
+
+            # Adding the EU sub-total
+            total_df = pd.DataFrame(df.sum()).T
+
+            total_df.loc[0, "Parent country"] = "Total"
+            total_df.loc[0, "Partner country"] = ""
+            total_df.loc[0, "Total tax deficit (m. EUR)"] = ""
+            total_df.loc[0, "Share of the allocation key (%)"] = ""
+
+            df = pd.concat([df, total_df])
+
+            # Rounding
+            df = df.applymap(lambda x: str(round(x, 1)) if isinstance(x, float) else x).reset_index(drop=True)
+
+            df = df.applymap(
+                lambda x: {"China (People's Republic of)": "China", "Hong Kong, China": "Hong Kong"}.get(x, x)
+            ).reset_index(drop=True)
+
+            # --- Formatting and saving the table hereby obtained
+            print("Formatting and saving the table.")
+
+            str_table = df.to_latex(
+                column_format='llK{2.5cm}K{2.5cm}K{2.5cm}',
+                index=False,
+                longtable=True,
+                caption=f"Revenue gains {expression} to France in the EU partial cooperation scenario ({year})",
+                label=f"tab:benchmarkpartialEU{year}focusFRA{label}"
+            )
+
+            modified_string = str_table
+
+            for col_name in df.columns:
+                col_name = col_name.replace('%', '\\%')
+                modified_string = modified_string.replace(col_name + ' ', '\\textbf{' + col_name + '} ')
+
+            patterns = [r'(Total &(.+?)\\\\\n)']
+
+            for i, pattern in enumerate(patterns):
+
+                match = re.search(pattern, modified_string, re.DOTALL)
+
+                if match:
+                    row = match.group(1)
+                    cells = [cell.strip() for cell in row.split('&')]
+                    cells[-1] = cells[-1].replace('\\', '')
+
+                    bold_row = ' & '.join(['\\textbf{' + cell + '}' for cell in cells]) + ' \\\\\n'
+                    modified_string = modified_string.replace(row, '\\midrule\n' + bold_row)
+
+            path = os.path.join(self.output_folder, f"{year}_benchmark_EU_partial_cooperation_focusFRA_{label}.tex")
+
+            with open(path, 'w') as file:
+                file.write(modified_string)
+
+            print("Table saved as", f"{year}_benchmark_EU_partial_cooperation_focusFRA_{label}.tex", "!")
