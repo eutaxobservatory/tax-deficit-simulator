@@ -135,7 +135,7 @@ def test_partial_cooperation_scenario_1():
                 assert merged_df[merged_df['ALLOCATED_TAX_DEFICIT'].isnull()]['TAX_DEFICIT_total'].sum() == 0
                 assert merged_df[merged_df['RELATIVE_DIFF'].isnull()]['ALLOCATED_TAX_DEFICIT'].sum() == 0
                 assert merged_df[merged_df['RELATIVE_DIFF'].isnull()]['TAX_DEFICIT_total'].sum() == 0
-                assert (merged_df['RELATIVE_DIFF'] > 0.0000001).sum() == 0
+                assert (np.abs(merged_df['RELATIVE_DIFF']) > 0.0000001).sum() == 0
 
                 merged_df = merged_df.drop(columns=['ALLOCATED_TAX_DEFICIT', 'COLLECTING_COUNTRY_NAME_y', 'DIFF'])
 
@@ -152,7 +152,7 @@ def test_partial_cooperation_scenario_1():
                 assert temp_df[temp_df['total'].isnull()]['TAX_DEFICIT_total'].sum() == 0
                 assert temp_df[temp_df['RELATIVE_DIFF'].isnull()]['total'].sum() == 0
                 assert temp_df[temp_df['RELATIVE_DIFF'].isnull()]['TAX_DEFICIT_total'].sum() == 0
-                assert (temp_df['RELATIVE_DIFF'] > 0.0000001).sum() == 0
+                assert (np.abs(temp_df['RELATIVE_DIFF']) > 0.0000001).sum() == 0
 
 
 def test_partial_cooperation_scenario_2():
@@ -218,10 +218,10 @@ def test_partial_cooperation_scenario_2():
                     minimum_rate=rate,
                     QDMTT_incl_domestic=[],
                     QDMTT_excl_domestic=[],
-                    IIR_incl_domestic=calculator.eu_27_country_codes,
-                    IIR_excl_domestic=non_EU_implementing_countries,
-                    UTPR_incl_domestic=calculator.eu_27_country_codes,
-                    UTPR_excl_domestic=non_EU_implementing_countries,
+                    IIR_incl_domestic=calculator.eu_27_country_codes + non_EU_implementing_countries,
+                    IIR_excl_domestic=[],
+                    UTPR_incl_domestic=calculator.eu_27_country_codes + non_EU_implementing_countries,
+                    UTPR_excl_domestic=[],
                     stat_rate_condition_for_UTPR=False,
                     weight_UPR=weight_UPR,
                     weight_assets=weight_assets,
@@ -288,7 +288,7 @@ def test_partial_cooperation_scenario_2():
                 assert merged_df[merged_df['ALLOCATED_TAX_DEFICIT'].isnull()]['TAX_DEFICIT_total'].sum() == 0
                 assert merged_df[merged_df['RELATIVE_DIFF'].isnull()]['ALLOCATED_TAX_DEFICIT'].sum() == 0
                 assert merged_df[merged_df['RELATIVE_DIFF'].isnull()]['TAX_DEFICIT_total'].sum() == 0
-                assert (merged_df['RELATIVE_DIFF'] > 0.0000001).sum() == 0
+                assert (np.abs(merged_df['RELATIVE_DIFF']) > 0.0000001).sum() == 0
 
                 merged_df = merged_df.drop(columns=['ALLOCATED_TAX_DEFICIT', 'COLLECTING_COUNTRY_NAME_y', 'DIFF'])
 
@@ -305,7 +305,7 @@ def test_partial_cooperation_scenario_2():
                 assert temp_df[temp_df['total'].isnull()]['TAX_DEFICIT_total'].sum() == 0
                 assert temp_df[temp_df['RELATIVE_DIFF'].isnull()]['total'].sum() == 0
                 assert temp_df[temp_df['RELATIVE_DIFF'].isnull()]['TAX_DEFICIT_total'].sum() == 0
-                assert (temp_df['RELATIVE_DIFF'] > 0.0000001).sum() == 0
+                assert (np.abs(temp_df['RELATIVE_DIFF']) > 0.0000001).sum() == 0
 
 
 def test_partial_cooperation_scenario_3():
@@ -437,7 +437,7 @@ def test_partial_cooperation_scenario_3():
                 assert merged_df[merged_df['ALLOCATED_TAX_DEFICIT'].isnull()]['TAX_DEFICIT_total'].sum() == 0
                 assert merged_df[merged_df['RELATIVE_DIFF'].isnull()]['ALLOCATED_TAX_DEFICIT'].sum() == 0
                 assert merged_df[merged_df['RELATIVE_DIFF'].isnull()]['TAX_DEFICIT_total'].sum() == 0
-                assert (merged_df['RELATIVE_DIFF'] > 0.0000001).sum() == 0
+                assert (np.abs(merged_df['RELATIVE_DIFF']) > 0.0000001).sum() == 0
 
                 merged_df = merged_df.drop(columns=['ALLOCATED_TAX_DEFICIT', 'COLLECTING_COUNTRY_NAME_y', 'DIFF'])
 
@@ -454,7 +454,7 @@ def test_partial_cooperation_scenario_3():
                 assert temp_df[temp_df['total'].isnull()]['TAX_DEFICIT_total'].sum() == 0
                 assert temp_df[temp_df['RELATIVE_DIFF'].isnull()]['total'].sum() == 0
                 assert temp_df[temp_df['RELATIVE_DIFF'].isnull()]['TAX_DEFICIT_total'].sum() == 0
-                assert (temp_df['RELATIVE_DIFF'] > 0.0000001).sum() == 0
+                assert (np.abs(temp_df['RELATIVE_DIFF']) > 0.0000001).sum() == 0
 
 
 def test_partial_cooperation_scenario_4():
@@ -520,10 +520,10 @@ def test_partial_cooperation_scenario_4():
                     minimum_rate=rate,
                     QDMTT_incl_domestic=[],
                     QDMTT_excl_domestic=[],
-                    IIR_incl_domestic=calculator.eu_27_country_codes,
-                    IIR_excl_domestic=non_EU_implementing_countries,
-                    UTPR_incl_domestic=calculator.eu_27_country_codes,
-                    UTPR_excl_domestic=non_EU_implementing_countries,
+                    IIR_incl_domestic=calculator.eu_27_country_codes + non_EU_implementing_countries,
+                    IIR_excl_domestic=[],
+                    UTPR_incl_domestic=calculator.eu_27_country_codes + non_EU_implementing_countries,
+                    UTPR_excl_domestic=[],
                     stat_rate_condition_for_UTPR=False,
                     weight_UPR=weight_UPR,
                     weight_assets=weight_assets,
@@ -590,7 +590,7 @@ def test_partial_cooperation_scenario_4():
                 assert merged_df[merged_df['ALLOCATED_TAX_DEFICIT'].isnull()]['TAX_DEFICIT_total'].sum() == 0
                 assert merged_df[merged_df['RELATIVE_DIFF'].isnull()]['ALLOCATED_TAX_DEFICIT'].sum() == 0
                 assert merged_df[merged_df['RELATIVE_DIFF'].isnull()]['TAX_DEFICIT_total'].sum() == 0
-                assert (merged_df['RELATIVE_DIFF'] > 0.0000001).sum() == 0
+                assert (np.abs(merged_df['RELATIVE_DIFF']) > 0.0000001).sum() == 0
 
                 merged_df = merged_df.drop(columns=['ALLOCATED_TAX_DEFICIT', 'COLLECTING_COUNTRY_NAME_y', 'DIFF'])
 
@@ -607,7 +607,7 @@ def test_partial_cooperation_scenario_4():
                 assert temp_df[temp_df['total'].isnull()]['TAX_DEFICIT_total'].sum() == 0
                 assert temp_df[temp_df['RELATIVE_DIFF'].isnull()]['total'].sum() == 0
                 assert temp_df[temp_df['RELATIVE_DIFF'].isnull()]['TAX_DEFICIT_total'].sum() == 0
-                assert (temp_df['RELATIVE_DIFF'] > 0.0000001).sum() == 0
+                assert (np.abs(temp_df['RELATIVE_DIFF']) > 0.0000001).sum() == 0
 
 
 def test_partial_cooperation_scenario_stat_rate_cond():
@@ -731,7 +731,7 @@ def test_partial_cooperation_scenario_stat_rate_cond():
                 assert merged_df[merged_df['ALLOCATED_TAX_DEFICIT'].isnull()]['TAX_DEFICIT_total'].sum() == 0
                 assert merged_df[merged_df['RELATIVE_DIFF'].isnull()]['ALLOCATED_TAX_DEFICIT'].sum() == 0
                 assert merged_df[merged_df['RELATIVE_DIFF'].isnull()]['TAX_DEFICIT_total'].sum() == 0
-                assert (merged_df['RELATIVE_DIFF'] > 0.0000001).sum() == 0
+                assert (np.abs(merged_df['RELATIVE_DIFF']) > 0.0000001).sum() == 0
 
                 merged_df = merged_df.drop(columns=['ALLOCATED_TAX_DEFICIT', 'COLLECTING_COUNTRY_NAME_y', 'DIFF'])
 

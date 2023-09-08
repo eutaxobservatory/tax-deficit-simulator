@@ -71,7 +71,7 @@ def test_unilateral_scenario():
                 assert check_df[check_df['hq_gains'].isnull()]['hq_gains_repl'].sum() == 0
                 assert check_df[check_df['RELATIVE_DIFF'].isnull()]['hq_gains'].sum() == 0
                 assert check_df[check_df['RELATIVE_DIFF'].isnull()]['hq_gains_repl'].sum() == 0
-                assert (check_df['RELATIVE_DIFF'] > 0.0000001).sum() == 0
+                assert (np.abs(check_df['RELATIVE_DIFF']) > 0.0000001).sum() == 0
 
                 extract_df = unilateral_revenue_gains[unilateral_revenue_gains['total'] > 0].sample(3)
 
@@ -101,7 +101,7 @@ def test_unilateral_scenario():
 
                     diff1 = check1 - revenue_gains
                     relative_diff1 = diff1 / revenue_gains
-                    assert relative_diff1 <= 0.0000001
+                    assert np.abs(relative_diff1) <= 0.0000001
 
                     alternative_computation, _, _ = calculator.compute_selected_intermediary_scenario_gain(
                         countries_implementing=[country_code],
@@ -119,4 +119,4 @@ def test_unilateral_scenario():
 
                     diff2 = check2 - revenue_gains
                     relative_diff2 = diff2 / revenue_gains
-                    assert relative_diff2 <= 0.0000001
+                    assert np.abs(relative_diff2) <= 0.0000001

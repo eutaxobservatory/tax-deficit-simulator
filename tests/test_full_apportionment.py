@@ -60,7 +60,7 @@ def test_unilateral_scenario():
 
                 diff1 = total_revenue_gains - total_hq_revenue_gains
                 relative_diff1 = diff1 / total_hq_revenue_gains
-                assert relative_diff1 <= 0.0000001
+                assert np.abs(relative_diff1) <= 0.0000001
 
                 agg_output_df = calculator_noCO.allocate_bilateral_tax_deficits(
                     minimum_rate=rate,
@@ -82,7 +82,7 @@ def test_unilateral_scenario():
 
                 diff2 = total_revenue_gains_new_method1 - total_revenue_gains
                 relative_diff2 = diff2 / total_revenue_gains
-                assert relative_diff2 <= 0.0000001
+                assert np.abs(relative_diff2) <= 0.0000001
 
                 merged_df = agg_output_df.merge(
                     results_df[['Parent jurisdiction (alpha-3 code)', 'total']],
@@ -97,4 +97,4 @@ def test_unilateral_scenario():
                 assert merged_df[merged_df['ALLOCATED_TAX_DEFICIT'].isnull()]['total'].sum() == 0
                 assert merged_df[merged_df['RELATIVE_DIFF'].isnull()]['total'].sum() == 0
                 assert merged_df[merged_df['RELATIVE_DIFF'].isnull()]['ALLOCATED_TAX_DEFICIT'].sum() == 0
-                assert (merged_df['RELATIVE_DIFF'] > 0.0000001).sum() == 0
+                assert (np.abs(merged_df['RELATIVE_DIFF']) > 0.0000001).sum() == 0
