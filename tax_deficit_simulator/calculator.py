@@ -7678,6 +7678,7 @@ class TaxDeficitCalculator:
 
         return pd.DataFrame(output)
 
+
 if __name__ == '__main__':
 
     print("Command line use to be determined?")
