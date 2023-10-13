@@ -10,8 +10,8 @@ def test_unilateral_scenario():
 
     TDResults = TaxDeficitResults(output_folder="~/Desktop", load_online_data=False)
 
-    for year in [2018]:
     # for year in [2016, 2017, 2018]:
+    for year in [2018]:
 
         (
             calculator_noCO, calculator_firstyearCO, calculator_longtermCO
