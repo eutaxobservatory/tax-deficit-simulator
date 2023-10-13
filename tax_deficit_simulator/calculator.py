@@ -5542,12 +5542,18 @@ class TaxDeficitCalculator:
         if stat_rate_condition_for_UTPR:
 
             # Reading Tax Foundation's corporate income tax rates for 2022
-            stat_rates_2022 = pd.read_csv(
-                (
-                    "https://raw.githubusercontent.com/TaxFoundation/worldwide-corporate-tax-rates/"
-                    + "master/final_outputs/all_rates_2022.csv"
+            if self.fetch_data_online:
+
+                stat_rates_2022 = pd.read_csv(
+                    (
+                        "https://raw.githubusercontent.com/TaxFoundation/worldwide-corporate-tax-rates/"
+                        + "master/final_outputs/all_rates_2022.csv"
+                    )
                 )
-            )
+
+            else:
+
+                stat_rates_2022 = pd.read_csv(os.path.join(path_to_dir, "data", "all_rates_2022.csv"))
 
             # Adding the tax rate for the Marshall Islands based on that of the Micronesia Federation
             new_idx = len(stat_rates_2022)
