@@ -11,6 +11,7 @@ It also provides various utils for the "app.py" file, especially to add file dow
 import base64
 import os
 import json
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -21,11 +22,10 @@ import pandas as pd
 path_to_files = os.path.dirname(os.path.abspath(__file__))
 path_to_files = os.path.join(path_to_files, 'files')
 
+warnings.filterwarnings('ignore', category=UserWarning, module='openpyxl')
+
 # ----------------------------------------------------------------------------------------------------------------------
 # --- Utils for the calculator.py file
-
-# This list is valid for both 2016 and 2017 dataset
-COUNTRIES_WITH_MINIMUM_REPORTING = ['KOR', 'NLD', 'IRL', 'FIN']
 
 # Correspondences between the country names used in TWZ data files and in our own set of country codes
 country_name_corresp = {
@@ -132,7 +132,7 @@ def load_and_clean_twz_main_data(
         left_on='Country', right_on='NAME'
     ).drop(columns='NAME')
 
-    twz['Profits in all tax havens'] = twz[twz.columns[1:]].sum(axis=1)
+    twz['Profits in all tax havens'] = twz[twz.columns[1:-1]].sum(axis=1)
 
     twz['Profits in all tax havens (positive only)'] = twz[twz.columns[1:]].apply(
         lambda row: row.iloc[:-2][row.iloc[:-2] >= 0].sum(),
@@ -309,7 +309,7 @@ def load_and_clean_twz_CIT(path_to_excel_file, path_to_geographies):
     return twz
 
 
-def rename_partner_jurisdictions(row, use_case='normal'):
+def rename_partner_jurisdictions(row, COUNTRIES_WITH_MINIMUM_REPORTING, use_case='normal'):
     """
     In the OECD data, each reporting country displays a line "Foreign Jurisdictions Total", which displays the sum of
     revenues, profits, corporate income taxes paid, etc. for the parent country across all foreign partner jurisdic-
