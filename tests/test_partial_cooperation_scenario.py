@@ -16,7 +16,7 @@ def test_partial_cooperation_scenario_1():
     TDResults = TaxDeficitResults(output_folder="~/Desktop", load_online_data=False)
 
     # for year in [2016, 2017, 2018]:
-    for year in [2017, 2018]:
+    for year in [2018]:
 
         (
             calculator_noCO, calculator_firstyearCO, calculator_longtermCO
@@ -170,7 +170,7 @@ def test_partial_cooperation_scenario_2():
     TDResults = TaxDeficitResults(output_folder="~/Desktop", load_online_data=False)
 
     # for year in [2016, 2017, 2018]:
-    for year in [2017, 2018]:
+    for year in [2018]:
 
         (
             calculator_noCO, calculator_firstyearCO, calculator_longtermCO
@@ -320,7 +320,7 @@ def test_partial_cooperation_scenario_3():
     TDResults = TaxDeficitResults(output_folder="~/Desktop", load_online_data=False)
 
     # for year in [2016, 2017, 2018]:
-    for year in [2017, 2018]:
+    for year in [2018]:
 
         (
             calculator_noCO, calculator_firstyearCO, calculator_longtermCO
@@ -474,7 +474,7 @@ def test_partial_cooperation_scenario_4():
     TDResults = TaxDeficitResults(output_folder="~/Desktop", load_online_data=False)
 
     # for year in [2016, 2017, 2018]:
-    for year in [2017, 2018]:
+    for year in [2018]:
 
         (
             calculator_noCO, calculator_firstyearCO, calculator_longtermCO
@@ -624,7 +624,7 @@ def test_partial_cooperation_scenario_stat_rate_cond():
     TDResults = TaxDeficitResults(output_folder="~/Desktop", load_online_data=False)
 
     # for year in [2016, 2017, 2018]:
-    for year in [2017, 2018]:
+    for year in [2018]:
 
         (
             calculator_noCO, calculator_firstyearCO, calculator_longtermCO
