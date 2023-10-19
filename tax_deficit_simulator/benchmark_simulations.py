@@ -862,7 +862,7 @@ if __name__ == '__main__':
         upgrade_to_2021=False
     )
 
-    FRA_result_3 = alternative_computation[
+    FRA_results_3 = alternative_computation[
         alternative_computation['Parent jurisdiction (alpha-3 code)'] == 'FRA'
     ].reset_index(drop=True).loc[0, 'total']
 

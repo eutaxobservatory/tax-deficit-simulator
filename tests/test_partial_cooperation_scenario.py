@@ -810,6 +810,7 @@ def test_partial_cooperation_scenario_stat_rate_cond_1():
                 ]:
                     assert (merged_df[col + '_x'] != merged_df[col + '_y']).sum() == 0
 
+
 def test_partial_cooperation_scenario_stat_rate_cond_2():
 
     # Additional "technical" test:
