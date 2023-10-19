@@ -316,6 +316,7 @@ def test_partial_cooperation_scenario_3():
     # Implementation of the deal solely by EU Member-States
     # They adopt an IIR including their domestic tax deficits
     # And a UTPR including foreign multinationals' domestic tax deficits
+    # UTPR collection however DOES NOT happen among implementing countries
 
     TDResults = TaxDeficitResults(output_folder="~/Desktop", load_online_data=False)
 
@@ -466,6 +467,7 @@ def test_partial_cooperation_scenario_4():
     # Implementation of the deal by EU Member-States and a list of adopting jurisdictions
     # They adopt an IIR including their domestic tax deficits
     # And a UTPR including foreign multinationals' domestic tax deficits
+    # UTPR collection however DOES NOT happen among implementing countries
 
     non_EU_implementing_countries = [
         'AUS', 'CYM', 'GGY', 'HKG', 'IMN', 'JPN', 'JEY', 'KOR', 'LIE', 'MYS', 'NZL', 'QAT', 'SGP', 'CHE', 'GBR'
@@ -614,12 +616,14 @@ def test_partial_cooperation_scenario_4():
                 assert (np.abs(temp_df['RELATIVE_DIFF']) > 0.0000001).sum() == 0
 
 
-def test_partial_cooperation_scenario_stat_rate_cond():
+def test_partial_cooperation_scenario_stat_rate_cond_1():
 
     # Scenario tested here:
     # Implementation of the deal solely by EU Member-States
     # They adopt an IIR including their domestic tax deficits
     # And a UTPR including foreign multinationals' domestic tax deficits
+    # UTPR collection of foreign multinationals' domestic tax deficits however subject to a safe harbor
+    # (Based on a statutory tax rate threshold of 20%)
 
     TDResults = TaxDeficitResults(output_folder="~/Desktop", load_online_data=False)
 
@@ -805,3 +809,93 @@ def test_partial_cooperation_scenario_stat_rate_cond():
                     'TAX_DEFICITcollected_through_foreign_IIR', 'TAX_DEFICITcollected_through_foreign_QDMTT',
                 ]:
                     assert (merged_df[col + '_x'] != merged_df[col + '_y']).sum() == 0
+
+def test_partial_cooperation_scenario_stat_rate_cond_2():
+
+    # Additional "technical" test:
+    # Implementation of the deal solely by EU Member-States
+    # They adopt an IIR including their domestic tax deficits
+    # And a UTPR including foreign multinationals' domestic tax deficits
+    # UTPR collection of foreign multinationals' domestic tax deficits however subject to a "fake" safe harbor
+    # (Based on a statutory tax rate threshold of 100%)
+
+    # We compare these results with the same scenario without any safe harbor
+
+    TDResults = TaxDeficitResults(output_folder="~/Desktop", load_online_data=False)
+
+    # for year in [2016, 2017, 2018]:
+    for year in [2018]:
+
+        (
+            calculator_noCO, calculator_firstyearCO, calculator_longtermCO
+        ) = TDResults.load_benchmark_data_for_all_carve_outs(year)
+
+        for calculator in [calculator_noCO, calculator_firstyearCO, calculator_longtermCO]:
+
+            for i in (0, 1):
+
+                if not i:
+
+                    weight_UPR = 1
+                    weight_assets = 0
+                    weight_employees = 0
+
+                else:
+
+                    weight_UPR = random.uniform(0, 2)
+                    weight_assets = random.uniform(0, 2)
+                    weight_employees = random.uniform(0, 2)
+
+                    print("Weight for UPR:", weight_UPR)
+                    print("Weight for assets:", weight_assets)
+                    print("Weight for employees:", weight_employees)
+
+                rate = random.uniform(0.15, 0.3)
+
+                print("Minimum effective tax rate:", rate)
+
+                agg_output_df = calculator.allocate_bilateral_tax_deficits(
+                    minimum_rate=rate,
+                    QDMTT_incl_domestic=[],
+                    QDMTT_excl_domestic=[],
+                    IIR_incl_domestic=calculator.eu_27_country_codes,
+                    IIR_excl_domestic=[],
+                    UTPR_incl_domestic=calculator.eu_27_country_codes,
+                    UTPR_excl_domestic=[],
+                    stat_rate_condition_for_UTPR=True,
+                    min_stat_rate_for_UTPR_safe_harbor=1,
+                    weight_UPR=weight_UPR,
+                    weight_assets=weight_assets,
+                    weight_employees=weight_employees,
+                    minimum_breakdown=60,
+                    among_countries_implementing=True,
+                    return_bilateral_details=False
+                )
+
+                agg_output_df_bis = calculator.allocate_bilateral_tax_deficits(
+                    minimum_rate=rate,
+                    QDMTT_incl_domestic=[],
+                    QDMTT_excl_domestic=[],
+                    IIR_incl_domestic=calculator.eu_27_country_codes,
+                    IIR_excl_domestic=[],
+                    UTPR_incl_domestic=calculator.eu_27_country_codes,
+                    UTPR_excl_domestic=[],
+                    stat_rate_condition_for_UTPR=False,
+                    weight_UPR=weight_UPR,
+                    weight_assets=weight_assets,
+                    weight_employees=weight_employees,
+                    minimum_breakdown=60,
+                    among_countries_implementing=True,
+                    return_bilateral_details=False
+                )
+
+                merged_df = agg_output_df.merge(agg_output_df_bis, how='outer', on='COLLECTING_COUNTRY_CODE')
+
+                merged_df['DIFF'] = merged_df['ALLOCATED_TAX_DEFICIT_x'] - merged_df['ALLOCATED_TAX_DEFICIT_y']
+                merged_df['RELATIVE_DIFF'] = merged_df['DIFF'] / merged_df['ALLOCATED_TAX_DEFICIT_y']
+
+                assert merged_df[merged_df['ALLOCATED_TAX_DEFICIT_x'].isnull()]['ALLOCATED_TAX_DEFICIT_y'].sum() == 0
+                assert merged_df[merged_df['ALLOCATED_TAX_DEFICIT_y'].isnull()]['ALLOCATED_TAX_DEFICIT_x'].sum() == 0
+                assert merged_df[merged_df['RELATIVE_DIFF'].isnull()]['ALLOCATED_TAX_DEFICIT_x'].sum() == 0
+                assert merged_df[merged_df['RELATIVE_DIFF'].isnull()]['ALLOCATED_TAX_DEFICIT_y'].sum() == 0
+                assert (np.abs(merged_df['RELATIVE_DIFF']) > 0.0000001).sum() == 0
