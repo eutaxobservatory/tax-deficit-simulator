@@ -13,14 +13,14 @@ setup(
     test_suite='tests',
     zip_safe=False,
     install_requires=[
-        "pip>=9"
-        "setuptools>=26"
-        "wheel>=0.29"
-        "pandas>=1.1.3"
-        "numpy>=1.18.5"
-        "scipy>=1.6.1"
-        "openpyxl>=3.0.7"
-        "pycountry==20.7.3"
+        "pip>=9",
+        "setuptools>=26",
+        "wheel>=0.29",
+        "pandas>=1.1.3",
+        "numpy>=1.18.5",
+        "scipy>=1.6.1",
+        "openpyxl>=3.0.7",
+        "pycountry==20.7.3",
     ],
     include_package_data=True,
     package_data={

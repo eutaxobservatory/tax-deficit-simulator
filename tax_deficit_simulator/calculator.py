@@ -1281,8 +1281,8 @@ class TaxDeficitCalculator:
             self.path_to_mean_earnings = online_data_paths['path_to_mean_earnings']
 
             # Path to TWZ data on profits booked in tax havens
-            url_base += 'TWZ/'
-            url_base += f'{str(self.year)}/'
+            url_base_TWZ = url_base + 'TWZ/'
+            url_base_TWZ += f'{str(self.year)}/'
             self.path_to_excel_file = url_base + 'TWZ.xlsx'
 
             # Path to TWZ data on profits booked domestically (with ETRs)
