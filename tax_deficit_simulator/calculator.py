@@ -171,6 +171,8 @@ class TaxDeficitCalculator:
         pond to assumptions taken in the methodology.
         """
 
+        self.fetch_data_online = fetch_data_online
+
         self.load_xchange_growth_rates()
 
         if year not in [2016, 2017, 2018]:
@@ -290,8 +292,6 @@ class TaxDeficitCalculator:
                 + " from the OECD's data and required the use of TWZ data (except for tax havens). Purely"
                 + " methodological detail to challenge our use of TWZ data."
             )
-
-        self.fetch_data_online = fetch_data_online
 
         if self.fetch_data_online:
             # URL to the list of EU-28 and EU-27 country codes from a .csv file
