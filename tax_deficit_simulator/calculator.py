@@ -5452,6 +5452,7 @@ class TaxDeficitCalculator:
         UTPR_excl_domestic,
         stat_rate_condition_for_UTPR=False,
         min_stat_rate_for_UTPR_safe_harbor=None,
+        utpr_safe_harbor_incl_foreign_profits=False,
         weight_UPR=1, weight_employees=0, weight_assets=0,
         minimum_breakdown=60,
         among_countries_implementing=True,
@@ -5542,35 +5543,114 @@ class TaxDeficitCalculator:
                 stat_rates_2022['ISO3'] == 'FSM'
             ]['Corporate Tax Rate'].unique()
 
+            stat_rates_2022['Corporate Tax Rate'] /= 100
+
+            # Reading OECD's statutory corporate income tax rates for 2023
+            stat_rates_2023 = pd.read_csv(os.path.join(path_to_dir, 'data', 'TABLE_II1_18102023223104057.csv'))
+
+            stat_rates_2023 = stat_rates_2023[stat_rates_2023['CORP_TAX'] == 'COMB_CIT_RATE'].copy()
+            stat_rates_2023 = stat_rates_2023[stat_rates_2023['YEA'] == 2023].copy()
+            stat_rates_2023 = stat_rates_2023[['COU', 'Value']].copy()
+
+            stat_rates_2023['Value'] /= 100
+
+            # Merging the 2022 and 2023 information
+            stat_rates_2022_2023 = stat_rates_2022.merge(
+                stat_rates_2023,
+                how='outer',
+                left_on='ISO3', right_on='COU',
+            )
+
+            stat_rates_2022_2023['ISO3'] = stat_rates_2022_2023['ISO3'].fillna(stat_rates_2022_2023['COU'])
+            stat_rates_2022_2023['Corporate Tax Rate'] = stat_rates_2022_2023['Value'].fillna(
+                stat_rates_2022_2023['Corporate Tax Rate']
+            )
+
+            stat_rates_2022_2023 = stat_rates_2022_2023.drop(columns=['COU', 'Value'])
+
+            self.stat_rates_2022 = stat_rates_2022.copy()
+            self.stat_rates_2023 = stat_rates_2023.copy()
+            self.stat_rates_2022_2023 = stat_rates_2022_2023.copy()
+
             # Adding statutory tax rates to the main DataFrame
             full_sample_df = full_sample_df.merge(
-                stat_rates_2022,
+                stat_rates_2022_2023,
                 how='left',
                 left_on='PARENT_COUNTRY_CODE', right_on='ISO3'
             ).drop(columns='ISO3').rename(columns={'Corporate Tax Rate': 'STAT_RATE'})
 
+            # full_sample_df['collected_through_domestic_UTPR'] = np.logical_and(
+            #     full_sample_df['PARENT_COUNTRY_CODE'] == full_sample_df['PARTNER_COUNTRY_CODE'],
+            #     np.logical_and(
+            #         ~full_sample_df['collected_through_domestic_QDMTT'],
+            #         np.logical_and(
+            #             ~full_sample_df['collected_through_domestic_IIR'],
+            #             full_sample_df['STAT_RATE'] < min_stat_rate_for_UTPR_safe_harbor
+            #         )
+            #     )
+            # )
+            # full_sample_df['collected_through_foreign_UTPR'] = np.logical_and(
+            #     full_sample_df['PARENT_COUNTRY_CODE'] != full_sample_df['PARTNER_COUNTRY_CODE'],
+            #     np.logical_and(
+            #         ~full_sample_df['collected_through_foreign_QDMTT'],
+            #         np.logical_and(
+            #             ~full_sample_df['collected_through_foreign_IIR'],
+            #             full_sample_df['STAT_RATE'] < min_stat_rate_for_UTPR_safe_harbor
+            #         )
+            #     )
+            # )
+
             full_sample_df['collected_through_domestic_UTPR'] = np.logical_and(
                 full_sample_df['PARENT_COUNTRY_CODE'] == full_sample_df['PARTNER_COUNTRY_CODE'],
                 np.logical_and(
-                    ~full_sample_df['collected_through_domestic_QDMTT'],
+                    ~full_sample_df['EDGE_CASE'].astype(bool),
                     np.logical_and(
-                        ~full_sample_df['collected_through_domestic_IIR'],
-                        full_sample_df['STAT_RATE'] < min_stat_rate_for_UTPR_safe_harbor
-                    )
-                )
-            )
-            full_sample_df['collected_through_foreign_UTPR'] = np.logical_and(
-                full_sample_df['PARENT_COUNTRY_CODE'] != full_sample_df['PARTNER_COUNTRY_CODE'],
-                np.logical_and(
-                    ~full_sample_df['collected_through_foreign_QDMTT'],
-                    np.logical_and(
-                        ~full_sample_df['collected_through_foreign_IIR'],
+                        full_sample_df[
+                            [
+                                'collected_through_foreign_QDMTT',
+                                'collected_through_domestic_QDMTT',
+                                'collected_through_domestic_IIR'
+                            ]
+                        ].sum(axis=1) == 0,
                         full_sample_df['STAT_RATE'] < min_stat_rate_for_UTPR_safe_harbor
                     )
                 )
             )
 
-            full_sample_df = full_sample_df.drop(columns=['STAT_RATE'])
+            if utpr_safe_harbor_incl_foreign_profits:
+
+                full_sample_df['collected_through_foreign_UTPR'] = np.logical_and(
+                    np.logical_or(
+                        full_sample_df['PARENT_COUNTRY_CODE'] != full_sample_df['PARTNER_COUNTRY_CODE'],
+                        full_sample_df['EDGE_CASE'].astype(bool)
+                    ),
+                    np.logical_and(
+                        full_sample_df[
+                            [
+                                'collected_through_foreign_QDMTT', 'collected_through_foreign_IIR',
+                                'collected_through_domestic_QDMTT', 'collected_through_domestic_IIR'
+                            ]
+                        ].sum(axis=1) == 0,
+                        full_sample_df['STAT_RATE'] < min_stat_rate_for_UTPR_safe_harbor
+                    )
+                )
+
+            else:
+
+                full_sample_df['collected_through_foreign_UTPR'] = np.logical_and(
+                    np.logical_or(
+                        full_sample_df['PARENT_COUNTRY_CODE'] != full_sample_df['PARTNER_COUNTRY_CODE'],
+                        full_sample_df['EDGE_CASE'].astype(bool)
+                    ),
+                    full_sample_df[
+                        [
+                            'collected_through_foreign_QDMTT', 'collected_through_foreign_IIR',
+                            'collected_through_domestic_QDMTT', 'collected_through_domestic_IIR'
+                        ]
+                    ].sum(axis=1) == 0
+                )
+
+            # full_sample_df = full_sample_df.drop(columns=['STAT_RATE'])
 
         else:
 
@@ -5705,18 +5785,21 @@ class TaxDeficitCalculator:
                 allocable_foreign_UTPR_TDs['RESCALING_FACTOR'] = 1 / allocable_foreign_UTPR_TDs['SHARE_KEY_TOTAL']
                 allocable_foreign_UTPR_TDs['SHARE_KEY'] *= allocable_foreign_UTPR_TDs['RESCALING_FACTOR']
 
-        allocable_domestic_UTPR_TDs = allocable_domestic_UTPR_TDs[
-            [
-                'PARENT_COUNTRY_CODE', 'PARTNER_COUNTRY_CODE',
-                'PARENT_COUNTRY_NAME', 'PARTNER_COUNTRY_NAME',
-                'PROFITS_BEFORE_TAX_POST_CO', 'ETR', 'SOURCE',
-                'IS_DOMESTIC', 'ETR_diff', 'TAX_DEFICIT',
-                'collected_through_domestic_QDMTT', 'collected_through_foreign_QDMTT',
-                'collected_through_domestic_IIR', 'collected_through_foreign_IIR',
-                'collected_through_foreign_UTPR', 'collected_through_domestic_UTPR',
-                'JUR', 'Partner Jurisdiction', 'SHARE_KEY',
-            ]
-        ].copy()
+        col_list = [
+            'PARENT_COUNTRY_CODE', 'PARTNER_COUNTRY_CODE',
+            'PARENT_COUNTRY_NAME', 'PARTNER_COUNTRY_NAME',
+            'PROFITS_BEFORE_TAX_POST_CO', 'ETR', 'SOURCE',
+            'IS_DOMESTIC', 'ETR_diff', 'TAX_DEFICIT',
+            'collected_through_domestic_QDMTT', 'collected_through_foreign_QDMTT',
+            'collected_through_domestic_IIR', 'collected_through_foreign_IIR',
+            'collected_through_foreign_UTPR', 'collected_through_domestic_UTPR',
+            'JUR', 'Partner Jurisdiction', 'SHARE_KEY', 'EDGE_CASE'
+        ]
+
+        if stat_rate_condition_for_UTPR:
+            col_list.append('STAT_RATE')
+
+        allocable_domestic_UTPR_TDs = allocable_domestic_UTPR_TDs[col_list].copy()
 
         allocable_domestic_UTPR_TDs = allocable_domestic_UTPR_TDs.rename(
             columns={
@@ -5726,18 +5809,21 @@ class TaxDeficitCalculator:
             }
         )
 
-        allocable_foreign_UTPR_TDs = allocable_foreign_UTPR_TDs[
-            [
-                'PARENT_COUNTRY_CODE', 'PARTNER_COUNTRY_CODE',
-                'PARENT_COUNTRY_NAME', 'PARTNER_COUNTRY_NAME',
-                'PROFITS_BEFORE_TAX_POST_CO', 'ETR', 'SOURCE',
-                'IS_DOMESTIC', 'ETR_diff', 'TAX_DEFICIT',
-                'collected_through_domestic_QDMTT', 'collected_through_foreign_QDMTT',
-                'collected_through_domestic_IIR', 'collected_through_foreign_IIR',
-                'collected_through_foreign_UTPR', 'collected_through_domestic_UTPR',
-                'JUR', 'Partner Jurisdiction', 'SHARE_KEY'
-            ]
-        ].copy()
+        col_list = [
+            'PARENT_COUNTRY_CODE', 'PARTNER_COUNTRY_CODE',
+            'PARENT_COUNTRY_NAME', 'PARTNER_COUNTRY_NAME',
+            'PROFITS_BEFORE_TAX_POST_CO', 'ETR', 'SOURCE',
+            'IS_DOMESTIC', 'ETR_diff', 'TAX_DEFICIT',
+            'collected_through_domestic_QDMTT', 'collected_through_foreign_QDMTT',
+            'collected_through_domestic_IIR', 'collected_through_foreign_IIR',
+            'collected_through_foreign_UTPR', 'collected_through_domestic_UTPR',
+            'JUR', 'Partner Jurisdiction', 'SHARE_KEY', 'EDGE_CASE'
+        ]
+
+        if stat_rate_condition_for_UTPR:
+            col_list.append('STAT_RATE')
+
+        allocable_foreign_UTPR_TDs = allocable_foreign_UTPR_TDs[col_list].copy()
 
         allocable_foreign_UTPR_TDs = allocable_foreign_UTPR_TDs.rename(
             columns={
