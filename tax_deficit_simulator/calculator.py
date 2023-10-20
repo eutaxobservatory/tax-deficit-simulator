@@ -5530,9 +5530,11 @@ class TaxDeficitCalculator:
             # Reading Tax Foundation's corporate income tax rates for 2022
             if self.fetch_data_online:
                 stat_rates_2022 = pd.read_csv(online_data_paths['path_to_2022_rates'])
+                stat_rates_2023 = pd.read_csv(online_data_paths['path_to_2023_rates'])
 
             else:
                 stat_rates_2022 = pd.read_csv(os.path.join(path_to_dir, "data", "all_rates_2022.csv"))
+                stat_rates_2023 = pd.read_csv(os.path.join(path_to_dir, 'data', 'TABLE_II1_18102023223104057.csv'))
 
             # Adding the tax rate for the Marshall Islands based on that of the Micronesia Federation
             new_idx = len(stat_rates_2022)
@@ -5545,9 +5547,7 @@ class TaxDeficitCalculator:
 
             stat_rates_2022['Corporate Tax Rate'] /= 100
 
-            # Reading OECD's statutory corporate income tax rates for 2023
-            stat_rates_2023 = pd.read_csv(os.path.join(path_to_dir, 'data', 'TABLE_II1_18102023223104057.csv'))
-
+            # Preparing OECD's statutory corporate income tax rates for 2023
             stat_rates_2023 = stat_rates_2023[stat_rates_2023['CORP_TAX'] == 'COMB_CIT_RATE'].copy()
             stat_rates_2023 = stat_rates_2023[stat_rates_2023['YEA'] == 2023].copy()
             stat_rates_2023 = stat_rates_2023[['COU', 'Value']].copy()

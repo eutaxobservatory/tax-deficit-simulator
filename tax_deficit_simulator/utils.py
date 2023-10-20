@@ -61,7 +61,8 @@ online_data_paths = {
     "path_to_xrates": url_base + "eurofxref-hist.csv",
     "path_to_WEO": url_base + "WEOOct2021group.xlsx",
     "path_to_employee_pop": url_base + "EMP_2EMP_SEX_STE_NB_A-filtered-2021-07-20.csv",
-    "path_to_mean_earnings": url_base + "EAR_4MTH_SEX_ECO_CUR_NB_A-filtered-2021-07-06.csv"
+    "path_to_mean_earnings": url_base + "EAR_4MTH_SEX_ECO_CUR_NB_A-filtered-2021-07-06.csv",
+    "path_to_2023_rates": url_base + "TABLE_II1_18102023223104057.csv",
     "path_to_2022_rates": path_to_2022_rates,
 }
 
