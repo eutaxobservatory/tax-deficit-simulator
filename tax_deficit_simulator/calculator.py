@@ -34,7 +34,7 @@ import warnings
 from tax_deficit_simulator.utils import rename_partner_jurisdictions, manage_overlap_with_domestic, \
     impute_missing_carve_out_values, load_and_clean_twz_main_data, load_and_clean_twz_CIT, \
     load_and_clean_bilateral_twz_data, get_avg_of_available_years, find_closest_year_available, \
-    apply_upgrade_factor, online_data_paths, get_growth_rates, country_name_corresp
+    apply_upgrade_factor, online_data_paths, get_growth_rates, country_name_corresp, url_base
 
 
 # ----------------------------------------------------------------------------------------------------------------------
