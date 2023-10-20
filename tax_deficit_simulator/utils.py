@@ -10,7 +10,6 @@ It also provides various utils for the "app.py" file, especially to add file dow
 
 import base64
 import os
-import json
 import warnings
 
 import numpy as np
@@ -37,13 +36,6 @@ country_name_corresp = {
     'Turks and Caicos': 'Turks and Caicos Islands',
     'Bahamas, The': 'Bahamas'
 }
-
-# Opening the JSON file with the paths to the data files stored online
-# path_to_data = os.path.dirname(os.path.abspath(__file__))
-# path_to_data = os.path.join(path_to_data, 'data')
-
-# with open(os.path.join(path_to_data, 'online_data_paths.json')) as file:
-#     online_data_paths = json.load(file)
 
 url_base = "https://raw.githubusercontent.com/eutaxobservatory/tax-deficit-simulator/master/tax_deficit_simulator/data/"
 
