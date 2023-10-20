@@ -1282,7 +1282,7 @@ class TaxDeficitCalculator:
 
             # Path to TWZ data on profits booked in tax havens
             url_base_TWZ = url_base + 'TWZ/'
-            url_base_TWZ_with_year += f'{str(self.year)}/'
+            url_base_TWZ_with_year = url_base_TWZ + f'{str(self.year)}/'
             self.path_to_excel_file = url_base_TWZ_with_year + 'TWZ.xlsx'
 
             # Path to TWZ data on profits booked domestically (with ETRs)
