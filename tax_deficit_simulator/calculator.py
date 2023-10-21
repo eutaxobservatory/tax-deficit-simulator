@@ -2670,6 +2670,8 @@ class TaxDeficitCalculator:
             calculator.load_clean_data()
             _ = calculator.compute_all_tax_deficits(minimum_ETR=minimum_ETR, upgrade_to_2021=upgrade_to_2021)
 
+            self.calculator_tmp = calculator
+
             countries_replaced = calculator.countries_replaced.copy()
 
             merged_df['tax_deficit_x_tax_haven_merged'] = merged_df.apply(
@@ -2970,8 +2972,9 @@ class TaxDeficitCalculator:
 
             else:
                 if (
-                    row['tax_deficit_x_tax_haven_TWZ'] > row['tax_deficit_x_tax_haven']
-                    and row['Parent jurisdiction (alpha-3 code)'] in countries_replaced
+                    # row['tax_deficit_x_tax_haven_TWZ'] > row['tax_deficit_x_tax_haven']
+                    # and row['Parent jurisdiction (alpha-3 code)'] in countries_replaced
+                    row['Parent jurisdiction (alpha-3 code)'] in countries_replaced
                 ):
                     if save_countries_replaced:
                         self.countries_replaced.append(row['Parent jurisdiction (alpha-3 code)'])
