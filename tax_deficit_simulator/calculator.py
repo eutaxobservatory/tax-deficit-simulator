@@ -34,7 +34,7 @@ import warnings
 from tax_deficit_simulator.utils import rename_partner_jurisdictions, manage_overlap_with_domestic, \
     impute_missing_carve_out_values, load_and_clean_twz_main_data, load_and_clean_twz_CIT, \
     load_and_clean_bilateral_twz_data, get_avg_of_available_years, find_closest_year_available, \
-    apply_upgrade_factor, online_data_paths, get_growth_rates, country_name_corresp
+    apply_upgrade_factor, online_data_paths, get_growth_rates, country_name_corresp, url_base
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -171,6 +171,8 @@ class TaxDeficitCalculator:
         pond to assumptions taken in the methodology.
         """
 
+        self.fetch_data_online = fetch_data_online
+
         self.load_xchange_growth_rates()
 
         if year not in [2016, 2017, 2018]:
@@ -290,8 +292,6 @@ class TaxDeficitCalculator:
                 + " from the OECD's data and required the use of TWZ data (except for tax havens). Purely"
                 + " methodological detail to challenge our use of TWZ data."
             )
-
-        self.fetch_data_online = fetch_data_online
 
         if self.fetch_data_online:
             # URL to the list of EU-28 and EU-27 country codes from a .csv file
@@ -622,7 +622,11 @@ class TaxDeficitCalculator:
 
         # --- Exchange rates
 
-        raw_data = pd.read_csv(os.path.join(path_to_data, "eurofxref-hist.csv"))
+        if self.fetch_data_online:
+            raw_data = pd.read_csv(online_data_paths['path_to_xrates'])
+
+        else:
+            raw_data = pd.read_csv(os.path.join(path_to_data, "eurofxref-hist.csv"))
 
         raw_data = raw_data[['Date', 'USD']].copy()
         raw_data['YEAR'] = raw_data['Date'].map(lambda date: date[:date.find('-')]).astype(int)
@@ -635,10 +639,11 @@ class TaxDeficitCalculator:
 
         # --- Growth rates
 
-        raw_data = pd.read_excel(
-            os.path.join(path_to_data, "WEOOct2021group.xlsx"),
-            engine="openpyxl"
-        )
+        if self.fetch_data_online:
+            raw_data = pd.read_excel(online_data_paths['path_to_WEO'], engine="openpyxl")
+
+        else:
+            raw_data = pd.read_excel(os.path.join(path_to_data, "WEOOct2021group.xlsx"), engine="openpyxl")
 
         raw_data = raw_data[raw_data["Country Group Name"].isin(["European Union", "World"])].copy()
         raw_data = raw_data[raw_data["Subject Descriptor"] == "Gross domestic product, current prices"].copy()
@@ -1272,17 +1277,16 @@ class TaxDeficitCalculator:
             self.path_to_statutory_rates = online_data_paths['path_to_statutory_rates']
 
             # Path to ILO data
-            # url_base = online_data_paths['url_base']
-            # file_name = f'iloearn{self.year - 2000}.csv'
-            # path_to_preprocessed_mean_wages = url_base + file_name
+            self.path_to_employee_pop = online_data_paths['path_to_employee_pop']
+            self.path_to_mean_earnings = online_data_paths['path_to_mean_earnings']
 
             # Path to TWZ data on profits booked in tax havens
-            url_base += 'TWZ/'
-            url_base += f'{str(self.year)}/'
-            self.path_to_excel_file = url_base + 'TWZ.xlsx'
+            url_base_TWZ = url_base + 'TWZ/'
+            url_base_TWZ_with_year = url_base_TWZ + f'{str(self.year)}/'
+            self.path_to_excel_file = url_base_TWZ_with_year + 'TWZ.xlsx'
 
             # Path to TWZ data on profits booked domestically (with ETRs)
-            path_to_twz_domestic = url_base + 'twz_domestic.xlsx'
+            path_to_twz_domestic = url_base_TWZ + 'TWZ2020AppendixTables.xlsx'
 
         else:
             # Path to OECD data, TWZ data on corporate income tax revenues and data on statutory tax rates
@@ -1310,12 +1314,6 @@ class TaxDeficitCalculator:
 
             self.employee_population = pd.read_csv(self.path_to_employee_pop)
             self.earnings = pd.read_csv(self.path_to_mean_earnings)
-
-            preprocessed_mean_wages = pd.read_csv(
-                os.path.join(path_to_dir, 'data', f'iloearn{self.year - 2000}.csv'),
-                delimiter=(';' if self.year == 2016 else ',')
-            )
-            self.preprocessed_mean_wages = preprocessed_mean_wages.copy()
 
             statutory_rates = pd.read_excel(self.path_to_statutory_rates, engine='openpyxl')
 
@@ -1849,13 +1847,6 @@ class TaxDeficitCalculator:
 
             self.oecd_temp = oecd.copy()
 
-            # We merge earnings data with country-by-country data on partner jurisdiction codes
-            # oecd = oecd.merge(
-            #     self.preprocessed_mean_wages[['partner2', 'earn']],
-            #     how='left',
-            #     left_on='Partner jurisdiction (alpha-3 code)', right_on='partner2'
-            # )
-
             # oecd.drop(columns=['partner2'], inplace=True)
 
             oecd.rename(
@@ -1864,11 +1855,6 @@ class TaxDeficitCalculator:
                 },
                 inplace=True
             )
-
-            # We clean the mean annual earnings column
-            # oecd['ANNUAL_VALUE'] = oecd['ANNUAL_VALUE'].map(
-            #     lambda x: x.replace(',', '.') if isinstance(x, str) else x
-            # ).astype(float)
 
             # We deduce the payroll proxy from the number of employees and from mean annual earnings
             oecd['PAYROLL'] = oecd['Number of Employees'] * oecd['ANNUAL_VALUE'] * (1 + self.payroll_premium / 100)
@@ -2305,12 +2291,11 @@ class TaxDeficitCalculator:
             self.twz = twz.copy()
             self.twz_domestic = twz_domestic.copy()
             self.twz_CIT = twz_CIT.copy()
-            self.mean_wages = preprocessed_mean_wages.copy()
 
         else:
 
             if self.carve_outs:
-                return oecd.copy(), twz.copy(), twz_domestic.copy(), twz_CIT.copy(), preprocessed_mean_wages.copy()
+                return oecd.copy(), twz.copy(), twz_domestic.copy(), twz_CIT.copy()
 
             else:
                 return oecd.copy(), twz.copy(), twz_domestic.copy(), twz_CIT.copy()
@@ -2685,6 +2670,8 @@ class TaxDeficitCalculator:
             calculator.load_clean_data()
             _ = calculator.compute_all_tax_deficits(minimum_ETR=minimum_ETR, upgrade_to_2021=upgrade_to_2021)
 
+            self.calculator_tmp = calculator
+
             countries_replaced = calculator.countries_replaced.copy()
 
             merged_df['tax_deficit_x_tax_haven_merged'] = merged_df.apply(
@@ -2985,8 +2972,9 @@ class TaxDeficitCalculator:
 
             else:
                 if (
-                    row['tax_deficit_x_tax_haven_TWZ'] > row['tax_deficit_x_tax_haven']
-                    and row['Parent jurisdiction (alpha-3 code)'] in countries_replaced
+                    # row['tax_deficit_x_tax_haven_TWZ'] > row['tax_deficit_x_tax_haven']
+                    # and row['Parent jurisdiction (alpha-3 code)'] in countries_replaced
+                    row['Parent jurisdiction (alpha-3 code)'] in countries_replaced
                 ):
                     if save_countries_replaced:
                         self.countries_replaced.append(row['Parent jurisdiction (alpha-3 code)'])
@@ -5543,12 +5531,13 @@ class TaxDeficitCalculator:
         if stat_rate_condition_for_UTPR:
 
             # Reading Tax Foundation's corporate income tax rates for 2022
-            stat_rates_2022 = pd.read_csv(
-                (
-                    "https://raw.githubusercontent.com/TaxFoundation/worldwide-corporate-tax-rates/"
-                    + "master/final_outputs/all_rates_2022.csv"
-                )
-            )
+            if self.fetch_data_online:
+                stat_rates_2022 = pd.read_csv(online_data_paths['path_to_2022_rates'])
+                stat_rates_2023 = pd.read_csv(online_data_paths['path_to_2023_rates'])
+
+            else:
+                stat_rates_2022 = pd.read_csv(os.path.join(path_to_dir, "data", "all_rates_2022.csv"))
+                stat_rates_2023 = pd.read_csv(os.path.join(path_to_dir, 'data', 'TABLE_II1_18102023223104057.csv'))
 
             # Adding the tax rate for the Marshall Islands based on that of the Micronesia Federation
             new_idx = len(stat_rates_2022)
@@ -5561,9 +5550,7 @@ class TaxDeficitCalculator:
 
             stat_rates_2022['Corporate Tax Rate'] /= 100
 
-            # Reading OECD's statutory corporate income tax rates for 2023
-            stat_rates_2023 = pd.read_csv(os.path.join(path_to_dir, 'data', 'TABLE_II1_18102023223104057.csv'))
-
+            # Preparing OECD's statutory corporate income tax rates for 2023
             stat_rates_2023 = stat_rates_2023[stat_rates_2023['CORP_TAX'] == 'COMB_CIT_RATE'].copy()
             stat_rates_2023 = stat_rates_2023[stat_rates_2023['YEA'] == 2023].copy()
             stat_rates_2023 = stat_rates_2023[['COU', 'Value']].copy()

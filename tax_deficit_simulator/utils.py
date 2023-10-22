@@ -10,7 +10,6 @@ It also provides various utils for the "app.py" file, especially to add file dow
 
 import base64
 import os
-import json
 import warnings
 
 import numpy as np
@@ -38,23 +37,25 @@ country_name_corresp = {
     'Bahamas, The': 'Bahamas'
 }
 
-# Opening the JSON file with the paths to the data files stored online
-# path_to_data = os.path.dirname(os.path.abspath(__file__))
-# path_to_data = os.path.join(path_to_data, 'data')
-
-# with open(os.path.join(path_to_data, 'online_data_paths.json')) as file:
-#     online_data_paths = json.load(file)
-
 url_base = "https://raw.githubusercontent.com/eutaxobservatory/tax-deficit-simulator/master/tax_deficit_simulator/data/"
 
+path_to_2022_rates = "https://raw.githubusercontent.com/TaxFoundation/worldwide-corporate-tax-rates"
+path_to_2022_rates += "/master/final_outputs/all_rates_2022.csv"
+
 online_data_paths = {
+    "url_base": url_base,
     "path_to_eu_countries": url_base + "listofeucountries_csv.csv",
     "path_to_tax_haven_list": url_base + "tax_haven_list.csv",
     "path_to_geographies": url_base + "geographies.csv",
     "path_to_twz_CIT": url_base + "twz_CIT.csv",
-    "path_to_statutory_rates": url_base + "statutory_rates.xlsx",
-    "url_base": url_base,
-    "path_to_oecd": url_base + "oecd.csv"
+    "path_to_statutory_rates": url_base + "KPMG_statutoryrates.xlsx",
+    "path_to_oecd": url_base + "oecd.csv",
+    "path_to_xrates": url_base + "eurofxref-hist.csv",
+    "path_to_WEO": url_base + "WEOOct2021group.xlsx",
+    "path_to_employee_pop": url_base + "EMP_2EMP_SEX_STE_NB_A-filtered-2021-07-20.csv",
+    "path_to_mean_earnings": url_base + "EAR_4MTH_SEX_ECO_CUR_NB_A-filtered-2021-07-06.csv",
+    "path_to_2023_rates": url_base + "TABLE_II1_18102023223104057.csv",
+    "path_to_2022_rates": path_to_2022_rates,
 }
 
 
