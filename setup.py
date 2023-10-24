@@ -34,6 +34,6 @@ setup(
     entry_points='''
         [console_scripts]
         benchmark_simulations=tax_deficit_simulator.scripts.benchmark_simulations:benchmark_simulations
-        Figure3_simulations=tax_deficit_simulator.scripts.Figure3_simulations:Figure3_simulations
+        waterfall_chart_simulations=tax_deficit_simulator.scripts.waterfall_chart_simulations:waterfall_chart_simulations
     '''
 )

@@ -16,7 +16,7 @@ from tax_deficit_simulator.results import TaxDeficitResults
 
 @click.command()
 @click.argument('path')
-def Figure3_simulations(path):
+def waterfall_chart_simulations(path):
 
     ####################################################################################################################
     # ------------------------------------------------------------------------------------------------------------------
