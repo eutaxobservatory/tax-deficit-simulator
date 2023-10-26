@@ -21,13 +21,15 @@ The code running the computations has been conceived as a Python package, making
 
 If you are using [pip](https://pip.pypa.io/en/stable/), you can run the following command to install the `tax_deficit_simulator` package:
 
-```pip install --upgrade git+https://github.com/pechouc/tax_deficit_simulator.git```
+```console
+pip install --upgrade git+https://github.com/pechouc/tax_deficit_simulator.git
+```
 
 ## Example of usage
 
 Once the package is installed, you can for instance reproduce our latest macro-computations of the paper with the `TaxDeficitCalculator` class. You can load the data locally or fetch them online as in:
 
-```
+```python
 from tax_deficit_simulator.calculator import TaxDeficitCalculator
 
 calculator = TaxDeficitCalculator(year=2018, China_treatment_2018='2017_CbCR', fetch_data_online=True)
@@ -35,14 +37,28 @@ calculator = TaxDeficitCalculator(year=2018, China_treatment_2018='2017_CbCR', f
 
 Before anything else, you will need to load and clean the data with the dedicated method. The command is the same regardless of whether you load the data from local files (`fetch_data_online` set to `False`) or online (`fetch_data_online` set to `True`).
 
-```
+```python
 calculator.load_clean_data()
 ```
 
 You can then run any computation in which you are interested. For instance, to simulate a multilateral implementation of the Income Inclusion Rule (IIR) at a 15% minimum tax rate in which only EU Member-States collect their multinationals' domestic tax deficits:
 
-```
+```python
 calculator.compute_all_tax_deficits(0.15)
+```
+
+## Scripts and commands
+
+You may also want to replicate our main computations. The installation of the Python package includes scripts (see the `scripts/` sub-folder) that facilitate such a replication. From a command line, you may simply run:
+
+```console
+benchmark_simulations Absolute/path/to/folder/where/to/store/outputs
+```
+
+The results required to build the waterfall chart of the executive summary can also be obtained with:
+
+```console
+waterfall_chart_simulations Absolute/path/to/folder/where/to/store/outputs
 ```
 
 ## Documentation
