@@ -21,6 +21,7 @@ setup(
         "scipy>=1.6.1",
         "openpyxl>=3.0.7",
         "pycountry==20.7.3",
+        "click>=7.1.2"
     ],
     include_package_data=True,
     package_data={
@@ -29,5 +30,10 @@ setup(
             "data/firm_level_cbcrs/*.csv",
             "data/TWZ/*.xlsx", "data/TWZ/2016/*.xlsx", "data/TWZ/2017/*.xlsx", "data/TWZ/2018/*.xlsx"
         ]
-    }
+    },
+    entry_points='''
+        [console_scripts]
+        benchmark_simulations=tax_deficit_simulator.scripts.benchmark_simulations:benchmark_simulations
+        waterfall_chart_simulations=tax_deficit_simulator.scripts.waterfall_chart_simulations:waterfall_chart_simulations
+    '''
 )

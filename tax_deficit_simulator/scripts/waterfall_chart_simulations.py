@@ -6,12 +6,17 @@ import os
 import numpy as np
 import pandas as pd
 
+import click
+
 # Project-specific imports
 
-from calculator import TaxDeficitCalculator
-from results import TaxDeficitResults
+from tax_deficit_simulator.calculator import TaxDeficitCalculator
+from tax_deficit_simulator.results import TaxDeficitResults
 
-if __name__ == '__main__':
+
+@click.command()
+@click.argument('path')
+def waterfall_chart_simulations(path):
 
     ####################################################################################################################
     # ------------------------------------------------------------------------------------------------------------------
@@ -86,9 +91,7 @@ if __name__ == '__main__':
     # Locating the output folder, additional utils
 
     TDResults = TaxDeficitResults(
-        output_folder=(
-            "/Users/Paul-Emmanuel/Desktop/EU Tax Observatory/4. Own Work/0. Tax Deficit/2018_update/outputs_Fig3"
-        ),
+        output_folder=path,
         load_online_data=False
     )
     TDResults.output_folder
