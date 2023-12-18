@@ -61,7 +61,6 @@ class TaxDeficitCalculator:
         sweden_treatment='adjust',
         belgium_treatment='replace',
         SGP_CYM_treatment='replace',
-        China_treatment_2018='none',
         use_adjusted_profits=True,
         average_ETRs=True,
         years_for_avg_ETRs=[2016, 2017, 2018],
@@ -270,21 +269,6 @@ class TaxDeficitCalculator:
                 + "include domestic observations (profits booked in the headquarter country) in the adjustment."
             )
 
-        if year == 2018 and China_treatment_2018 == 'none':
-            raise Exception(
-                "To run the computations on 2018 data, you must specify the approach for China,"
-                + " which does not provide aggregated country-by-country report statistics that year."
-            )
-
-        if (
-            year == 2018 or (average_ETRs and 2018 in years_for_avg_ETRs)
-        ) and China_treatment_2018 not in ['TWZ', '2017_CbCR']:
-            raise Exception(
-                "For 2018, two options are available to deal with the absence of Chinese CbCR data: either using TWZ"
-                + " data only ('TWZ') or using 2017 CbCR data ('2017_CbCR'), to which we apply the appropriate exchange"
-                + " rate and upgrade factor."
-            )
-
         if use_TWZ_for_CbCR_newcomers and year == 2016:
             raise Exception(
                 "The argument 'use_TWZ_for_CbCR_newcomers' can only be used as of 2017. If it is set to True, we do as"
@@ -379,8 +363,6 @@ class TaxDeficitCalculator:
         # Source: European Central Bank
         xrates = self.xrates.set_index('year')
         self.USD_to_EUR = 1 / xrates.loc[self.year, 'usd']
-
-        self.China_treatment_2018 = China_treatment_2018
 
         if year == 2016:
 
@@ -497,10 +479,6 @@ class TaxDeficitCalculator:
             else:
                 self.sweden_adjustment_ratio = 1
 
-            if self.China_treatment_2018 == '2017_CbCR':
-                self.USD_to_EUR_2017 = 1 / xrates.loc[2017, 'usd']
-                self.multiplier_2017_2021 = GDP_growth_rates.loc['World', 'upreur2117']
-
             if self.belgium_treatment == 'adjust':
                 self.belgium_partners_for_adjustment = ['GBR', 'NLD']
                 self.belgium_years_for_adjustment = [2016, 2017]
@@ -579,11 +557,6 @@ class TaxDeficitCalculator:
         if self.de_minimis_exclusion:
             self.exclusion_threshold_revenues = 10 * 10**6 / self.USD_to_EUR
             self.exclusion_threshold_profits = 1 * 10**6 / self.USD_to_EUR
-
-            if self.year == 2018 and self.China_treatment_2018 == '2017_CbCR':
-
-                self.exclusion_threshold_revenues_China = 10 * 10**6 / self.USD_to_EUR_2017
-                self.exclusion_threshold_profits_China = 1 * 10**6 / self.USD_to_EUR_2017
 
         self.behavioral_responses = behavioral_responses
 
@@ -1062,7 +1035,6 @@ class TaxDeficitCalculator:
                     add_AUT_AUT_row=False,
                     average_ETRs=False,
                     fetch_data_online=self.fetch_data_online,
-                    China_treatment_2018=self.China_treatment_2018
                 ).sweden_adjustment_ratio
                 for year in self.years_for_avg_ETRs
             }
@@ -1466,14 +1438,6 @@ class TaxDeficitCalculator:
 
             self.extended_adjustment_ratio = (adj_sweden_profits + adj_profits) / (sweden_profits + profits)
 
-        # Dealing with the case of China in 2018 if relevant
-        if self.year == 2018 and self.China_treatment_2018 == "2017_CbCR":
-
-            oecd['Year'] = oecd.apply(
-                lambda row: 2018 if row['COU'] == 'CHN' and row['Year'] == 2017 else row['Year'],
-                axis=1
-            )
-
         # Removing newcomers if relevant
         if self.use_TWZ_for_CbCR_newcomers:
 
@@ -1760,24 +1724,8 @@ class TaxDeficitCalculator:
         # We apply - if relevant - the de minimis exclusion based on revenue and profit thresholds
         if self.de_minimis_exclusion:
 
-            if self.year == 2018 and self.China_treatment_2018 == '2017_CbCR':
-
-                revenue_threshold = oecd['Parent jurisdiction (alpha-3 code)'].map(
-                    lambda country_code: {
-                        'CHN': self.exclusion_threshold_revenues_China
-                    }.get(country_code, self.exclusion_threshold_revenues)
-                )
-
-                profit_threshold = oecd['Parent jurisdiction (alpha-3 code)'].map(
-                    lambda country_code: {
-                        'CHN': self.exclusion_threshold_profits_China
-                    }.get(country_code, self.exclusion_threshold_profits)
-                )
-
-            else:
-
-                revenue_threshold = self.exclusion_threshold_revenues
-                profit_threshold = self.exclusion_threshold_profits
+            revenue_threshold = self.exclusion_threshold_revenues
+            profit_threshold = self.exclusion_threshold_profits
 
             mask_revenues = (oecd['Total Revenues'] >= revenue_threshold)
             mask_profits = (oecd['Profit (Loss) before Income Tax'] >= profit_threshold)
@@ -2340,7 +2288,6 @@ class TaxDeficitCalculator:
                 sweden_treatment=self.sweden_treatment,
                 belgium_treatment=self.belgium_treatment,
                 SGP_CYM_treatment=self.SGP_CYM_treatment,
-                China_treatment_2018=self.China_treatment_2018,
                 use_adjusted_profits=self.use_adjusted_profits,
                 average_ETRs=self.average_ETRs_bool,
                 years_for_avg_ETRs=self.years_for_avg_ETRs,
@@ -2454,7 +2401,6 @@ class TaxDeficitCalculator:
                 sweden_treatment=self.sweden_treatment,
                 belgium_treatment=self.belgium_treatment,
                 SGP_CYM_treatment=self.SGP_CYM_treatment,
-                China_treatment_2018=self.China_treatment_2018,
                 use_adjusted_profits=self.use_adjusted_profits,
                 average_ETRs=self.average_ETRs_bool,
                 years_for_avg_ETRs=self.years_for_avg_ETRs,
@@ -2664,7 +2610,6 @@ class TaxDeficitCalculator:
                 sweden_treatment=self.sweden_treatment,
                 belgium_treatment=self.belgium_treatment,
                 SGP_CYM_treatment=self.SGP_CYM_treatment,
-                China_treatment_2018=self.China_treatment_2018,
                 use_TWZ_for_CbCR_newcomers=self.use_TWZ_for_CbCR_newcomers,
             )
             calculator.load_clean_data()
@@ -2830,32 +2775,10 @@ class TaxDeficitCalculator:
         for column_name in merged_df.columns[2:]:
 
             if upgrade_to_2021:
-
-                if self.year == 2018 and self.China_treatment_2018 == "2017_CbCR":
-
-                    multiplier = merged_df['Parent jurisdiction (alpha-3 code)'] == 'CHN'
-                    multiplier *= self.USD_to_EUR_2017 * self.multiplier_2017_2021
-                    multiplier = multiplier.map(
-                        lambda x: self.USD_to_EUR * self.multiplier_2021 if x == 0 else x
-                    )
-
-                else:
-
-                    multiplier = self.USD_to_EUR * self.multiplier_2021
+                multiplier = self.USD_to_EUR * self.multiplier_2021
 
             else:
-
-                if self.year == 2018 and self.China_treatment_2018 == "2017_CbCR":
-
-                    multiplier = merged_df['Parent jurisdiction (alpha-3 code)'] == 'CHN'
-
-                    multiplier *= self.growth_rates.set_index('CountryGroupName').loc['World', 'uprusd1817']
-
-                    multiplier = multiplier.map(lambda x: 1 if x == 0 else x)
-
-                else:
-
-                    multiplier = 1
+                multiplier = 1
 
             merged_df[column_name] = merged_df[column_name] * multiplier
 
@@ -3309,17 +3232,7 @@ class TaxDeficitCalculator:
         # - Theresa's method
         if upgrade_non_havens:
 
-            if self.year == 2018 and self.China_treatment_2018 == "2017_CbCR":
-
-                multiplier = headquarter_collects_scenario['Parent jurisdiction (alpha-3 code)'] == 'CHN'
-                multiplier *= self.USD_to_EUR_2017 * self.multiplier_2017_2021
-                multiplier = multiplier.map(
-                    lambda x: self.USD_to_EUR * self.multiplier_2021 if x == 0 else x
-                )
-
-            else:
-
-                multiplier = self.USD_to_EUR * self.multiplier_2021
+            multiplier = self.USD_to_EUR * self.multiplier_2021
 
             headquarter_collects_scenario['tax_deficit'] /= multiplier
 
@@ -3411,17 +3324,7 @@ class TaxDeficitCalculator:
         # --- Finalising the tax deficit computations
 
         # Currency conversion and upgrade to 2021
-        if self.year == 2018 and self.China_treatment_2018 == '2017_CbCR':
-
-            multiplier = full_sample['PARENT_COUNTRY_CODE'] == 'CHN'
-            multiplier *= self.multiplier_2017_2021 * self.USD_to_EUR_2017
-            multiplier = multiplier.map(
-                lambda x: self.multiplier_2021 * self.USD_to_EUR if x == 0 else x
-            )
-
-        else:
-
-            multiplier = self.multiplier_2021 * self.USD_to_EUR
+        multiplier = self.multiplier_2021 * self.USD_to_EUR
 
         full_sample['TAX_DEFICIT'] *= multiplier
 
@@ -3464,13 +3367,6 @@ class TaxDeficitCalculator:
 
         # Focusing on the full sample (including loss-making entities)
         oecd = oecd[oecd['PAN'] == 'PANELA'].copy()
-
-        if self.year == 2018 and self.China_treatment_2018 == '2017_CbCR':
-            extract_China = oecd[np.logical_and(oecd['YEA'] == 2017, oecd['COU'] == 'CHN')].copy()
-            extract_China['YEA'] += 1
-
-            oecd = oecd[~np.logical_and(oecd['YEA'] == 2018, oecd['COU'] == 'CHN')].copy()
-            oecd = pd.concat([oecd, extract_China], axis=0)
 
         oecd = oecd[oecd['YEA'] == self.year].copy()
 
@@ -3558,13 +3454,6 @@ class TaxDeficitCalculator:
 
         # Focusing on the full sample (including loss-making entities)
         oecd = oecd[oecd['PAN'] == 'PANELA'].copy()
-
-        if self.year == 2018 and self.China_treatment_2018 == '2017_CbCR':
-            extract_China = oecd[np.logical_and(oecd['YEA'] == 2017, oecd['COU'] == 'CHN')].copy()
-            extract_China['YEA'] += 1
-
-            oecd = oecd[~np.logical_and(oecd['YEA'] == 2018, oecd['COU'] == 'CHN')].copy()
-            oecd = pd.concat([oecd, extract_China], axis=0)
 
         oecd = oecd[oecd['YEA'] == self.year].copy()
 
@@ -3742,72 +3631,6 @@ class TaxDeficitCalculator:
         ).reset_index().rename(columns={'JUR': 'Parent jurisdiction (alpha-3 code)'})
 
         # Allocating the tax deficits that are not directly allocable
-        # Alternative approach?
-        # sales_mapping = available_allocation_keys.copy()
-
-        # if not among_countries_implementing:
-
-        #     domestic_extract = sales_mapping[sales_mapping['COU'] == sales_mapping['JUR']].copy()
-
-        #     avg_domestic_share = (
-        #         share_UPR * domestic_extract['UPR'].sum() / sales_mapping['UPR'].sum()
-        #         + share_employees * domestic_extract['EMPLOYEES'].sum() / sales_mapping['EMPLOYEES'].sum()
-        #         + share_assets * domestic_extract['ASSETS'].sum() / sales_mapping['ASSETS'].sum()
-        #     )
-
-        # sales_mapping['IS_FOREIGN'] = sales_mapping['COU'] != sales_mapping['JUR']
-
-        # sales_mapping['UPR_x_IS_FOREIGN'] = sales_mapping['UPR'] * sales_mapping['IS_FOREIGN']
-        # sales_mapping['EMPLOYEES_x_IS_FOREIGN'] = sales_mapping['EMPLOYEES'] * sales_mapping['IS_FOREIGN']
-        # sales_mapping['ASSETS_x_IS_FOREIGN'] = sales_mapping['ASSETS'] * sales_mapping['IS_FOREIGN']
-
-        # if self.year == 2018 and self.China_treatment_2018 == "2017_CbCR":
-
-        #     multiplier = sales_mapping['COU'] == 'CHN'
-        #     multiplier *= self.growth_rates.set_index("CountryGroupName").loc['World', 'uprusd1817']
-        #     multiplier = multiplier.map(lambda x: {0: 1}.get(x, x))
-
-        # else:
-
-        #     multiplier = 1
-
-        # sales_mapping['UPR_x_IS_FOREIGN'] *= multiplier
-        # sales_mapping['EMPLOYEES_x_IS_FOREIGN'] *= multiplier
-        # sales_mapping['ASSETS_x_IS_FOREIGN'] *= multiplier
-
-        # sales_mapping = sales_mapping.groupby(
-        #     ['JUR', 'Partner Jurisdiction']
-        # ).sum()[
-        #     ['UPR_x_IS_FOREIGN', 'EMPLOYEES_x_IS_FOREIGN', 'ASSETS_x_IS_FOREIGN']
-        # ].reset_index()
-
-        # sales_mapping = sales_mapping.rename(
-        #     columns={col: col.replace('_x_IS_FOREIGN', '') for col in sales_mapping.columns}
-        # )
-
-        # for col in ['UPR', 'EMPLOYEES', 'ASSETS']:
-
-        #     sales_mapping[f'{col}_TOTAL'] = sales_mapping[col].sum()
-        #     sales_mapping[f'SHARE_{col}'] = sales_mapping[col] / sales_mapping[f'{col}_TOTAL']
-
-        # sales_mapping['SHARE_KEY'] = (
-        #     share_UPR * sales_mapping['SHARE_UPR']
-        #     + share_employees * sales_mapping['SHARE_EMPLOYEES']
-        #     + share_assets * sales_mapping['SHARE_ASSETS']
-        # )
-
-        # avg_allocation_keys = sales_mapping[['JUR', 'Partner Jurisdiction', 'SHARE_KEY']].copy()
-
-        # if not among_countries_implementing:
-
-        #     avg_allocation_keys['SHARE_KEY'] *= (1 - avg_domestic_share)
-
-        #     domestic_extract = other_non_implementing_TDs.copy()
-        #     domestic_extract['JUR'] = domestic_extract['Parent jurisdiction (alpha-3 code)']
-        #     domestic_extract['Partner Jurisdiction'] = domestic_extract['Parent jurisdiction (whitespaces cleaned)']
-        #     domestic_extract['SHARE_KEY'] = avg_domestic_share
-
-        # Allocating the tax deficits that are not directly allocable
         avg_allocation_keys = {'JUR': [], 'SHARE_KEY': []}
 
         sales_mapping = available_allocation_keys.drop(
@@ -3826,17 +3649,6 @@ class TaxDeficitCalculator:
         # We extend this set to countries implementing the UTPR but never reported as partners in the data
         # They will get a share of allocation key of 0 and thus 0 revenue gains (except if we have them as parents)
         iteration = np.union1d(iteration, countries_implementing)
-
-        # if among_countries_implementing:
-        #     iteration = countries_implementing.copy()
-        # else:
-        #     iteration = np.union1d(
-        #         np.union1d(
-        #             tax_deficits['Parent jurisdiction (alpha-3 code)'].unique(),
-        #             self.oecd['Partner jurisdiction (alpha-3 code)'].unique()
-        #         ),
-        #         self.oecd['Parent jurisdiction (alpha-3 code)'].unique()
-        #     )
 
         for country in iteration:
 
@@ -5080,7 +4892,6 @@ class TaxDeficitCalculator:
                 sweden_treatment=self.sweden_treatment,
                 belgium_treatment=self.belgium_treatment,
                 SGP_CYM_treatment=self.SGP_CYM_treatment,
-                China_treatment_2018=self.China_treatment_2018,
                 use_adjusted_profits=self.use_adjusted_profits,
                 average_ETRs=self.average_ETRs_bool,
                 years_for_avg_ETRs=self.years_for_avg_ETRs,
@@ -6014,114 +5825,6 @@ class TaxDeficitCalculator:
         )
         # avg_allocation_keys['SHARE_UPR'] = avg_allocation_keys['SHARE_UPR']
 
-        # We re-scale the average allocation keys so that they sum to 1:
-        #   - over the set of implementing countries if among_countries_implementing is True;
-        #   - else over the set of all partner jurisdictions.
-        # if among_countries_implementing:
-        #     print(
-        #         "Before the re-scaling of the average allocation keys, they sum to:",
-        #         avg_allocation_keys_foreign['SHARE_KEY'].sum()
-        #     )
-        #     if avg_allocation_keys_foreign['SHARE_KEY'].sum() > 0:
-        #         rescaling_factor = 1 / avg_allocation_keys_foreign['SHARE_KEY'].sum()
-        #     else:
-        #         rescaling_factor = 1
-        #     avg_allocation_keys_foreign['SHARE_KEY'] *= rescaling_factor
-
-        #     avg_allocation_keys_foreign = avg_allocation_keys_foreign[
-        #         avg_allocation_keys_foreign['JUR'].isin(UTPR_incl_domestic + UTPR_excl_domestic)
-        #     ].copy()
-
-        # Alternative approach for determining average allocation keys?
-        # if not among_countries_implementing:
-
-        #     sales_mapping = available_allocation_keys_domestic.copy()
-
-        #     domestic_extract = sales_mapping[sales_mapping['COU'] == sales_mapping['JUR']].copy()
-
-        #     avg_domestic_share = (
-        #         share_UPR * domestic_extract['UPR'].sum() / sales_mapping['UPR'].sum()
-        #         + share_employees * domestic_extract['EMPLOYEES'].sum() / sales_mapping['EMPLOYEES'].sum()
-        #         + share_assets * domestic_extract['ASSETS'].sum() / sales_mapping['ASSETS'].sum()
-        #     )
-
-        # avg_allocation_keys = {}
-
-        # for UTPR_type, sales_mapping in zip(
-        #     ['domestic', 'foreign'],
-        #     [available_allocation_keys_domestic.copy(), available_allocation_keys_foreign.copy()]
-        # ):
-
-        #     sales_mapping['IS_FOREIGN'] = sales_mapping['COU'] != sales_mapping['JUR']
-
-        #     sales_mapping['UPR_x_IS_FOREIGN'] = sales_mapping['UPR'] * sales_mapping['IS_FOREIGN']
-        #     sales_mapping['EMPLOYEES_x_IS_FOREIGN'] = sales_mapping['EMPLOYEES'] * sales_mapping['IS_FOREIGN']
-        #     sales_mapping['ASSETS_x_IS_FOREIGN'] = sales_mapping['ASSETS'] * sales_mapping['IS_FOREIGN']
-
-        #     if self.year == 2018 and self.China_treatment_2018 == "2017_CbCR":
-
-        #         multiplier = sales_mapping['COU'] == 'CHN'
-        #         multiplier *= self.growth_rates.set_index("CountryGroupName").loc['World', 'uprusd1817']
-        #         multiplier = multiplier.map(lambda x: {0: 1}.get(x, x))
-
-        #     else:
-
-        #         multiplier = 1
-
-        #     sales_mapping['UPR_x_IS_FOREIGN'] *= multiplier
-        #     sales_mapping['EMPLOYEES_x_IS_FOREIGN'] *= multiplier
-        #     sales_mapping['ASSETS_x_IS_FOREIGN'] *= multiplier
-
-        #     sales_mapping['UPR_x_IS_FOREIGN'] = sales_mapping['UPR_x_IS_FOREIGN'].astype(float)
-        #     sales_mapping['EMPLOYEES_x_IS_FOREIGN'] = sales_mapping['EMPLOYEES_x_IS_FOREIGN'].astype(float)
-        #     sales_mapping['ASSETS_x_IS_FOREIGN'] = sales_mapping['ASSETS_x_IS_FOREIGN'].astype(float)
-
-        #     sales_mapping = sales_mapping.groupby(
-        #         ['JUR', 'Partner Jurisdiction']
-        #     ).sum()[
-        #         ['UPR_x_IS_FOREIGN', 'EMPLOYEES_x_IS_FOREIGN', 'ASSETS_x_IS_FOREIGN']
-        #     ].reset_index()
-
-        #     sales_mapping = sales_mapping.rename(
-        #         columns={col: col.replace('_x_IS_FOREIGN', '') for col in sales_mapping.columns}
-        #     )
-
-        #     for col in ['UPR', 'EMPLOYEES', 'ASSETS']:
-
-        #         sales_mapping[f'{col}_TOTAL'] = sales_mapping[col].sum()
-        #         sales_mapping[f'SHARE_{col}'] = sales_mapping[col] / sales_mapping[f'{col}_TOTAL']
-
-        #     sales_mapping['SHARE_KEY'] = (
-        #         share_UPR * sales_mapping['SHARE_UPR']
-        #         + share_employees * sales_mapping['SHARE_EMPLOYEES']
-        #         + share_assets * sales_mapping['SHARE_ASSETS']
-        #     )
-
-        #     avg_allocation_keys[UTPR_type] = sales_mapping[['JUR', 'Partner Jurisdiction', 'SHARE_KEY']].copy()
-
-        # avg_allocation_keys_domestic = avg_allocation_keys['domestic'].copy()
-        # avg_allocation_keys_foreign = avg_allocation_keys['foreign'].copy()
-
-        # if not among_countries_implementing:
-
-        #     avg_allocation_keys_domestic['SHARE_KEY'] *= (1 - avg_domestic_share)
-        #     avg_allocation_keys_foreign['SHARE_KEY'] *= (1 - avg_domestic_share)
-
-        #     domestic_UTPR_domestic_extract = other_domestic_UTPR_TDs.copy()
-        #     foreign_UTPR_domestic_extract = other_foreign_UTPR_TDs.copy()
-
-        #     domestic_UTPR_domestic_extract['JUR'] = domestic_UTPR_domestic_extract['PARENT_COUNTRY_CODE'].values
-        #     domestic_UTPR_domestic_extract['Partner Jurisdiction'] = domestic_UTPR_domestic_extract[
-        #         'PARENT_COUNTRY_NAME'
-        #     ].values
-        #     domestic_UTPR_domestic_extract['SHARE_KEY'] = avg_domestic_share
-
-        #     foreign_UTPR_domestic_extract['JUR'] = foreign_UTPR_domestic_extract['PARENT_COUNTRY_CODE'].values
-        #     foreign_UTPR_domestic_extract['Partner Jurisdiction'] = foreign_UTPR_domestic_extract[
-        #         'PARENT_COUNTRY_NAME'
-        #     ].values
-        #     foreign_UTPR_domestic_extract['SHARE_KEY'] = avg_domestic_share
-
         avg_allocation_keys_domestic['TEMP_KEY'] = 1
         other_domestic_UTPR_TDs['TEMP_KEY'] = 1
 
@@ -6378,17 +6081,6 @@ class TaxDeficitCalculator:
 
         if not return_bilateral_details:
 
-            if self.year == 2018 and self.China_treatment_2018 == '2017_CbCR':
-
-                multiplier = self.growth_rates.set_index('CountryGroupName').loc['World', 'uprusd1817']
-
-                multiplier = full_sample_df['PARENT_COUNTRY_CODE'].map(
-                    lambda x: {'CHN': multiplier}.get(x, 1)
-                )
-
-                for col in ['PROFITS_BEFORE_TAX_POST_CO', 'TAX_DEFICIT', 'ALLOCATED_TAX_DEFICIT']:
-                    full_sample_df[col] *= multiplier
-
             return full_sample_df.groupby(
                 ['COLLECTING_COUNTRY_CODE']
             ).agg(
@@ -6446,17 +6138,7 @@ class TaxDeficitCalculator:
         ).drop(columns=['Country', 'Country (alpha-3 code)'])
 
         # We bring back the tax deficit estimated to 2016 USD (from 2021 EUR)
-        if self.year == 2018 and self.China_treatment_2018 == '2017_CbCR':
-
-            multiplier = merged_df['Parent jurisdiction (alpha-3 code)'] == 'CHN'
-            multiplier *= self.multiplier_2017_2021 * self.USD_to_EUR_2017
-            multiplier = multiplier.map(
-                lambda x: self.multiplier_2021 * self.USD_to_EUR if x == 0 else x
-            )
-
-        else:
-
-            multiplier = self.multiplier_2021 * self.USD_to_EUR
+        multiplier = self.multiplier_2021 * self.USD_to_EUR
 
         merged_df['tax_deficit_15'] /= (merged_df['CIT revenue'] * multiplier / 100)
 
@@ -7080,7 +6762,6 @@ class TaxDeficitCalculator:
             sweden_treatment=self.sweden_treatment,
             belgium_treatment=self.belgium_treatment,
             SGP_CYM_treatment=self.SGP_CYM_treatment,
-            China_treatment_2018=self.China_treatment_2018,
             use_adjusted_profits=self.use_adjusted_profits,
             average_ETRs=self.average_ETRs_bool,
             years_for_avg_ETRs=self.years_for_avg_ETRs,
@@ -7111,7 +6792,6 @@ class TaxDeficitCalculator:
             sweden_treatment=self.sweden_treatment,
             belgium_treatment=self.belgium_treatment,
             SGP_CYM_treatment=self.SGP_CYM_treatment,
-            China_treatment_2018=self.China_treatment_2018,
             use_adjusted_profits=self.use_adjusted_profits,
             average_ETRs=self.average_ETRs_bool,
             years_for_avg_ETRs=self.years_for_avg_ETRs,
