@@ -55,7 +55,7 @@ class TaxDeficitCalculator:
 
     def __init__(
         self,
-        year=2017,
+        year='last',
         alternative_imputation=True,
         non_haven_TD_imputation_selection='EU',
         sweden_treatment='adjust',
@@ -174,9 +174,12 @@ class TaxDeficitCalculator:
 
         self.load_xchange_growth_rates()
 
-        if year not in [2016, 2017, 2018]:
+        if year not in ['last', 2016, 2017, 2018, 2019, 2020]:
             # Due to the availability of country-by-country report statistics
-            raise Exception('Only three years can be chosen for macro computations: 2016, 2017, and 2018.')
+            raise Exception(
+                'Five years can be chosen for macro computations: 2016, 2017, 2018, 2019, or 2020.'
+                + ' In addition, one can choose to retain the last year in which countries appear in CbCR data.'
+            )
 
         if sweden_treatment not in ['exclude', 'adjust']:
             # See Appendix B of the October 2021 note
@@ -355,9 +358,13 @@ class TaxDeficitCalculator:
 
         self.use_TWZ_for_CbCR_newcomers = use_TWZ_for_CbCR_newcomers
 
-        self.sweden_adj_ratio_2016 = (342 - 200) / 342
-        self.sweden_adj_ratio_2017 = (512 - 266) / 512
-        self.sweden_adj_ratio_2018 = (49.1 - 29.8) / 49.1
+        self.sweden_adj_ratios = {
+            2016: (342 - 200) / 342,
+            2016: (512 - 266) / 512,
+            2016: (49.1 - 29.8) / 49.1,
+            2016: 1,
+            2016: 1,
+        }
 
         # Average exchange rate over the relevant year, extracted from benchmark computations run on Stata
         # Source: European Central Bank
@@ -395,7 +402,7 @@ class TaxDeficitCalculator:
             self.intermediary_scenario_imputation_ratio = 2
 
             if self.sweden_adjust:
-                self.sweden_adjustment_ratio = self.sweden_adj_ratio_2016
+                self.sweden_adjustment_ratio = self.sweden_adj_ratios[year]
 
             else:
                 self.sweden_adjustment_ratio = 1
@@ -432,7 +439,7 @@ class TaxDeficitCalculator:
             self.intermediary_scenario_imputation_ratio = 1 + 2 / 3
 
             if self.sweden_adjust:
-                self.sweden_adjustment_ratio = self.sweden_adj_ratio_2017
+                self.sweden_adjustment_ratio = self.sweden_adj_ratios[year]
 
             else:
                 self.sweden_adjustment_ratio = 1
@@ -474,7 +481,7 @@ class TaxDeficitCalculator:
             # --- TO BE UPDATED? ---------------------------------------------------------------------------------------
 
             if self.sweden_adjust:
-                self.sweden_adjustment_ratio = self.sweden_adj_ratio_2018
+                self.sweden_adjustment_ratio = self.sweden_adj_ratios[year]
 
             else:
                 self.sweden_adjustment_ratio = 1
@@ -1028,16 +1035,7 @@ class TaxDeficitCalculator:
             # For the other years, we apply no adjustment (multiplying by 1)
             # This has no influence on the computation of average ETRs since these observations are removed later on
 
-            sweden_adj_ratios = {
-                year: TaxDeficitCalculator(
-                    year=year,
-                    sweden_treatment='adjust',
-                    add_AUT_AUT_row=False,
-                    average_ETRs=False,
-                    fetch_data_online=self.fetch_data_online,
-                ).sweden_adjustment_ratio
-                for year in self.years_for_avg_ETRs
-            }
+            sweden_adj_ratios = self.sweden_adj_ratios.copy()
 
             for year in [2016, 2017, 2018]:
                 if year not in self.years_for_avg_ETRs:
@@ -1425,7 +1423,7 @@ class TaxDeficitCalculator:
                     temp['CBC'] == 'PROFIT'
                 )
             ]['Value'].iloc[0]
-            adj_sweden_profits = sweden_profits * self.sweden_adj_ratio_2017
+            adj_sweden_profits = sweden_profits * self.sweden_adj_ratios[2017]
 
             adj_profits = temp[temp['CBC'] == 'PROFIT_ADJ']['Value'].sum()
             self.adj_profits_countries = temp[temp['CBC'] == 'PROFIT_ADJ']['COU'].unique()
@@ -7391,7 +7389,7 @@ class TaxDeficitCalculator:
                 temp[temp['YEA'] == year]['Value'].iloc[0] / 10**9
             )
 
-            multiplier = self.sweden_adj_ratio_2016 if year == 2016 else self.sweden_adj_ratio_2017
+            multiplier = self.sweden_adj_ratios[2016] if year == 2016 else self.sweden_adj_ratios[2017]
 
             output['Adjusted profits before tax ($bn)'].append(
                 temp[temp['YEA'] == year]['Value'].iloc[0] / 10**9 * multiplier
