@@ -63,7 +63,7 @@ class TaxDeficitCalculator:
         SGP_CYM_treatment='replace',
         use_adjusted_profits=True,
         average_ETRs=True,
-        years_for_avg_ETRs=[2016, 2017, 2018],
+        years_for_avg_ETRs=[2016, 2017, 2018, 2019, 2020],
         carve_outs=False,
         carve_out_rate_assets=None, carve_out_rate_payroll=None,
         depreciation_only=None, exclude_inventories=None, payroll_premium=20,
@@ -178,7 +178,8 @@ class TaxDeficitCalculator:
             # Due to the availability of country-by-country report statistics
             raise Exception(
                 'Five years can be chosen for macro computations: 2016, 2017, 2018, 2019, or 2020.'
-                + ' In addition, one can choose to retain the last year in which countries appear in CbCR data.'
+                + ' In addition, one can choose to retain the last year in which countries appear in CbCR data'
+                + ' with a sufficiently detailed partner country breakdown (i.e., not continental nor minimal).'
             )
 
         if sweden_treatment not in ['exclude', 'adjust']:
@@ -201,7 +202,7 @@ class TaxDeficitCalculator:
             raise Exception(
                 'The case of the 2017 Singapore - Cayman Islands observation can only be treated in two ways: '
                 + 'either doing nothing (pass SGP_CYM_treatment="none") or replacing the observation with that for '
-                + '2016 (pass SGP_CYM_treatment="replace").'
+                + 'the latest valid year available (pass SGP_CYM_treatment="replace").'
             )
 
         if year == 2017 and add_AUT_AUT_row is None:
@@ -360,103 +361,53 @@ class TaxDeficitCalculator:
 
         self.sweden_adj_ratios = {
             2016: (342 - 200) / 342,
-            2016: (512 - 266) / 512,
-            2016: (49.1 - 29.8) / 49.1,
-            2016: 1,
-            2016: 1,
+            2017: (512 - 266) / 512,
+            2018: (49.1 - 29.8) / 49.1,
+            2019: 1,
+            2020: 1,
         }
 
         # Average exchange rate over the relevant year, extracted from benchmark computations run on Stata
         # Source: European Central Bank
         xrates = self.xrates.set_index('year')
-        self.USD_to_EUR = 1 / xrates.loc[self.year, 'usd']
+        self.USD_to_EUR_rates = {}
+        # Gross growth rate of worldwide GDP in current EUR between 2016 and 2021
+        # Extracted from the benchmark computations run on Stata
+        self.multipliers_2021 = {}
+        # Filling in the two dicts with a value for each year
+        for y in (2016, 2017, 2018, 2019, 2020):
+            self.USD_to_EUR_rates[y] = 1 / xrates.loc[y, 'usd']
+            self.multipliers_2021[y] = GDP_growth_rates.loc['World', f'upreur21{y - 2000}']
 
-        if year == 2016:
+        self.COUNTRIES_WITH_MINIMUM_REPORTING = {
+            2016: ['FIN', 'IRL', 'KOR', 'NLD'],
+            2017: ['FIN', 'IRL', 'KOR', 'NLD'],
+            2018: ['FIN', 'IRL', 'KOR', 'NZL'],
+            2019: ['IRL', 'NZL'],
+            2020: ['IRL', 'NZL'],
+        }
 
-            # Gross growth rate of worldwide GDP in current EUR between 2016 and 2021
-            # Extracted from the benchmark computations run on Stata
-            self.multiplier_2021 = GDP_growth_rates.loc['World', 'upreur2116']
+        self.COUNTRIES_WITH_CONTINENTAL_REPORTING = {
+            2016: ['AUT', 'NOR', 'SVN', 'SWE'],                         # Slovenia is not really a continental split
+            2017: ['AUT', 'GBR', 'GRC', 'IMN', 'NOR', 'SVN', 'SWE'],    # Romania?
+            2018: ['AUT', 'GBR', 'GRC', 'IMN', 'LTU', 'SVN', 'SWE'],    # Lithuania?
+            2019: ['AUT', 'FIN', 'GBR', 'KOR', 'MUS', 'SVN', 'SWE'],    # Lithuania?
+            2020: ['AUT', 'BGR', 'FIN', 'GBR', 'KOR', 'SVN', 'SWE'],    # Lithuania? Tunisia? Bulgaria also unclear
+        }
 
-            self.COUNTRIES_WITH_MINIMUM_REPORTING = ['KOR', 'NLD', 'IRL', 'FIN']
-            self.COUNTRIES_WITH_CONTINENTAL_REPORTING = ['AUT', 'NOR', 'SVN', 'SWE']
+        self.belgium_partners_for_adjustment = {
+            2016: ["NLD"],
+            2017: ["GBR"],
+            2018: ['GBR', 'NLD'],
+            2019: ['GBR', 'NLD'],
+            2020: [],
+        }
+        self.belgium_years_for_adjustment = {
+            'NLD': [2017, 2020],
+            'GBR': [2016, 2020],
+        }
 
-            if self.sweden_adjust:
-                self.sweden_adjustment_ratio = self.sweden_adj_ratios[year]
-
-            else:
-                self.sweden_adjustment_ratio = 1
-
-            if self.belgium_treatment == 'adjust':
-                self.belgium_partners_for_adjustment = ['NLD']
-                self.belgium_years_for_adjustment = [2017]
-
-            elif self.belgium_treatment == 'replace':
-                self.belgium_partners_for_replacement = ['NLD']
-                self.belgium_years_for_replacement = [2017]
-
-                self.belgium_GDP_growth_multipliers = [1 / GDP_growth_rates.loc['European Union', 'uprusd1716']]
-
-            self.add_AUT_AUT_row = add_AUT_AUT_row
-
-        elif year == 2017:
-
-            # Gross growth rate of worldwide GDP in current EUR between 2017 and 2021
-            # Extracted from the benchmark computations run on Stata
-            self.multiplier_2021 = GDP_growth_rates.loc['World', 'upreur2117']
-
-            self.COUNTRIES_WITH_MINIMUM_REPORTING = ['KOR', 'NLD', 'IRL', 'FIN']
-            self.COUNTRIES_WITH_CONTINENTAL_REPORTING = ['AUT', 'GBR', 'GRC', 'IMN', 'NOR', 'SVN', 'SWE']
-
-            if self.sweden_adjust:
-                self.sweden_adjustment_ratio = self.sweden_adj_ratios[year]
-
-            else:
-                self.sweden_adjustment_ratio = 1
-
-            if self.belgium_treatment == 'adjust':
-                self.belgium_partners_for_adjustment = ['GBR']
-                self.belgium_years_for_adjustment = [2016]
-
-            elif self.belgium_treatment == 'replace':
-                self.belgium_partners_for_replacement = ['GBR']
-                self.belgium_years_for_replacement = [2016]
-
-                self.belgium_GDP_growth_multipliers = [GDP_growth_rates.loc['European Union', 'uprusd1716']]
-
-            if self.SGP_CYM_treatment == 'replace':
-                self.SGP_CYM_GDP_growth_multiplier = GDP_growth_rates.loc['World', 'uprusd1716']
-
-            self.add_AUT_AUT_row = add_AUT_AUT_row
-
-        elif year == 2018:
-
-            # Gross growth rate of worldwide GDP in current EUR between 2018 and 2021
-            # Extracted from the benchmark computations run on Stata
-            self.multiplier_2021 = GDP_growth_rates.loc['World', 'upreur2118']
-
-            self.COUNTRIES_WITH_MINIMUM_REPORTING = ['KOR', 'NZL', 'IRL', 'FIN']
-            self.COUNTRIES_WITH_CONTINENTAL_REPORTING = ['AUT', 'GBR', 'GRC', 'IMN', 'LTU', 'SVN', 'SWE']
-
-            if self.sweden_adjust:
-                self.sweden_adjustment_ratio = self.sweden_adj_ratios[year]
-
-            else:
-                self.sweden_adjustment_ratio = 1
-
-            if self.belgium_treatment == 'adjust':
-                self.belgium_partners_for_adjustment = ['GBR', 'NLD']
-                self.belgium_years_for_adjustment = [2016, 2017]
-
-            elif self.belgium_treatment == 'replace':
-                self.belgium_partners_for_replacement = ['GBR', 'NLD']
-                self.belgium_years_for_replacement = [2016, 2017]
-
-                self.belgium_GDP_growth_multipliers = [
-                    GDP_growth_rates.loc['European Union', 'uprusd1816'],
-                    GDP_growth_rates.loc['European Union', 'uprusd1817']
-                ]
-
-            self.add_AUT_AUT_row = add_AUT_AUT_row
+        self.add_AUT_AUT_row = add_AUT_AUT_row
 
         # For rates of 0.2 or lower an alternative imputation is used to estimate the non-haven tax deficit of non-OECD
         # reporting countries; this argument allows to enable or disable this imputation
@@ -519,8 +470,12 @@ class TaxDeficitCalculator:
             self.ex_post_ETRs = None
 
         if self.de_minimis_exclusion:
-            self.exclusion_threshold_revenues = 10 * 10**6 / self.USD_to_EUR
-            self.exclusion_threshold_profits = 1 * 10**6 / self.USD_to_EUR
+            self.exclusion_thresholds_revenues = {
+                y: 10 * 10**6 / self.USD_to_EUR_rates[y] for y in (2016, 2017, 2018, 2019, 2020)
+            }
+            self.exclusion_thresholds_profits = {
+                y: 1 * 10**6 / self.USD_to_EUR_rates[y] for y in (2016, 2017, 2018, 2019, 2020)
+            }
 
         self.behavioral_responses = behavioral_responses
 
@@ -653,265 +608,185 @@ class TaxDeficitCalculator:
         # Renaming columns
         employee_population = employee_population.rename(
             columns={
-                'ref_area.label': 'countryname',
+                'ref_area': 'country_code',
                 'time': 'year'
             }
         )
 
         # Selecting relevant observations
         # All genders
-        employee_population = employee_population[employee_population['sex.label'] == 'Sex: Total'].copy()
-        employee_population = employee_population.drop(columns=['sex.label'])
+        employee_population = employee_population[employee_population['sex'] == 'SEX_T'].copy()
+        employee_population = employee_population.drop(columns=['sex'])
         employee_population['sex'] = 'to'
+        # Focusing on a relatively close period
+        employee_population = employee_population[employee_population['year'] >= 2014].reset_index(drop=True)
         # Focusing on wage employees
         employee_population = employee_population[
-            employee_population['classif1.label'] == 'Status in employment (Aggregate): Employees'
+            employee_population['classif1'].isin(['STE_AGGREGATE_EES', 'STE_ICSE93_1'])
         ].copy()
-        employee_population = employee_population.drop(columns=['classif1.label'])
+        # Keeping the "Aggregate" status when it is available
+        employee_population = employee_population.sort_values(
+            by=['country_code', 'year', 'classif1']
+        ).drop_duplicates(subset=['country_code', 'year'], keep='first')
+        employee_population = employee_population.drop(columns=['classif1'])
         employee_population['status'] = 'wage'
 
         # Selecting relevant columns
-        employee_population = employee_population[['year', 'countryname', 'obs_value', 'status']].copy()
+        employee_population = employee_population[['year', 'country_code', 'obs_value', 'status']].copy()
 
         # Renaming the column with the values of interest
         employee_population = employee_population.rename(columns={'obs_value': 'emp'})
 
-        # Focusing on the relevant year
-        employee_population = employee_population[employee_population['year'] == self.year].copy()
+        # Indexing by year in a datetime format
+        employee_population['year'] = pd.to_datetime(employee_population['year'], format='%Y')
+        employee_population = employee_population.set_index('year')
+
+        # Computing the interpolation values
+        df_interpol = employee_population.groupby(['country_code']).resample('A').mean()
+        df_interpol['emp_ipo'] = df_interpol['emp'].interpolate()
+        df_interpol = df_interpol.reset_index()
+        df_interpol['year'] = df_interpol['year'].dt.year
+
+        # Employee population dataset with interpolated values
+        employee_population = df_interpol[['country_code', 'year', 'emp_ipo']].rename(columns={'emp_ipo': 'emp'})
+
+        # "Correcting" the country code for Kosovo so that we can merge with earnings later on
+        employee_population['country_code'] = employee_population['country_code'].map(
+            lambda country: {'KOS': 'XXK'}.get(country, country)
+        )
 
         # --- Cleaning ILO data on mean earnings
 
         # Selecting relevant observations
         # All sectors
-        earnings = earnings[earnings['classif1.label'].map(lambda label: 'Total' in label)].copy()
+        earnings = earnings[earnings['classif1'].map(lambda classif: 'total' in classif.lower())].copy()
         # Focusing on current USD for the currency
-        earnings = earnings[earnings['classif2.label'].map(lambda label: 'U.S. dollars' in label)].copy()
+        earnings = earnings[earnings['classif2'] == 'CUR_TYPE_USD'].copy()
         # All genders
-        earnings = earnings[earnings['sex.label'] == 'Sex: Total'].copy()
+        earnings = earnings[earnings['sex'] == 'SEX_T'].copy()
         # Recent years
         earnings = earnings[earnings['time'] >= 2014].copy()
 
         # Selecting columns of interest with relevant variable names
-        earnings = earnings.drop(
-            columns=[
-                'source.label', 'sex.label', 'classif2.label', 'note_classif.label',
-                'indicator.label', 'note_indicator.label', 'note_source.label'
-            ]
-        )
-        earnings = earnings.rename(columns={'time': 'year', 'ref_area.label': 'country', 'classif1.label': 'type'})
+        # - Removing columns for which selection is done
+        earnings = earnings.drop(columns=['sex', 'classif2'])
+        # - Selecting only one type of aggregate sector
+        earnings = earnings.sort_values(by=['time', 'ref_area', 'classif1'])
+        earnings = earnings.drop_duplicates(subset=['ref_area', 'time'], keep='first')
+        earnings = earnings.drop(columns=['classif1'])
+        # - Renaming columns
+        earnings = earnings.rename(columns={'time': 'year', 'ref_area': 'country_code', 'obs_value': 'earn'})
+        # - Cleaning indices
+        earnings = earnings.reset_index(drop=True)
 
-        # Managing the different industry classifications
-        # Simplifying the names of the different classifications
-        earnings['type'] = earnings['type'].map(lambda string: re.findall('\((.+)\)', string)[0])
-        earnings['type'] = earnings['type'].map(lambda string: string.replace('.', '').replace('-', ''))
-        # Moving from long to wide format
-        earnings = earnings.pivot(index=['country', 'year'], columns=['type'], values=['obs_value'])
-        earnings.columns = earnings.columns.droplevel()
-        earnings = earnings.reset_index()
-        # Do we find different figures from a classification to another?
-        earnings['check'] = earnings['Aggregate'] - earnings['ISICRev2']
-        earnings['check'] = earnings.apply(
-            lambda row: row['Aggregate'] - row['ISICRev31'] if np.isnan(row['check']) else row['check'],
-            axis=1
-        )
-        earnings['check'] = earnings.apply(
-            lambda row: row['Aggregate'] - row['ISICRev4'] if np.isnan(row['check']) else row['check'],
-            axis=1
-        )
-        # Only issues: Canada in 2019 and Uganda in 2017
-        # earnings[np.logical_and(earnings['check'] != 0, ~earnings['check'].isnull())]
-        # We select values in that order: ISICRev4, ISICRev31, ISICRev2, Aggregate
-        earnings['earn'] = earnings['ISICRev4']
-        earnings['earn'] = earnings.apply(
-            lambda row: row['ISICRev31'] if np.isnan(row['earn']) else row['earn'],
-            axis=1
-        )
-        earnings['earn'] = earnings.apply(
-            lambda row: row['ISICRev2'] if np.isnan(row['earn']) else row['earn'],
-            axis=1
-        )
-        earnings['earn'] = earnings.apply(
-            lambda row: row['Aggregate'] if np.isnan(row['earn']) else row['earn'],
-            axis=1
+        # Moving to annual earnings
+        earnings['earn'] *= 12
+
+        # "Correcting" the country code for Kosovo so that we can add the continent later on
+        earnings['country_code'] = earnings['country_code'].map(
+            lambda country: {'KOS': 'XXK'}.get(country, country)
         )
 
-        # Correcting a small issue in the data
-        earnings['earn'] = earnings.apply(
-            lambda row: row['earn'] / 10 if row['country'] == 'Thailand' and row['year'] == 2017 else row['earn'],
-            axis=1
-        )
-
-        # Distinction based on whether the year of interest is available
-        earnings_directly_available = earnings[earnings['year'] == self.year].copy()
-        earnings_not_available = earnings[
-            ~earnings['country'].isin(
-                earnings_directly_available['country'].unique()
-            )
-        ].copy()
-
-        # Further distinction based on whether the interpolation is feasible
-        earnings_not_available['help'] = earnings_not_available['year'] < self.year
-        earnings_not_available['help2'] = earnings_not_available['year'] > self.year
-
-        temp = earnings_not_available.groupby(by='country').sum()[['help', 'help2']].reset_index()
-        countries_feasible_interpolation = temp[
-            np.logical_and(temp['help'] > 0, temp['help2'] > 0)
-        ]['country'].unique()
-
-        earnings_not_available = earnings_not_available.drop(
-            columns=['Aggregate', 'ISICRev2', 'ISICRev31', 'ISICRev4']
-        )
-
-        earnings_feasible_countries = earnings_not_available[
-            earnings_not_available['country'].isin(countries_feasible_interpolation)
-        ].copy()
-
-        # Interpolation [CRITICAL STEP]
-        # Sorting values from the oldest to the latest for each country
-        earnings_feasible_countries = earnings_feasible_countries.sort_values(by=['country', 'year'])
         # Indexing by year in a datetime format
-        earnings_feasible_countries['year'] = pd.to_datetime(earnings_feasible_countries['year'], format='%Y')
-        earnings_feasible_countries = earnings_feasible_countries.set_index('year')
+        earnings_interpolated = earnings.copy()
+        earnings_interpolated['year'] = pd.to_datetime(earnings_interpolated['year'], format='%Y')
+        earnings_interpolated = earnings_interpolated.set_index('year')
+
         # Computing the interpolation values
-        df_interpol = earnings_feasible_countries.groupby(['country']).resample('A').mean()
+        df_interpol = earnings_interpolated.groupby(['country_code']).resample('A').mean()
         df_interpol['earn_ipo'] = df_interpol['earn'].interpolate()
         df_interpol = df_interpol.reset_index()
         df_interpol['year'] = df_interpol['year'].dt.year
-        # Restricting to the year of interest
-        df_interpol = df_interpol[df_interpol['year'] == self.year].copy()
-        # Focusing on the columns of interest with some renaming
-        df_interpol = df_interpol[['country', 'year', 'earn_ipo']].copy()
-        df_interpol = df_interpol.rename(columns={'earn_ipo': 'earn'})
-        # Dummy indicating whether the value was obtained via interpolation
-        df_interpol['ipo'] = 1
 
-        # Gathering earnings directly available and interpolated values
-        earnings_interpolated = pd.concat(
-            [earnings_directly_available, df_interpol],
-            axis=0
-        )[
-            ['country', 'year', 'earn', 'ipo']
-        ].reset_index(drop=True)
-        # Completing the dummy variable
-        earnings_interpolated['ipo'] = earnings_interpolated['ipo'].fillna(0)
+        # Employee population dataset with interpolated values
+        earnings_interpolated = df_interpol[['country_code', 'year', 'earn_ipo']].rename(columns={'earn_ipo': 'earn'})
 
-        # Moving from monthly to annual earnings
-        earnings_interpolated['earn'] *= 12
+        # Adding continent codes
+        geographies = pd.read_csv(os.path.join(path_to_dir, 'data', 'geographies.csv'))
+        geographies['CONTINENT_CODE'] = geographies['CONTINENT_CODE'].map(
+            lambda continent: {'NAMR': 'AMR', 'SAMR': 'AMR'}.get(continent, continent)
+        )
+        geographies = geographies[['CODE', 'CONTINENT_CODE']].drop_duplicates()
 
-        # Renaming column showing the country
-        earnings_interpolated = earnings_interpolated.rename(columns={'country': 'countryname'})
+        earnings_merged = earnings.merge(
+            geographies,
+            how='left',
+            left_on='country_code', right_on='CODE'
+        ).drop(columns='CODE')
 
-        # --- Finalising the preparation of ILO data
-
-        # Merging earnings with population
-        earnings_merged = earnings_interpolated.merge(
-            employee_population,
-            on=['countryname', 'year'],
-            how='left'
+        # Correcting a few continents to match the previous methodology
+        earnings_merged['CONTINENT_CODE'] = earnings_merged.apply(
+            lambda row: 'EUR' if row['country_code'] == 'RUS' else row['CONTINENT_CODE'],
+            axis=1
+        )
+        earnings_merged['CONTINENT_CODE'] = earnings_merged.apply(
+            lambda row: 'ASIA' if row['country_code'] == 'CYP' else row['CONTINENT_CODE'],
+            axis=1
         )
 
-        # Adding country codes and continents
-        # Manually editing one of the country names, otherwise not found in the file with correspondences
-        earnings_merged['countryname'] = earnings_merged['countryname'].map(
-            lambda country_name: {'Moldova, Republic of': 'Moldova'}.get(country_name, country_name)
-        )
-        # Merging with the file with correspondences
+        # Adding employee count
         earnings_merged = earnings_merged.merge(
-            pd.read_csv(self.path_to_geographies),
-            left_on='countryname', right_on='NAME',
-            how='left'
-        )
-        # Renaming some columns, removing some others
-        earnings_merged = earnings_merged.rename(
-            columns={
-                'CONTINENT_NAME': 'GEO',
-                'CODE': 'partner'
-            }
-        ).drop(columns=['NAME', 'CONTINENT_CODE'])
-        # Gathering South America and North America
-        earnings_merged['GEO'] = earnings_merged['GEO'].map(
-            lambda continent: {'South America': 'Americas', 'North America': 'Americas'}.get(continent, continent)
+            employee_population,
+            how='left',
+            on=['country_code', 'year']
         )
 
-        # Computing each country's population weight
-        earnings_merged['wgt'] = earnings_merged['emp'] / earnings_merged['emp'].sum()
+        # Deducing yearly global mean earnings (for the FJT and GRPS observations)
+        earnings_merged['numerator'] = earnings_merged['emp'] * earnings_merged['earn']
 
-        # Row with the global mean earnings
-        additional_rows = {
-            'countryname': [''] * 2,
-            'year': [self.year] * 2,
-            'earn': [np.sum(earnings_merged['wgt'] * earnings_merged['earn'])] * 2,
-            'ipo': [1] * 2,
-            'emp': [np.nan] * 2,
-            'status': ['wage'] * 2,
-            'partner': ['FJT', 'GRPS'],
-            'GEO': [''] * 2
-        }
-        additional_rows = pd.DataFrame(additional_rows)
+        global_averages = earnings_merged.groupby('year').sum()[['numerator', 'emp']]
+        global_averages['earn'] = global_averages['numerator'] / global_averages['emp']
+        global_averages = global_averages.reset_index()
 
-        # Continent-level mean earnings
-        regional_extract = earnings_merged.copy()
-        regional_extract['numerator'] = regional_extract['earn'] * regional_extract['emp']
-        # Correcting a few continents to match Stata outputs
-        regional_extract['GEO'] = regional_extract.apply(
-            lambda row: 'Europe' if row['countryname'] == 'Russian Federation' else row['GEO'],
-            axis=1
-        )
-        regional_extract['GEO'] = regional_extract.apply(
-            lambda row: 'Asia' if row['countryname'] == 'Cyprus' else row['GEO'],
-            axis=1
-        )
-        regional_extract = regional_extract.groupby('GEO').sum()[['emp', 'numerator']]
-        regional_extract['earn'] = regional_extract['numerator'] / regional_extract['emp']
-        regional_extract = regional_extract.reset_index()
+        temp = global_averages.copy()
+        temp['country_code'] = 'FJT'
+        global_averages['country_code'] = 'GRPS'
+        global_averages = pd.concat([global_averages, temp], axis=0)
 
-        # First auxiliary table used for countries with continental CbCRs
-        # and to impute the missing values for countries that do not display data on earnings
-        regional_extract1 = regional_extract.copy()
-        regional_extract1['partner'] = regional_extract1['GEO'].map(
+        # Deducing yearly continental mean earnings (for continental observations and "Other [...]")
+        continental_averages = earnings_merged.groupby(['year', 'CONTINENT_CODE']).sum()[['numerator', 'emp']]
+        continental_averages['earn'] = continental_averages['numerator'] / continental_averages['emp']
+        continental_averages = continental_averages.reset_index()
+
+        temp = continental_averages.copy()
+        temp['country_code'] = temp['CONTINENT_CODE'].map(
             {
-                'Africa': 'AFRIC',
-                'Europe': 'EUROP',
-                'Asia': 'ASIAT',
-                'Americas': 'AMER',
-                'Oceania': 'OCEAN'
+                'AFR': 'AFRIC',
+                'EUR': 'EUROP',
+                'ASIA': 'ASIAT',
+                'AMR': 'AMER',
+                'OCN': 'OCEAN'
             }
         )
-        regional_extract1['year'] = self.year
-        regional_extract1['countryname'] = ''
-        regional_extract1['ipo'] = 0
-        regional_extract1['status'] = 'wage'
-        regional_extract1['ipo'] = 0
-        regional_extract1 = regional_extract1.drop(columns=['numerator'])
-
-        # Second auxiliary table used to provide mean earnings for the regional aggregates in CbCR data
-        regional_extract2 = regional_extract[regional_extract['GEO'] != 'Oceania'].copy()
-        regional_extract2['partner'] = regional_extract2['GEO'].map(
+        continental_averages['country_code'] = temp['CONTINENT_CODE'].map(
             {
-                'Africa': 'OAF',
-                'Europe': 'OTE',
-                'Asia': 'OAS',
-                'Americas': 'OAM',
+                'AFR': 'AFRIC',
+                'EUR': 'EUROP',
+                'ASIA': 'ASIAT',
+                'AMR': 'AMER',
+                'OCN': 'OCEAN'
             }
         )
-        regional_extract2['year'] = self.year
-        regional_extract2['countryname'] = ''
-        regional_extract2['status'] = 'wage'
-        regional_extract2['ipo'] = 0
-        regional_extract2 = regional_extract2.drop(columns=['numerator'])
-        regional_extract2.head()
+        continental_averages = pd.concat([continental_averages, temp], axis=0)
+        continental_imputation_df = temp.copy()
 
-        # Gathering all the required data
-        earnings_merged = earnings_merged.drop(columns=['wgt'])
+        # Main DataFrame with annual earnings, to be merged with country-by-country report statistics
+        main_ILO_df = pd.concat(
+            [
+                earnings_interpolated,
+                global_averages[['country_code', 'year', 'earn']],
+                continental_averages[['country_code', 'year', 'earn']]
+            ],
+            axis=0
+        )
 
-        main_ILO_df = pd.concat([earnings_merged, additional_rows, regional_extract1, regional_extract2], axis=0)
-        main_ILO_df = main_ILO_df.rename(columns={'partner': 'partner2'})
-        main_ILO_df = main_ILO_df[['year', 'earn', 'partner2', 'GEO']].copy()
-
-        continental_imputation_df = regional_extract1[['year', 'earn', 'partner', 'GEO']].copy()
+        # Additional DataFrame to impute the earnings that will remain missing based on continental averages
         continental_imputation_df = continental_imputation_df.rename(
-            columns={'GEO': 'CONTINENT_NAME', 'partner': 'CONTINENT_CODE'}
-        )
+            columns={
+                'CONTINENT_CODE': 'CONTINENT_CODE_geographies',
+                'country_code': 'CONTINENT_CODE_modified'
+            }
+        )[['CONTINENT_CODE_geographies', 'CONTINENT_CODE_modified', 'year', 'earn']]
 
         return main_ILO_df.copy(), continental_imputation_df.copy()
 
@@ -994,7 +869,7 @@ class TaxDeficitCalculator:
 
             sweden_adj_ratios = self.sweden_adj_ratios.copy()
 
-            for year in [2016, 2017, 2018]:
+            for year in [2016, 2017, 2018, 2019, 2020]:
                 if year not in self.years_for_avg_ETRs:
                     sweden_adj_ratios[year] = 1
 
@@ -1010,23 +885,20 @@ class TaxDeficitCalculator:
 
             # We remove the problematic country pairs from the computation of average ETRs
             oecd = oecd[
-                ~np.logical_or(
-                    np.logical_and(
-                        oecd['COU'] == 'BEL',
-                        np.logical_and(
-                            oecd['JUR'] == 'NLD',
-                            oecd['YEA'] == 2016
-                        )
-                    ),
-                    np.logical_and(
-                        oecd['COU'] == 'BEL',
-                        np.logical_and(
-                            oecd['JUR'] == 'GBR',
-                            oecd['YEA'] == 2017
-                        )
-                    )
+                np.logical_and(
+                    oecd['COU'] == 'BEL',
+                    oecd['JUR'].isin(self.belgium_partners_for_adjustment)
                 )
-            ].copy()
+            ]
+
+            oecd['PROBLEMATIC'] = oecd.apply(
+                lambda row: row['COU'] == 'BEL' & row['JUR'] in self.belgium_years_for_adjustment[row['YEA']],
+                axis=1
+            )
+
+            oecd = oecd[~oecd['PROBLEMATIC']].copy()
+
+            oecd = oecd.drop(columns=['PROBLEMATIC'])
 
         if self.SGP_CYM_treatment == 'replace':
 
@@ -1071,24 +943,21 @@ class TaxDeficitCalculator:
         oecd = oecd.merge(
             statutory_rates,
             how='left',
-            left_on='JUR', right_on='partner'
+            left_on=['JUR', 'YEA'], right_on=['partner', 'YEAR']
         )
 
-        oecd.drop(columns=['partner'], inplace=True)
+        oecd.drop(columns=['partner', 'YEAR'], inplace=True)
 
-        # We apply the deflation of profits and income taxes paid
-        deflators = {
-            2016: self.deflator_2016_to_2018,
-            2017: self.deflator_2017_to_2018,
-            2018: 1
-        }
+        # We deflate all profits and income taxes paid, bringing all values to 2021
+        GDP_growth_rates = self.growth_rates.set_index('CountryGroupName')
+        deflators = {y: GDP_growth_rates.loc['World', f'uprusd21{y - 2000}'] for y in (2016, 2017, 2018, 2019, 2020)}
 
-        oecd['deflators'] = oecd['YEA'].map(deflators)
+        oecd['deflator'] = oecd['YEA'].map(deflators)
 
-        oecd['Profit (Loss) before Income Tax'] *= oecd['deflators']
-        oecd['Income Tax Paid (on Cash Basis)'] *= oecd['deflators']
+        oecd['Profit (Loss) before Income Tax'] *= oecd['deflator']
+        oecd['Income Tax Paid (on Cash Basis)'] *= oecd['deflator']
 
-        oecd.drop(columns=['deflators'], inplace=True)
+        oecd.drop(columns=['deflator'], inplace=True)
 
         # We eliminate the rows that lack both profits and income taxes paid
         oecd = oecd[
@@ -1223,7 +1092,7 @@ class TaxDeficitCalculator:
 
             # Path to ILO data
             self.path_to_employee_pop = os.path.join(
-                path_to_dir, 'data', 'EMP_2EMP_SEX_STE_NB_A-filtered-2021-07-20.csv'
+                path_to_dir, 'data', 'EMP_TEMP_SEX_STE_NB_A-full-2023-12-19.csv'
             )
             self.path_to_mean_earnings = os.path.join(
                 path_to_dir, 'data', 'EAR_4MTH_SEX_ECO_CUR_NB_A-filtered-2021-07-06.csv'
@@ -1271,7 +1140,7 @@ class TaxDeficitCalculator:
 
         # --- Cleaning the OECD data
 
-        if self.year == 2017 and self.add_AUT_AUT_row:
+        if self.add_AUT_AUT_row:
             # Fetching the values for the AUT-AUT country pair from the full-sample 2017 data
             temp = oecd[
                 np.logical_and(
@@ -1280,171 +1149,179 @@ class TaxDeficitCalculator:
                 )
             ].copy()
 
-            temp.drop(
-                columns=['PAN', 'Grouping', 'Flag Codes', 'Flags', 'YEA', 'Year'],
-                inplace=True
-            )
+            temp = temp[np.logical_and(temp['COU'] == 'AUT', temp['JUR'] == 'AUT')].copy()
 
-            temp = temp.pivot(
-                index=['COU', 'Ultimate Parent Jurisdiction', 'JUR', 'Partner Jurisdiction'],
-                columns='Variable',
-                values='Value'
-            ).reset_index()
+            temp['PAN'] = 'PANELAI'
 
-            temp = temp[
-                np.logical_and(
-                    temp['COU'] == 'AUT',
-                    temp['JUR'] == 'AUT'
-                )
-            ].copy()
-
-            self.temp_AUT = temp.copy()
+            oecd = pd.concat([oecd, temp], axis=0)
 
         # We restrict the OECD data to the sub-sample of interest
         oecd = oecd[oecd['PAN'] == 'PANELAI'].copy()
 
-        # Dealing with Belgian data depending on the value of "belgium_treatment" - First fetching the relevant values
+        # Dealing with Belgian data depending on the value of "belgium_treatment"
         if self.belgium_treatment == 'adjust':
 
-            self.belgium_ratios_for_adjustment = []
+            self.belgium_ratios_for_adjustment = {}
 
-            for partner, year in zip(self.belgium_partners_for_adjustment, self.belgium_years_for_adjustment):
+            # Computing the profitability ratios used in the correction
+            for partner, relevant_years in self.belgium_years_for_adjustment.items():
 
                 temp = oecd[
                     np.logical_and(
                         oecd['COU'] == 'BEL',
-                        oecd['JUR'] == partner
-                    )
-                ].copy()
-
-                temp = temp[temp['CBC'].isin(['TOT_REV', 'PROFIT'])].copy()
-                temp = temp[temp['Year'] == year].copy()
-
-                temp = temp[['CBC', 'Value']].set_index('CBC')
-
-                self.belgium_ratios_for_adjustment.append((temp.loc['PROFIT'] / temp.loc['TOT_REV'])['Value'])
-
-        elif self.belgium_treatment == 'replace':
-
-            self.belgium_data_for_replacement = []
-
-            for partner, year, multiplier in zip(
-                self.belgium_partners_for_replacement,
-                self.belgium_years_for_replacement,
-                self.belgium_GDP_growth_multipliers
-            ):
-                belgium_data_for_replacement = oecd[
-                    np.logical_and(
-                        oecd['COU'] == 'BEL',
                         np.logical_and(
                             oecd['JUR'] == partner,
-                            oecd['YEA'] == year
+                            oecd['YEA'].isin(relevant_years)
                         )
                     )
                 ].copy()
 
-                mask = ~(belgium_data_for_replacement['CBC'] == 'EMPLOYEES')
-                belgium_data_for_replacement['Value'] *= (mask * (multiplier - 1) + 1)
+                temp = temp[temp['CBC'].isin(['TOT_REV', 'PROFIT'])].copy()
 
-                self.belgium_data_for_replacement.append(belgium_data_for_replacement.copy())
+                temp['MULTIPLIER'] = temp['YEA'].map(
+                    lambda y: self.growth_rates.set_index('Country Group Name').loc[
+                        'World', f'uprusd21{int(y - 2000)}'
+                    ]
+                )
 
-        # Dealing with the problematic Singapore-Cayman Islands observation - First fetching the relevant values
-        if self.SGP_CYM_treatment == 'replace' and self.year == 2017:
-            SGP_CYM_data_for_replacement = oecd[
-                np.logical_and(
-                    oecd['COU'] == 'SGP',
+                temp['Value_2021'] = temp['Value'] * temp['MULTIPLIER']
+
+                temp = temp.groupby('CBC').sum()[['Value_2021']]
+
+                ratio = temp.loc['PROFIT', 'Value_2021'] / temp.loc['TOT_REV', 'Value_2021']
+
+                self.belgium_ratios_for_adjustment[partner] = ratio
+
+            # Operating the correction
+            for year, partners in self.belgium_partners_for_adjustment.items():
+
+                mask_revenues = np.logical_and(
+                    oecd['COU'] == 'BEL',
                     np.logical_and(
-                        oecd['JUR'] == 'CYM',
-                        oecd['YEA'] == 2016
+                        oecd['JUR'].isin(partners),
+                        np.logical_and(
+                            oecd['YEA'] == year,
+                            oecd['CBC'] == 'TOT_REV'
+                        )
                     )
                 )
-            ].copy()
 
-            mask = ~(SGP_CYM_data_for_replacement['CBC'] == 'EMPLOYEES')
-            SGP_CYM_data_for_replacement['Value'] *= (mask * (self.SGP_CYM_GDP_growth_multiplier - 1) + 1)
+                revenues_extract = oecd[mask_revenues].copy()
 
-            self.SGP_CYM_data_for_replacement = SGP_CYM_data_for_replacement.copy()
+                print('[BEL case] Shape of the DataFrame with total revenues:', revenues_extract.shape)
+
+                mask_selection = np.logical_and(
+                    oecd['COU'] == 'BEL',
+                    np.logical_and(
+                        oecd['JUR'].isin(partners),
+                        np.logical_and(
+                            oecd['YEA'] == year,
+                            oecd['CBC'] == 'PROFIT'
+                        )
+                    )
+                )
+
+                extract = oecd[mask_selection].copy()
+
+                print('[BEL case] Shape of the DataFrame with profits:', extract.shape)
+
+                oecd = oecd[~mask_selection].copy()
+
+                extract = extract.merge(
+                    revenues_extract[['JUR', 'YEA', 'Value']].rename(columns={'Value': 'TOT_REV'}),
+                    how='left',
+                    on=['JUR', 'YEA']
+                )
+
+                if extract['TOT_REV'].isnull().sum() > 0:
+                    raise Exception("Issue with the adjustment for Belgium.")
+
+                extract['RATIO'] = extract['JUR'].map(self.belgium_ratios_for_adjustment)
+
+                extract['Value'] = extract['RATIO'] * extract['TOT_REV']
+
+                extract = extract.drop(columns=['RATIO', 'TOT_REV'])
+
+                oecd = pd.concat([oecd, extract], axis=0)
 
         # Applying the extended adjustment for intra-group dividends if relevant
         if self.extended_dividends_adjustment:
-            temp = oecd[
-                np.logical_and(
-                    oecd['COU'] == oecd['JUR'],
-                    oecd['Year'] == 2017
-                )
-            ].copy()
+
+            # - We focus on domestic observations
+            temp = oecd[oecd['COU'] == oecd['JUR']].copy()
+
+            # - We compute the sum of adjusted domestic profits in each year
+            adj_profits = temp[temp['CBC'] == 'PROFIT_ADJ'].copy()
+            adj_profits = adj_profits.groupby('YEA').sum()[['Value']].reset_index()
+            adj_profits = adj_profits.rename(columns={'Value': 'PROFIT_ADJ'})
+
+            # - For each year, we keep track of the countries that have provided adjusted domestic profits
+            self.adj_profits_countries = {
+                y: temp[
+                    np.logical_and(
+                        temp['CBC'] == 'PROFIT_ADJ',
+                        temp['YEA'] == y
+                    )
+                ]['COU'].unique() for y in (2016, 2017, 2018, 2019, 2020)
+            }
+
+            # - We compute the sum of non-adjusted domestic profits in each year for these countries
+            unadj_profits = temp.copy()
+            unadj_profits['SELECTION_DUMMY'] = unadj_profits.apply(
+                lambda row: row['COU'] in self.adj_profits_countries[row['YEA']] and row['CBC'] == 'PROFIT',
+                axis=1
+            )
+            unadj_profits = unadj_profits[unadj_profits['SELECTION_DUMMY']].copy()
+            unadj_profits = unadj_profits.groupby('YEA').sum()[['Value']].reset_index()
+            unadj_profits = unadj_profits.rename(columns={'Value': 'PROFIT'})
 
             sweden_profits = temp[
                 np.logical_and(
                     temp['COU'] == 'SWE',
                     temp['CBC'] == 'PROFIT'
                 )
-            ]['Value'].iloc[0]
-            adj_sweden_profits = sweden_profits * self.sweden_adj_ratios[2017]
+            ].groupby('YEA').sum()[['Value']].reset_index()
+            sweden_profits = sweden_profits.rename(columns={'Value': 'PROFIT_SWE'})
+            sweden_profits['PROFIT_ADJ_SWE'] = (
+                sweden_profits['PROFIT_SWE'] * sweden_profits['YEA'].map(self.sweden_adjustment_ratios)
+            )
+            sweden_profits = sweden_profits[sweden_profits['YEA'].map(self.sweden_adjustment_ratios) != 1].copy()
 
-            adj_profits = temp[temp['CBC'] == 'PROFIT_ADJ']['Value'].sum()
-            self.adj_profits_countries = temp[temp['CBC'] == 'PROFIT_ADJ']['COU'].unique()
-            profits = temp[
-                np.logical_and(
-                    temp['COU'].isin(self.adj_profits_countries),
-                    temp['CBC'] == 'PROFIT'
-                )
-            ]['Value'].sum()
+            adj_profits = adj_profits.merge(sweden_profits, how='outer', on='YEA')
+            adj_profits = adj_profits.merge(unadj_profits, how='outer', on='YEA')
 
-            self.extended_adjustment_ratio = (adj_sweden_profits + adj_profits) / (sweden_profits + profits)
+            for col in ['PROFIT', 'PROFIT_ADJ', 'PROFIT_SWE', 'PROFIT_ADJ_SWE']:
+                adj_profits[col] = adj_profits[col].fillna(0)
 
-        # Removing newcomers if relevant
-        if self.use_TWZ_for_CbCR_newcomers:
+            adj_profits['PROFIT'] = adj_profits['PROFIT'] + adj_profits['PROFIT_SWE']
+            adj_profits['PROFIT_ADJ'] = adj_profits['PROFIT_ADJ'] + adj_profits['PROFIT_ADJ_SWE']
 
-            reporting_countries = oecd[oecd['Year'] == self.year]['COU'].unique()
-            reporting_countries_previous_year = oecd[oecd['Year'] == self.year - 1]['COU'].unique()
-            newcomers = reporting_countries[~reporting_countries.isin(reporting_countries_previous_year)].copy()
-            newcomers = newcomers[~newcomers.isin(self.tax_haven_country_codes)].copy()
+            adj_profits['RATIO'] = adj_profits['PROFIT_ADJ'] / adj_profits['PROFIT']
 
-            oecd = oecd[~np.logical_and(oecd['Year'] == self.year, oecd['COU'].isin(newcomers))].copy()
+            self.extended_adjustment_ratios = adj_profits['YEA', 'RATIO'].to_dict()
 
-        # Restricting the data to the relevant income year
-        oecd = oecd[oecd['Year'] == self.year].copy()
+        # # Removing newcomers if relevant
+        # if self.use_TWZ_for_CbCR_newcomers:
 
-        # Dealing with Belgian data depending on the value of "belgium_treatment" - Applying the adjustment
-        if self.belgium_treatment == 'replace':
+        #     reporting_countries = oecd[oecd['Year'] == self.year]['COU'].unique()
+        #     reporting_countries_previous_year = oecd[oecd['Year'] == self.year - 1]['COU'].unique()
+        #     newcomers = reporting_countries[~reporting_countries.isin(reporting_countries_previous_year)].copy()
+        #     newcomers = newcomers[~newcomers.isin(self.tax_haven_country_codes)].copy()
 
-            for partner, data in zip(self.belgium_partners_for_replacement, self.belgium_data_for_replacement):
-
-                oecd = oecd[~np.logical_and(oecd['COU'] == 'BEL', oecd['JUR'] == partner)].copy()
-
-                oecd = pd.concat([oecd, data], axis=0)
-
-        # Dealing with the problematic Singapore-Cayman Islands observation - Applying the adjustment
-        if self.SGP_CYM_treatment == 'replace' and self.year == 2017:
-            oecd = oecd[
-                ~np.logical_and(
-                    oecd['COU'] == 'SGP',
-                    oecd['JUR'] == 'CYM'
-                )
-            ].copy()
-
-            oecd = pd.concat([oecd, self.SGP_CYM_data_for_replacement], axis=0)
+        #     oecd = oecd[~np.logical_and(oecd['Year'] == self.year, oecd['COU'].isin(newcomers))].copy()
 
         # We drop a few irrelevant columns from country-by-country data
         oecd.drop(
-            columns=['PAN', 'Grouping', 'Flag Codes', 'Flags', 'YEA', 'Year'],
+            columns=['PAN', 'Grouping', 'Flag Codes', 'Flags'],
             inplace=True
         )
 
         # We reshape the DataFrame from a long to a wide dataset
         oecd = oecd.pivot(
-            index=['COU', 'Ultimate Parent Jurisdiction', 'JUR', 'Partner Jurisdiction'],
+            index=['COU', 'Ultimate Parent Jurisdiction', 'JUR', 'Partner Jurisdiction', 'YEA'],
             columns='Variable',
             values='Value'
         ).reset_index()
-
-        # Adding the AUT-AUT values from the full sample if relevant
-        if self.year == 2017 and self.add_AUT_AUT_row:
-            oecd = pd.concat(
-                [oecd, self.temp_AUT],
-                axis=0
-            ).reset_index(drop=True)
 
         # We rename some columns to match the code that has been written before modifying how OECD data are loaded
         oecd.rename(
@@ -1452,7 +1329,8 @@ class TaxDeficitCalculator:
                 'COU': 'Parent jurisdiction (alpha-3 code)',
                 'Ultimate Parent Jurisdiction': 'Parent jurisdiction (whitespaces cleaned)',
                 'JUR': 'Partner jurisdiction (alpha-3 code)',
-                'Partner Jurisdiction': 'Partner jurisdiction (whitespaces cleaned)'
+                'Partner Jurisdiction': 'Partner jurisdiction (whitespaces cleaned)',
+                'YEA': 'YEAR'
             },
             inplace=True
         )
@@ -1462,7 +1340,7 @@ class TaxDeficitCalculator:
         oecd['Partner jurisdiction (whitespaces cleaned)'] = oecd.apply(
             lambda row: rename_partner_jurisdictions(
                 row,
-                COUNTRIES_WITH_MINIMUM_REPORTING=self.COUNTRIES_WITH_MINIMUM_REPORTING,
+                COUNTRIES_WITH_MINIMUM_REPORTING=self.COUNTRIES_WITH_MINIMUM_REPORTING[row['YEAR']],
                 use_case="normal"
             ),
             axis=1
@@ -1485,20 +1363,21 @@ class TaxDeficitCalculator:
         )
 
         # --- We clean the statutory corporate income tax rates
-        # Selecting the relevant year
-        statutory_rates = statutory_rates[['CODE', 'Country', self.year]].copy()
+        statutory_rates = statutory_rates.melt(id_vars=['CODE', 'Country'], var_name='YEAR', value_name='STAT_RATE')
         # Adding the country code for Bonaire
         statutory_rates['CODE'] = statutory_rates.apply(
             lambda row: 'BES' if row['Country'].startswith('Bonaire') else row['CODE'],
             axis=1
         )
         # Dealing with missing values
-        statutory_rates[self.year] = statutory_rates[self.year].map(lambda x: np.nan if x == '-' else x).astype(float)
+        statutory_rates['STAT_RATE'] = statutory_rates['STAT_RATE'].map(
+            lambda x: np.nan if x == '-' else x
+        ).astype(float)
         # Managing duplicates (equivalently to the Stata code)
         # Removing the EU average
         statutory_rates = statutory_rates[statutory_rates['Country'] != 'EU average'].copy()
         # If two rows display the same country code and the same rate, we keep only the first
-        statutory_rates = statutory_rates.drop_duplicates(subset=['CODE', self.year], keep='first').copy()
+        statutory_rates = statutory_rates.drop_duplicates(subset=['CODE', 'YEAR', 'STAT_RATE'], keep='first').copy()
         # In practice, only effect is to keep one row for Sint-Maarten which is the only other duplicated country code
         # Adding a simple check for duplicates
         if statutory_rates.duplicated(subset='CODE').sum() > 0:
@@ -1518,23 +1397,23 @@ class TaxDeficitCalculator:
         # Dropping the column with country names
         statutory_rates = statutory_rates.drop(columns='Country')
         # Dividing rates by 100 to move from percentages to values between 0 and 1
-        statutory_rates[self.year] /= 100
+        statutory_rates['STAT_RATE'] /= 100
         # Renaming columns
         statutory_rates.rename(
             columns={
                 'CODE': 'partner',
-                self.year: 'statrate'
+                'STAT_RATE': 'statrate'
             },
             inplace=True
         )
 
         self.statutory_rates = statutory_rates.copy()
 
-        # And we merge it with country-by-country data, on partner jurisdiction alpha-3 codes
+        # And we merge it with country-by-country data, on partner jurisdiction alpha-3 codes and year
         oecd = oecd.merge(
             statutory_rates,
             how='left',
-            left_on='Partner jurisdiction (alpha-3 code)', right_on='partner'
+            left_on=['Partner jurisdiction (alpha-3 code)', 'YEAR'], right_on=['partner', 'YEAR']
         )
 
         oecd.drop(columns=['partner'], inplace=True)
@@ -1552,9 +1431,10 @@ class TaxDeficitCalculator:
         oecd.drop(columns=['statrate'], inplace=True)
 
         # We adjust the domestic pre-tax profits for Sweden (with a neutral factor if "exclude" was chosen)
+        # The adjustment ratio used here depends on the year selected for the Sweden-Sweden row
         oecd['Profit (Loss) before Income Tax'] = oecd.apply(
             (
-                lambda row: row['Profit (Loss) before Income Tax'] * self.sweden_adjustment_ratio
+                lambda row: row['Profit (Loss) before Income Tax'] * self.sweden_adjustment_ratios[row['YEAR']]
                 if row['Parent jurisdiction (alpha-3 code)'] == 'SWE'
                 and row['Partner jurisdiction (alpha-3 code)'] == 'SWE'
                 else row['Profit (Loss) before Income Tax']
@@ -1562,23 +1442,8 @@ class TaxDeficitCalculator:
             axis=1
         )
 
-        # We adjust the pre-tax profits of Belgian multinationals if the "adjust" option has been chosen
-        if self.belgium_treatment == 'adjust':
-
-            for partner, ratio in zip(self.belgium_partners_for_adjustment, self.belgium_ratios_for_adjustment):
-
-                oecd['Profit (Loss) before Income Tax'] = oecd.apply(
-                    (
-                        lambda row: row['Total Revenues'] * ratio
-                        if row['Parent jurisdiction (alpha-3 code)'] == 'BEL'
-                        and row['Partner jurisdiction (alpha-3 code)'] == partner
-                        else row['Profit (Loss) before Income Tax']
-                    ),
-                    axis=1
-                )
-
         # If we prioritarily use adjusted pre-tax profits, we make the required adjustment
-        if self.use_adjusted_profits and self.year == 2017:
+        if self.use_adjusted_profits:
             oecd['Profit (Loss) before Income Tax'] = oecd.apply(
                 (
                     lambda row: row['Adjusted Profit (Loss) before Income Tax']
@@ -1588,18 +1453,18 @@ class TaxDeficitCalculator:
                 axis=1
             )
 
-        # Applying the extended adjustment for intra-group dividends if relevant
-        if self.extended_dividends_adjustment:
-            multiplier = np.logical_and(
-                oecd['Parent jurisdiction (alpha-3 code)'] == oecd['Partner jurisdiction (alpha-3 code)'],
-                ~oecd['Parent jurisdiction (alpha-3 code)'].isin(['SWE'] + list(self.adj_profits_countries))
-            ) * 1
+        # # Applying the extended adjustment for intra-group dividends if relevant
+        # if self.extended_dividends_adjustment:
+        #     multiplier = np.logical_and(
+        #         oecd['Parent jurisdiction (alpha-3 code)'] == oecd['Partner jurisdiction (alpha-3 code)'],
+        #         ~oecd['Parent jurisdiction (alpha-3 code)'].isin(['SWE'] + list(self.adj_profits_countries))
+        #     ) * 1
 
-            multiplier = multiplier.map(
-                {0: 1, 1: self.extended_adjustment_ratio}
-            )
+        #     multiplier = multiplier.map(
+        #         {0: 1, 1: self.extended_adjustment_ratio}
+        #     )
 
-            oecd['Profit (Loss) before Income Tax'] *= multiplier
+        #     oecd['Profit (Loss) before Income Tax'] *= multiplier
 
         if not self.average_ETRs_bool:
 
@@ -1698,10 +1563,11 @@ class TaxDeficitCalculator:
 
             # - Countries for which earnings (possibly obtained via interpolations) are directly available
             oecd = oecd.merge(
-                main_ILO_df[['earn', 'partner2']],
+                main_ILO_df,
                 how='left',
-                left_on='Partner jurisdiction (alpha-3 code)', right_on='partner2'
-            ).drop(columns=['partner2'])
+                left_on=['Partner jurisdiction (alpha-3 code)', 'YEAR'],
+                right_on=['country_code', 'year']
+            ).drop(columns=['country_code', 'year'])
 
             # - Countries for which they are imputed based on continental weighted averages
 
@@ -1735,10 +1601,12 @@ class TaxDeficitCalculator:
 
             # Merging based on continent codes
             oecd = oecd.merge(
-                continental_imputation_df[['CONTINENT_CODE', 'earn']].rename(columns={'earn': 'earn_avg_continent'}),
+                continental_imputation_df[
+                    ['CONTINENT_CODE_modified', 'year', 'earn']
+                ].rename(columns={'earn': 'earn_avg_continent'}),
                 how='left',
-                on='CONTINENT_CODE'
-            )
+                left_on=['CONTINENT_CODE', 'YEAR'], right_on=['CONTINENT_CODE_modified', 'year']
+            ).drop(columns=['CONTINENT_CODE_modified', 'year'])
 
             # - We gather earnings available at the country level and continental imputations
             oecd['earn'] = oecd.apply(
@@ -6045,6 +5913,71 @@ class TaxDeficitCalculator:
         else:
 
             return full_sample_df.copy()
+
+
+        # ==============================================================================================================
+        # ==============================================================================================================
+        # ### USEFUL CODE SNIPPETS #####################################################################################
+        # ==============================================================================================================
+        # ==============================================================================================================
+
+
+        # # We select the relevant year for each parent country
+        # relevant_years = {}
+
+        # if self.year != "all":
+
+        #     if isinstance(self.year, int):
+        #         relevant_years = {country: self.year for country in oecd['Parent jurisdiction (alpha-3 code)'].unique()}
+
+        #     elif self.year == 'last':
+
+        #         for country in oecd['Parent jurisdiction (alpha-3 code)'].unique():
+        #             unique_years = pd.Series(oecd[oecd['Parent jurisdiction (alpha-3 code)'] == country]['YEAR'].unique())
+
+        #             unique_years_restricted = unique_years[
+        #                 unique_years.map(
+        #                     (
+        #                         lambda y: country not in self.COUNTRIES_WITH_CONTINENTAL_REPORTING[y]
+        #                         and country not in self.COUNTRIES_WITH_MINIMUM_REPORTING[y]
+        #                     )
+        #                 )
+        #             ].copy()
+
+        #             if len(unique_years_restricted) == 0:
+        #                 relevant_year = unique_years.max()
+
+        #             else:
+        #                 relevant_year = unique_years_restricted.max()
+
+        #             relevant_years[country] = relevant_year
+
+        #     oecd['RELEVANT_YEAR'] = oecd['Parent jurisdiction (alpha-3 code)'].map(relevant_years)
+
+        #     if self.belgium_treatment == 'replace':
+
+        #         oecd['RELEVANT_YEAR'] = oecd.apply(
+        #             (
+        #                 lambda row: max(self.belgium_years_for_adjustment[row['JUR']])
+        #                 if row['COU'] == 'BEL' & row['JUR'] in self.belgium_partners_for_adjustment[row['RELEVANT_YEAR']]
+        #                 else row['RELEVANT_YEAR']
+        #             ),
+        #             axis=1
+        #         )
+
+        #     if self.SGP_CYM_treatment == 'replace':
+
+        #         oecd['RELEVANT_YEAR'] = oecd.apply(
+        #             (
+        #                 lambda row: 2020
+        #                 if row['COU'] == 'SGP' & row['JUR'] == 'CYM' & row['RELEVANT_YEAR'] == 2017
+        #                 else row['RELEVANT_YEAR']
+        #             ),
+        #             axis=1
+        #         )
+
+        #     oecd = oecd[oecd['YEAR'] == oecd['RELEVANT_YEAR']].copy()
+        #     oecd = oecd.drop(columns=['RELEVANT_YEAR'])
 
 
 if __name__ == '__main__':
