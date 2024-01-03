@@ -388,16 +388,16 @@ def impute_missing_carve_out_values(
         return row['CARVE_OUT']
 
     elif row['Is domestic?'] == 1:
-        return row['Profit (Loss) before Income Tax'] * avg_carve_out_impact_domestic
+        return row['Profit (Loss) before Income Tax'] * avg_carve_out_impact_domestic[row['YEAR']]
 
     elif row['Is partner jurisdiction a non-haven?'] == 1:
-        return row['Profit (Loss) before Income Tax'] * avg_carve_out_impact_non_haven
+        return row['Profit (Loss) before Income Tax'] * avg_carve_out_impact_non_haven[row['YEAR']]
 
     elif row['Is partner jurisdiction a tax haven?'] == 1:
-        return row['Profit (Loss) before Income Tax'] * avg_carve_out_impact_tax_haven
+        return row['Profit (Loss) before Income Tax'] * avg_carve_out_impact_tax_haven[row['YEAR']]
 
     else:
-        return row['Profit (Loss) before Income Tax'] * avg_carve_out_impact_aggregate
+        return row['Profit (Loss) before Income Tax'] * avg_carve_out_impact_aggregate[row['YEAR']]
 
 
 def get_avg_of_available_years(row, reference_year, variable):
