@@ -2699,46 +2699,6 @@ class TaxDeficitCalculator:
 
         return merged_df.reset_index(drop=True).copy()
 
-    def get_total_tax_deficits(self, minimum_ETR=0.25):
-        """
-        This method takes the selected minimum ETR as input and relies on the compute_all_tax_deficits, to output a Da-
-        taFrame with (i) the total tax defict of each in-sample country in 2021 EUR and (ii) the sum of these tax defi-
-        cits at the EU-27 and at the whole sample level. It can be considered as an intermediary step towards the fully
-        formatted table displayed on the online simulator (section "Multilateral implementation scenario").
-        """
-
-        df = self.compute_all_tax_deficits(minimum_ETR=minimum_ETR)
-
-        df = df[
-            ['Parent jurisdiction (whitespaces cleaned)', 'Parent jurisdiction (alpha-3 code)', 'tax_deficit']
-        ]
-
-        df.sort_values(
-            by='Parent jurisdiction (whitespaces cleaned)',
-            inplace=True
-        )
-
-        # We compute the sum of total tax deficits at the EU-27 level and for the whole sample
-        total_eu = (
-            df['Parent jurisdiction (alpha-3 code)'].isin(self.eu_27_country_codes) * 1 * df['tax_deficit']
-        ).sum()
-        total_whole_sample = df['tax_deficit'].sum()
-
-        # Possibly suboptimal process to add "Total" lines at the end of the DataFrame
-        dict_df = df.to_dict()
-
-        dict_df[df.columns[0]][len(df)] = 'Total - EU27'
-        dict_df[df.columns[1]][len(df)] = '..'
-        dict_df[df.columns[2]][len(df)] = total_eu
-
-        dict_df[df.columns[0]][len(df) + 1] = 'Total - Whole sample'
-        dict_df[df.columns[1]][len(df) + 1] = '..'
-        dict_df[df.columns[2]][len(df) + 1] = total_whole_sample
-
-        df = pd.DataFrame.from_dict(dict_df)
-
-        return df.reset_index(drop=True)
-
     # ------------------------------------------------------------------------------------------------------------------
     # --- QDMTT SCENARIO -----------------------------------------------------------------------------------------------
 
