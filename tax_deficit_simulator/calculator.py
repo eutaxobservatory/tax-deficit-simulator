@@ -3352,7 +3352,6 @@ class TaxDeficitCalculator:
         temp = tax_deficits.copy()
         temp['PAIR'] = temp['Parent jurisdiction (alpha-3 code)'] + temp['YEAR'].astype(str)
         temp = temp[~temp['Parent jurisdiction (alpha-3 code)'].isin(countries_implementing)].copy()
-        country_year_pairs_not_implementing = temp['PAIR'].unique()
         not_implementing_tax_deficits = tax_deficits[
             ~tax_deficits['Parent jurisdiction (alpha-3 code)'].isin(countries_implementing)
         ].copy()
@@ -3878,8 +3877,6 @@ class TaxDeficitCalculator:
 
         # We fetch the list of OECD-reporting parent countries whose tax haven tax deficit is taken from TWZ data and
         # not from OECD data in the benchmark computations
-        headquarter_collects_scenario = self.compute_all_tax_deficits(minimum_ETR=minimum_rate)
-
         oecd = self.oecd.copy()
 
         # --- Step common to OECD and TWZ data
