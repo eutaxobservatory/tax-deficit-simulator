@@ -12,7 +12,7 @@ def test_full_apportionment():
 
     (
         calculator_noCO, calculator_firstyearCO, calculator_longtermCO
-    ) = TDResults.load_benchmark_data_for_all_carve_outs(year)
+    ) = TDResults.load_benchmark_data_for_all_carve_outs()
 
     for calculator in [calculator_noCO, calculator_firstyearCO, calculator_longtermCO]:
 

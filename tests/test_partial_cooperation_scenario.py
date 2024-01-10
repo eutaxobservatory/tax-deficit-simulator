@@ -292,7 +292,7 @@ def test_partial_cooperation_scenario_3():
 
     (
         calculator_noCO, calculator_firstyearCO, calculator_longtermCO
-    ) = TDResults.load_benchmark_data_for_all_carve_outs(year)
+    ) = TDResults.load_benchmark_data_for_all_carve_outs()
 
     for calculator in [calculator_noCO, calculator_firstyearCO, calculator_longtermCO]:
 
@@ -432,7 +432,7 @@ def test_partial_cooperation_scenario_4():
 
     (
         calculator_noCO, calculator_firstyearCO, calculator_longtermCO
-    ) = TDResults.load_benchmark_data_for_all_carve_outs(year)
+    ) = TDResults.load_benchmark_data_for_all_carve_outs()
 
     for calculator in [calculator_noCO, calculator_firstyearCO, calculator_longtermCO]:
 
@@ -619,17 +619,6 @@ def test_partial_cooperation_scenario_stat_rate_cond_1():
                 return_bilateral_details=True
             )
 
-            if calculator.year == 2018 and calculator.China_treatment_2018 == '2017_CbCR':
-
-                multiplier = calculator.growth_rates.set_index('CountryGroupName').loc['World', 'uprusd1817']
-
-                multiplier = output_df['PARENT_COUNTRY_CODE'].map(
-                    lambda x: {'CHN': multiplier}.get(x, 1)
-                )
-
-                for col in ['PROFITS_BEFORE_TAX_POST_CO', 'TAX_DEFICIT', 'ALLOCATED_TAX_DEFICIT']:
-                    output_df[col] *= multiplier
-
             relevant_columns = []
             aggregation = {'COLLECTING_COUNTRY_NAME': 'first'}
 
@@ -752,7 +741,7 @@ def test_partial_cooperation_scenario_stat_rate_cond_2():
 
     (
         calculator_noCO, calculator_firstyearCO, calculator_longtermCO
-    ) = TDResults.load_benchmark_data_for_all_carve_outs(year)
+    ) = TDResults.load_benchmark_data_for_all_carve_outs()
 
     for calculator in [calculator_noCO, calculator_firstyearCO, calculator_longtermCO]:
 
