@@ -53,8 +53,8 @@ def test_full_apportionment():
             hq_revenue_gains = calculator.compute_all_tax_deficits(
                 minimum_ETR=rate, exclude_non_EU_domestic_TDs=False
             )
-            total_hq_revenue_gains = hq_revenue_gains[['total', 'YEAR']].groupby('YEAR').sum()
-            total_hq_revenue_gains = total_hq_revenue_gains.rename(columns={'total': 'total_hq'})
+            total_hq_revenue_gains = hq_revenue_gains[['tax_deficit', 'YEAR']].groupby('YEAR').sum()
+            total_hq_revenue_gains = total_hq_revenue_gains.rename(columns={'tax_deficit': 'total_hq'})
 
             diff1 = total_revenue_gains.merge(total_hq_revenue_gains, how='outer', on='YEAR')
             diff1['diff1'] = diff1['total'] - diff1['total_hq']
