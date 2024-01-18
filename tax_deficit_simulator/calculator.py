@@ -4906,6 +4906,11 @@ class TaxDeficitCalculator:
         print("Before the re-scaling of the foreign average allocation keys, they sum to:")
         print(avg_allocation_keys_foreign.groupby('YEAR').sum()['SHARE_KEY'])
 
+        # XX: To be removed
+        import time
+        time1 = time.time()
+        print('checking time - start')
+
         avg_allocation_keys_domestic['TEMP_KEY'] = 1
         other_domestic_UTPR_TDs['TEMP_KEY'] = 1
 
@@ -4914,6 +4919,10 @@ class TaxDeficitCalculator:
             how='left',
             on=['YEAR', 'TEMP_KEY']
         ).drop(columns=['TEMP_KEY'])
+
+        # XX: To be removed
+        time2 = time.time()
+        print('checking time - intermediary 1', time2 - time1)
 
         other_domestic_UTPR_TDs = other_domestic_UTPR_TDs[
             other_domestic_UTPR_TDs['PARENT_COUNTRY_CODE'] != other_domestic_UTPR_TDs['JUR']
@@ -4924,10 +4933,33 @@ class TaxDeficitCalculator:
                 other_domestic_UTPR_TDs['JUR'].isin(UTPR_incl_domestic)
             ].copy()
 
+        # XX: To be removed
+        time3 = time.time()
+        print('checking time - intermediary 2', time3 - time2)
+
         if not other_domestic_UTPR_TDs.empty:
-            other_domestic_UTPR_TDs['SHARE_KEY_TOTAL'] = other_domestic_UTPR_TDs.groupby(
+            # # XX to be removed
+            # return other_domestic_UTPR_TDs
+
+            # other_domestic_UTPR_TDs['SHARE_KEY_TOTAL'] = other_domestic_UTPR_TDs.groupby(
+            #     ['PARENT_COUNTRY_CODE', 'PARTNER_COUNTRY_CODE', 'YEAR', 'SOURCE']
+            # ).transform('sum')['SHARE_KEY']
+
+            tmp = other_domestic_UTPR_TDs[
+                ['PARENT_COUNTRY_CODE', 'PARTNER_COUNTRY_CODE', 'YEAR', 'SOURCE', 'SHARE_KEY']
+            ].groupby(
                 ['PARENT_COUNTRY_CODE', 'PARTNER_COUNTRY_CODE', 'YEAR', 'SOURCE']
-            ).transform('sum')['SHARE_KEY']
+            ).sum().reset_index().rename(
+                columns={'SHARE_KEY': 'SHARE_KEY_TOTAL'}
+            )
+
+            other_domestic_UTPR_TDs = other_domestic_UTPR_TDs.merge(
+                tmp,
+                how='left',
+                on=['PARENT_COUNTRY_CODE', 'PARTNER_COUNTRY_CODE', 'YEAR', 'SOURCE']
+            )
+
+            del tmp
 
             if among_countries_implementing:
                 other_domestic_UTPR_TDs['RESCALING_FACTOR'] = other_domestic_UTPR_TDs['PARENT_COUNTRY_CODE'].isin(
@@ -4952,21 +4984,38 @@ class TaxDeficitCalculator:
             other_domestic_UTPR_TDs['SHARE_KEY_TOTAL'] = other_domestic_UTPR_TDs['SHARE_KEY']
             other_domestic_UTPR_TDs['RESCALING_FACTOR'] = other_domestic_UTPR_TDs['SHARE_KEY']
 
+        # XX: To be removed
+        time4 = time.time()
+        print('checking time - intermediary 3', time4 - time3)
+
         other_domestic_UTPR_TDs['SHARE_KEY'] *= other_domestic_UTPR_TDs['RESCALING_FACTOR']
 
-        for parent_country in other_domestic_UTPR_TDs['PARENT_COUNTRY_CODE'].unique():
-            if parent_country in UTPR_incl_domestic:
-                extract = other_domestic_UTPR_TDs[
-                    other_domestic_UTPR_TDs['PARENT_COUNTRY_CODE'] == parent_country
-                ].copy()
+        extract = other_domestic_UTPR_TDs[
+            other_domestic_UTPR_TDs['PARENT_COUNTRY_CODE'].isin(UTPR_incl_domestic)
+        ].copy()
 
-                extract['JUR'] = parent_country
-                extract['SHARE_KEY'] = extract['YEAR'].map(avg_domestic_shares_domestic)
+        extract = extract.groupby(
+            ['PARENT_COUNTRY_CODE', 'PARTNER_COUNTRY_CODE', 'SOURCE', 'YEAR']
+        ).first().reset_index()
 
-                other_domestic_UTPR_TDs = pd.concat([other_domestic_UTPR_TDs, extract], axis=0)
+        extract['JUR'] = extract['PARENT_COUNTRY_CODE']
+        extract['SHARE_KEY'] = extract['YEAR'].map(avg_domestic_shares_foreign)
 
-            else:
-                continue
+        other_domestic_UTPR_TDs = pd.concat([other_domestic_UTPR_TDs, extract], axis=0)
+
+        # for parent_country in other_domestic_UTPR_TDs['PARENT_COUNTRY_CODE'].unique():
+        #     if parent_country in UTPR_incl_domestic:
+        #         extract = other_domestic_UTPR_TDs[
+        #             other_domestic_UTPR_TDs['PARENT_COUNTRY_CODE'] == parent_country
+        #         ].copy()
+
+        #         extract['JUR'] = parent_country
+        #         extract['SHARE_KEY'] = extract['YEAR'].map(avg_domestic_shares_domestic)
+
+        #         other_domestic_UTPR_TDs = pd.concat([other_domestic_UTPR_TDs, extract], axis=0)
+
+        #     else:
+        #         continue
 
         other_domestic_UTPR_TDs = other_domestic_UTPR_TDs.rename(
             columns={
@@ -4989,6 +5038,10 @@ class TaxDeficitCalculator:
             other_foreign_UTPR_TDs['PARENT_COUNTRY_CODE'] != other_foreign_UTPR_TDs['JUR']
         ].copy()
 
+        # XX: To be removed
+        time5 = time.time()
+        print('checking time - intermediary 4', time5 - time4)
+
         if among_countries_implementing:
             other_foreign_UTPR_TDs = other_foreign_UTPR_TDs[
                 other_foreign_UTPR_TDs['JUR'].isin(np.union1d(UTPR_incl_domestic, UTPR_excl_domestic))
@@ -4996,9 +5049,23 @@ class TaxDeficitCalculator:
 
         if not other_foreign_UTPR_TDs.empty:
 
-            other_foreign_UTPR_TDs['SHARE_KEY_TOTAL'] = other_foreign_UTPR_TDs.groupby(
+            # other_foreign_UTPR_TDs['SHARE_KEY_TOTAL'] = other_foreign_UTPR_TDs.groupby(
+            #     ['PARENT_COUNTRY_CODE', 'PARTNER_COUNTRY_CODE', 'YEAR', 'SOURCE']
+            # ).transform('sum')['SHARE_KEY']
+
+            tmp = other_foreign_UTPR_TDs[
+                ['PARENT_COUNTRY_CODE', 'PARTNER_COUNTRY_CODE', 'YEAR', 'SOURCE', 'SHARE_KEY']
+            ].groupby(
                 ['PARENT_COUNTRY_CODE', 'PARTNER_COUNTRY_CODE', 'YEAR', 'SOURCE']
-            ).transform('sum')['SHARE_KEY']
+            ).sum().reset_index().rename(
+                columns={'SHARE_KEY': 'SHARE_KEY_TOTAL'}
+            )
+
+            other_foreign_UTPR_TDs = other_foreign_UTPR_TDs.merge(
+                tmp,
+                how='left',
+                on=['PARENT_COUNTRY_CODE', 'PARTNER_COUNTRY_CODE', 'YEAR', 'SOURCE']
+            )
 
             if among_countries_implementing:
                 other_foreign_UTPR_TDs['RESCALING_FACTOR'] = other_foreign_UTPR_TDs['PARENT_COUNTRY_CODE'].isin(
@@ -5023,24 +5090,41 @@ class TaxDeficitCalculator:
             other_foreign_UTPR_TDs['SHARE_KEY_TOTAL'] = other_foreign_UTPR_TDs['SHARE_KEY']
             other_foreign_UTPR_TDs['RESCALING_FACTOR'] = other_foreign_UTPR_TDs['SHARE_KEY']
 
+        # XX: To be removed
+        time6 = time.time()
+        print('checking time - intermediary 5', time6 - time5)
+
         other_foreign_UTPR_TDs['SHARE_KEY'] *= other_foreign_UTPR_TDs['RESCALING_FACTOR']
 
-        for parent_country in other_foreign_UTPR_TDs['PARENT_COUNTRY_CODE'].unique():
-            if parent_country in UTPR_incl_domestic + UTPR_excl_domestic:
-                df = other_foreign_UTPR_TDs[other_foreign_UTPR_TDs['PARENT_COUNTRY_CODE'] == parent_country].copy()
+        extract = other_foreign_UTPR_TDs[
+            other_foreign_UTPR_TDs['PARENT_COUNTRY_CODE'].isin(UTPR_incl_domestic + UTPR_excl_domestic)
+        ].copy()
 
-                jur = df['JUR'].unique()
-                jur = jur[0]
+        extract = extract.groupby(
+            ['PARENT_COUNTRY_CODE', 'PARTNER_COUNTRY_CODE', 'SOURCE', 'YEAR']
+        ).first().reset_index()
 
-                df = df[df['JUR'] == jur].copy()
+        extract['JUR'] = extract['PARENT_COUNTRY_CODE']
+        extract['SHARE_KEY'] = extract['YEAR'].map(avg_domestic_shares_foreign)
 
-                df['JUR'] = parent_country
-                df['SHARE_KEY'] = df['YEAR'].map(avg_domestic_shares_foreign)
+        other_foreign_UTPR_TDs = pd.concat([other_foreign_UTPR_TDs, extract], axis=0)
 
-                other_foreign_UTPR_TDs = pd.concat([other_foreign_UTPR_TDs, df], axis=0)
+        # for parent_country in other_foreign_UTPR_TDs['PARENT_COUNTRY_CODE'].unique():
+        #     if parent_country in UTPR_incl_domestic + UTPR_excl_domestic:
+        #         df = other_foreign_UTPR_TDs[other_foreign_UTPR_TDs['PARENT_COUNTRY_CODE'] == parent_country].copy()
 
-            else:
-                continue
+        #         jur = df['JUR'].unique()
+        #         jur = jur[0]
+
+        #         df = df[df['JUR'] == jur].copy()
+
+        #         df['JUR'] = parent_country
+        #         df['SHARE_KEY'] = df['YEAR'].map(avg_domestic_shares_foreign)
+
+        #         other_foreign_UTPR_TDs = pd.concat([other_foreign_UTPR_TDs, df], axis=0)
+
+        #     else:
+        #         continue
 
         other_foreign_UTPR_TDs = other_foreign_UTPR_TDs.rename(
             columns={
@@ -5049,6 +5133,10 @@ class TaxDeficitCalculator:
                 'SHARE_KEY': 'SHARE_COLLECTED'
             }
         )
+
+        # XX: To be removed
+        time7 = time.time()
+        print('checking time - intermediary 6', time7 - time6)
 
         # --- Other than UTPR
 
@@ -5080,6 +5168,10 @@ class TaxDeficitCalculator:
                 ),
                 axis=1
             )
+
+        # XX: To be removed
+        time8 = time.time()
+        print('checking time - intermediary 8', time8 - time7)
 
         full_sample_df = pd.concat(
             [
