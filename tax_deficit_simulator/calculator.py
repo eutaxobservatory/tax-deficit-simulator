@@ -1661,7 +1661,7 @@ class TaxDeficitCalculator:
                 )
 
         # If we prioritarily use adjusted pre-tax profits, we make the required adjustment
-        if self.use_adjusted_profits and self.year == 2017:
+        if self.use_adjusted_profits:
             oecd['Profit (Loss) before Income Tax'] = oecd.apply(
                 (
                     lambda row: row['Adjusted Profit (Loss) before Income Tax']
