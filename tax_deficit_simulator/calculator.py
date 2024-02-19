@@ -1081,21 +1081,23 @@ class TaxDeficitCalculator:
 
         if self.belgium_treatment in ['adjust', 'replace']:
 
-            # We remove the problematic country pairs from the computation of average ETRs
+            # We remove the problematic observations (country pair x year) from the computation of average ETRs
             oecd = oecd[
                 ~np.logical_or(
+                    # For the Netherlands as partner country, we discard the years 2016 and 2018
                     np.logical_and(
                         oecd['COU'] == 'BEL',
                         np.logical_and(
                             oecd['JUR'] == 'NLD',
-                            oecd['YEA'] == 2016
+                            oecd['YEA'].isin([2016, 2018])
                         )
                     ),
+                    # For the UK as partner country, we discard the years 2017 and 2018
                     np.logical_and(
                         oecd['COU'] == 'BEL',
                         np.logical_and(
                             oecd['JUR'] == 'GBR',
-                            oecd['YEA'] == 2017
+                            oecd['YEA'].isin([2017, 2018])
                         )
                     )
                 )
