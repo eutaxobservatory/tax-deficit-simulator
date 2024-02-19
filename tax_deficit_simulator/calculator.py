@@ -394,6 +394,20 @@ class TaxDeficitCalculator:
             2020: ['AUT', 'BGR', 'FIN', 'GBR', 'KOR', 'SVN', 'SWE'],    # Lithuania? Tunisia? Bulgaria also unclear
         }
 
+        self.belgium_info_for_replacement = {
+            2016: [{'partner': 'NLD', 'ok_year': 2017}],
+            2017: [{'partner': 'GBR', 'ok_year': 2016}],
+            2018: [
+                {'partner': 'GBR', 'ok_year': 2016},
+                {'partner': 'NLD', 'ok_year': 2017}
+            ],
+            2019: [
+                {'partner': 'GBR', 'ok_year': 2016},
+                {'partner': 'NLD', 'ok_year': 2017}
+            ],
+            2020: []
+        }
+
         self.belgium_partners_for_adjustment = {
             2016: ["NLD"],
             2017: ["GBR"],
@@ -853,11 +867,13 @@ class TaxDeficitCalculator:
         oecd['JUR'] = oecd.apply(
             lambda row: rename_partner_jurisdictions(
                 row,
-                COUNTRIES_WITH_MINIMUM_REPORTING=self.COUNTRIES_WITH_MINIMUM_REPORTING,
+                COUNTRIES_WITH_MINIMUM_REPORTING=self.COUNTRIES_WITH_MINIMUM_REPORTING[row['YEA']],
                 use_case='specific'
             ),
             axis=1
         )
+
+        print(len(oecd[oecd['JUR'] == 'FJTa']))
 
         # We eliminate stateless entities and the "Foreign Jurisdictions Total" fields
         oecd = oecd[
@@ -1287,6 +1303,66 @@ class TaxDeficitCalculator:
                 extract = extract.drop(columns=['RATIO', 'TOT_REV'])
 
                 oecd = pd.concat([oecd, extract], axis=0)
+
+        elif self.belgium_treatment == 'replace':
+            # In case we choose to replace with valid years
+            GDP_growth_rates = self.growth_rates.set_index('CountryGroupName')
+
+            for problematic_year, required_replacements in self.belgium_info_for_replacement.items():
+
+                for required_replacement in required_replacements:
+
+                    partner = required_replacement['partner']
+                    ok_year = required_replacement['ok_year']
+
+                    # Removing the problematic observations
+                    oecd = oecd[
+                        ~np.logical_and(
+                            oecd['COU'] == 'BEL',
+                            np.logical_and(
+                                oecd['YEA'] == problematic_year,
+                                oecd['JUR'] == partner
+                            )
+                        )
+                    ].copy()
+
+                    # Extracting the valid observations used for the replacement
+                    extract = oecd[
+                        np.logical_and(
+                            oecd['COU'] == 'BEL',
+                            np.logical_and(
+                                oecd['YEA'] == ok_year,
+                                oecd['JUR'] == partner
+                            )
+                        )
+                    ].copy()
+
+                    # Growth rate to apply to the valid observations for the replacement
+                    print(partner, ok_year, problematic_year)
+
+                    if problematic_year > ok_year:
+                        growth_rate_multiplier = GDP_growth_rates.loc[
+                            'European Union',
+                            f'uprusd{int(problematic_year - 2000)}{int(ok_year - 2000)}'
+                        ]
+
+                    else:
+                        growth_rate_multiplier = 1 / GDP_growth_rates.loc[
+                            'European Union',
+                            f'uprusd{int(ok_year - 2000)}{int(problematic_year - 2000)}'
+                        ]
+
+                    print(growth_rate_multiplier)
+
+                    # Applying the growth rate to all variables but employees
+                    mask = extract['CBC'] != 'EMPLOYEES'
+                    extract['Value'] *= (mask * (growth_rate_multiplier - 1) + 1)
+
+                    # Changing the year in the extract
+                    extract['YEA'] = problematic_year
+
+                    # Adding the extract
+                    oecd = pd.concat([oecd, extract], axis=0)
 
         # Applying the extended adjustment for intra-group dividends if relevant
         if self.extended_dividends_adjustment:
