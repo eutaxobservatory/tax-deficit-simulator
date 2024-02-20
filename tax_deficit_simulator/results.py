@@ -362,330 +362,129 @@ class TaxDeficitResults:
 
         return df.reset_index(drop=True)
 
-    def load_benchmark_data_without_carve_outs(self, year):
+    def load_benchmark_data_without_carve_outs(self):
 
         # --- Loading required data
 
-        if year == 2016:
-
-            calculator_noCO = TaxDeficitCalculator(
-                year=2016,
-                alternative_imputation=True,
-                non_haven_TD_imputation_selection='EU',
-                sweden_treatment='adjust', belgium_treatment='replace', SGP_CYM_treatment='replace',
-                use_adjusted_profits=True,
-                average_ETRs=True,
-                years_for_avg_ETRs=[2016, 2017],
-                carve_outs=False,
-                de_minimis_exclusion=True,
-                extended_dividends_adjustment=False,
-                behavioral_responses=False,
-                fetch_data_online=False
-            )
-            calculator_noCO.load_clean_data()
-
-        elif year == 2017:
-
-            calculator_noCO = TaxDeficitCalculator(
-                year=2017,
-                alternative_imputation=True,
-                non_haven_TD_imputation_selection='EU',
-                sweden_treatment='adjust', belgium_treatment='replace', SGP_CYM_treatment='replace',
-                use_adjusted_profits=True,
-                average_ETRs=True,
-                years_for_avg_ETRs=[2016, 2017],
-                carve_outs=False,
-                de_minimis_exclusion=True,
-                add_AUT_AUT_row=True,
-                extended_dividends_adjustment=False,
-                behavioral_responses=False,
-                fetch_data_online=False
-            )
-            calculator_noCO.load_clean_data()
-
-        elif year == 2018:
-
-            calculator_noCO = TaxDeficitCalculator(
-                year=2018,
-                alternative_imputation=True,
-                non_haven_TD_imputation_selection='EU',
-                sweden_treatment='adjust', belgium_treatment='replace', SGP_CYM_treatment='replace',
-                China_treatment_2018="2017_CbCR",
-                use_adjusted_profits=True,
-                average_ETRs=True,
-                years_for_avg_ETRs=[2016, 2017, 2018],
-                carve_outs=False,
-                de_minimis_exclusion=True,
-                add_AUT_AUT_row=True,
-                extended_dividends_adjustment=False,
-                behavioral_responses=False,
-                fetch_data_online=False
-            )
-            calculator_noCO.load_clean_data()
-
-        else:
-            raise Exception("Three years are available for now: 2016, 2017, and 2018.")
+        calculator_noCO = TaxDeficitCalculator(
+            alternative_imputation=True,
+            non_haven_TD_imputation_selection='EU',
+            sweden_treatment='adjust', belgium_treatment='adjust', SGP_CYM_treatment='replace',
+            use_adjusted_profits=True,
+            average_ETRs=True,
+            years_for_avg_ETRs=[2016, 2017, 2018, 2019, 2020],
+            carve_outs=False,
+            de_minimis_exclusion=True,
+            extended_dividends_adjustment=False,
+            behavioral_responses=False,
+            fetch_data_online=False
+        )
+        calculator_noCO.load_clean_data()
 
         return calculator_noCO
 
-    def load_benchmark_data_with_LT_carve_outs(self, year):
+    def load_benchmark_data_with_LT_carve_outs(self):
 
         # --- Loading required data
 
-        if year == 2016:
-
-            calculator_longtermCO = TaxDeficitCalculator(
-                year=2016,
-                alternative_imputation=True,
-                non_haven_TD_imputation_selection='EU',
-                sweden_treatment='adjust', belgium_treatment='replace', SGP_CYM_treatment='replace',
-                use_adjusted_profits=True,
-                average_ETRs=True,
-                years_for_avg_ETRs=[2016, 2017],
-                carve_outs=True,
-                carve_out_rate_assets=0.05, carve_out_rate_payroll=0.05,
-                depreciation_only=False, exclude_inventories=False, payroll_premium=20,
-                ex_post_ETRs=False,
-                de_minimis_exclusion=True,
-                extended_dividends_adjustment=False,
-                behavioral_responses=False,
-                fetch_data_online=False
-            )
-            calculator_longtermCO.load_clean_data()
-
-        elif year == 2017:
-
-            calculator_longtermCO = TaxDeficitCalculator(
-                year=2017,
-                alternative_imputation=True,
-                non_haven_TD_imputation_selection='EU',
-                sweden_treatment='adjust', belgium_treatment='replace', SGP_CYM_treatment='replace',
-                use_adjusted_profits=True,
-                average_ETRs=True,
-                years_for_avg_ETRs=[2016, 2017],
-                carve_outs=True,
-                carve_out_rate_assets=0.05, carve_out_rate_payroll=0.05,
-                depreciation_only=False, exclude_inventories=False, payroll_premium=20,
-                ex_post_ETRs=False,
-                de_minimis_exclusion=True,
-                add_AUT_AUT_row=True,
-                extended_dividends_adjustment=False,
-                behavioral_responses=False,
-                fetch_data_online=False
-            )
-            calculator_longtermCO.load_clean_data()
-
-        elif year == 2018:
-
-            calculator_longtermCO = TaxDeficitCalculator(
-                year=2018,
-                alternative_imputation=True,
-                non_haven_TD_imputation_selection='EU',
-                sweden_treatment='adjust', belgium_treatment='replace', SGP_CYM_treatment='replace',
-                China_treatment_2018="2017_CbCR",
-                use_adjusted_profits=True,
-                average_ETRs=True,
-                years_for_avg_ETRs=[2016, 2017, 2018],
-                carve_outs=True,
-                carve_out_rate_assets=0.05, carve_out_rate_payroll=0.05,
-                depreciation_only=False, exclude_inventories=False, payroll_premium=20,
-                ex_post_ETRs=False,
-                de_minimis_exclusion=True,
-                add_AUT_AUT_row=True,
-                extended_dividends_adjustment=False,
-                behavioral_responses=False,
-                fetch_data_online=False
-            )
-            calculator_longtermCO.load_clean_data()
-
-        else:
-            raise Exception("Three years are available for now: 2016, 2017, and 2018.")
+        calculator_longtermCO = TaxDeficitCalculator(
+            alternative_imputation=True,
+            non_haven_TD_imputation_selection='EU',
+            sweden_treatment='adjust', belgium_treatment='adjust', SGP_CYM_treatment='replace',
+            use_adjusted_profits=True,
+            average_ETRs=True,
+            years_for_avg_ETRs=[2016, 2017, 2018, 2019, 2020],
+            carve_outs=True,
+            carve_out_rate_assets=0.05, carve_out_rate_payroll=0.05,
+            depreciation_only=False, exclude_inventories=False, payroll_premium=20,
+            ex_post_ETRs=False,
+            de_minimis_exclusion=True,
+            extended_dividends_adjustment=False,
+            behavioral_responses=False,
+            fetch_data_online=False
+        )
+        calculator_longtermCO.load_clean_data()
 
         return calculator_longtermCO
 
-    def load_benchmark_data_for_all_carve_outs(self, year):
+    def load_benchmark_data_with_firstyear_carve_outs(self):
 
         # --- Loading required data
 
-        if year == 2016:
+        calculator_firstyearCO = TaxDeficitCalculator(
+            alternative_imputation=True,
+            non_haven_TD_imputation_selection='EU',
+            sweden_treatment='adjust', belgium_treatment='adjust', SGP_CYM_treatment='replace',
+            use_adjusted_profits=True,
+            average_ETRs=True,
+            years_for_avg_ETRs=[2016, 2017, 2018, 2019, 2020],
+            carve_outs=True,
+            carve_out_rate_assets=0.08, carve_out_rate_payroll=0.1,
+            depreciation_only=False, exclude_inventories=False, payroll_premium=20,
+            ex_post_ETRs=False,
+            de_minimis_exclusion=True,
+            extended_dividends_adjustment=False,
+            behavioral_responses=False,
+            fetch_data_online=False
+        )
+        calculator_firstyearCO.load_clean_data()
 
-            calculator_noCO = TaxDeficitCalculator(
-                year=2016,
-                alternative_imputation=True,
-                non_haven_TD_imputation_selection='EU',
-                sweden_treatment='adjust', belgium_treatment='replace', SGP_CYM_treatment='replace',
-                use_adjusted_profits=True,
-                average_ETRs=True,
-                years_for_avg_ETRs=[2016, 2017],
-                carve_outs=False,
-                de_minimis_exclusion=True,
-                extended_dividends_adjustment=False,
-                behavioral_responses=False,
-                fetch_data_online=False
-            )
-            calculator_noCO.load_clean_data()
+        return calculator_firstyearCO
 
-            calculator_firstyearCO = TaxDeficitCalculator(
-                year=2016,
-                alternative_imputation=True,
-                non_haven_TD_imputation_selection='EU',
-                sweden_treatment='adjust', belgium_treatment='replace', SGP_CYM_treatment='replace',
-                use_adjusted_profits=True,
-                average_ETRs=True,
-                years_for_avg_ETRs=[2016, 2017],
-                carve_outs=True,
-                carve_out_rate_assets=0.08, carve_out_rate_payroll=0.1,
-                depreciation_only=False, exclude_inventories=False, payroll_premium=20,
-                ex_post_ETRs=False,
-                de_minimis_exclusion=True,
-                extended_dividends_adjustment=False,
-                behavioral_responses=False,
-                fetch_data_online=False
-            )
-            calculator_firstyearCO.load_clean_data()
+    def load_benchmark_data_for_all_carve_outs(self):
 
-            calculator_longtermCO = TaxDeficitCalculator(
-                year=2016,
-                alternative_imputation=True,
-                non_haven_TD_imputation_selection='EU',
-                sweden_treatment='adjust', belgium_treatment='replace', SGP_CYM_treatment='replace',
-                use_adjusted_profits=True,
-                average_ETRs=True,
-                years_for_avg_ETRs=[2016, 2017],
-                carve_outs=True,
-                carve_out_rate_assets=0.05, carve_out_rate_payroll=0.05,
-                depreciation_only=False, exclude_inventories=False, payroll_premium=20,
-                ex_post_ETRs=False,
-                de_minimis_exclusion=True,
-                extended_dividends_adjustment=False,
-                behavioral_responses=False,
-                fetch_data_online=False
-            )
-            calculator_longtermCO.load_clean_data()
+        # --- Loading required data
 
-        elif year == 2017:
+        calculator_noCO = TaxDeficitCalculator(
+            alternative_imputation=True,
+            non_haven_TD_imputation_selection='EU',
+            sweden_treatment='adjust', belgium_treatment='adjust', SGP_CYM_treatment='replace',
+            use_adjusted_profits=True,
+            average_ETRs=True,
+            years_for_avg_ETRs=[2016, 2017, 2018, 2019, 2020],
+            carve_outs=False,
+            de_minimis_exclusion=True,
+            extended_dividends_adjustment=False,
+            behavioral_responses=False,
+            fetch_data_online=False
+        )
+        calculator_noCO.load_clean_data()
 
-            calculator_noCO = TaxDeficitCalculator(
-                year=2017,
-                alternative_imputation=True,
-                non_haven_TD_imputation_selection='EU',
-                sweden_treatment='adjust', belgium_treatment='replace', SGP_CYM_treatment='replace',
-                use_adjusted_profits=True,
-                average_ETRs=True,
-                years_for_avg_ETRs=[2016, 2017],
-                carve_outs=False,
-                de_minimis_exclusion=True,
-                add_AUT_AUT_row=True,
-                extended_dividends_adjustment=False,
-                behavioral_responses=False,
-                fetch_data_online=False
-            )
-            calculator_noCO.load_clean_data()
+        calculator_longtermCO = TaxDeficitCalculator(
+            alternative_imputation=True,
+            non_haven_TD_imputation_selection='EU',
+            sweden_treatment='adjust', belgium_treatment='adjust', SGP_CYM_treatment='replace',
+            use_adjusted_profits=True,
+            average_ETRs=True,
+            years_for_avg_ETRs=[2016, 2017, 2018, 2019, 2020],
+            carve_outs=True,
+            carve_out_rate_assets=0.05, carve_out_rate_payroll=0.05,
+            depreciation_only=False, exclude_inventories=False, payroll_premium=20,
+            ex_post_ETRs=False,
+            de_minimis_exclusion=True,
+            extended_dividends_adjustment=False,
+            behavioral_responses=False,
+            fetch_data_online=False
+        )
+        calculator_longtermCO.load_clean_data()
 
-            calculator_firstyearCO = TaxDeficitCalculator(
-                year=2017,
-                alternative_imputation=True,
-                non_haven_TD_imputation_selection='EU',
-                sweden_treatment='adjust', belgium_treatment='replace', SGP_CYM_treatment='replace',
-                use_adjusted_profits=True,
-                average_ETRs=True,
-                years_for_avg_ETRs=[2016, 2017],
-                carve_outs=True,
-                carve_out_rate_assets=0.08, carve_out_rate_payroll=0.1,
-                depreciation_only=False, exclude_inventories=False, payroll_premium=20,
-                ex_post_ETRs=False,
-                de_minimis_exclusion=True,
-                add_AUT_AUT_row=True,
-                extended_dividends_adjustment=False,
-                behavioral_responses=False,
-                fetch_data_online=False
-            )
-            calculator_firstyearCO.load_clean_data()
-
-            calculator_longtermCO = TaxDeficitCalculator(
-                year=2017,
-                alternative_imputation=True,
-                non_haven_TD_imputation_selection='EU',
-                sweden_treatment='adjust', belgium_treatment='replace', SGP_CYM_treatment='replace',
-                use_adjusted_profits=True,
-                average_ETRs=True,
-                years_for_avg_ETRs=[2016, 2017],
-                carve_outs=True,
-                carve_out_rate_assets=0.05, carve_out_rate_payroll=0.05,
-                depreciation_only=False, exclude_inventories=False, payroll_premium=20,
-                ex_post_ETRs=False,
-                de_minimis_exclusion=True,
-                add_AUT_AUT_row=True,
-                extended_dividends_adjustment=False,
-                behavioral_responses=False,
-                fetch_data_online=False
-            )
-            calculator_longtermCO.load_clean_data()
-
-        elif year == 2018:
-
-            calculator_noCO = TaxDeficitCalculator(
-                year=2018,
-                alternative_imputation=True,
-                non_haven_TD_imputation_selection='EU',
-                sweden_treatment='adjust', belgium_treatment='replace', SGP_CYM_treatment='replace',
-                China_treatment_2018="2017_CbCR",
-                use_adjusted_profits=True,
-                average_ETRs=True,
-                years_for_avg_ETRs=[2016, 2017, 2018],
-                carve_outs=False,
-                de_minimis_exclusion=True,
-                add_AUT_AUT_row=True,
-                extended_dividends_adjustment=False,
-                behavioral_responses=False,
-                fetch_data_online=False
-            )
-            calculator_noCO.load_clean_data()
-
-            calculator_firstyearCO = TaxDeficitCalculator(
-                year=2018,
-                alternative_imputation=True,
-                non_haven_TD_imputation_selection='EU',
-                sweden_treatment='adjust', belgium_treatment='replace', SGP_CYM_treatment='replace',
-                China_treatment_2018="2017_CbCR",
-                use_adjusted_profits=True,
-                average_ETRs=True,
-                years_for_avg_ETRs=[2016, 2017, 2018],
-                carve_outs=True,
-                carve_out_rate_assets=0.08, carve_out_rate_payroll=0.1,
-                depreciation_only=False, exclude_inventories=False, payroll_premium=20,
-                ex_post_ETRs=False,
-                de_minimis_exclusion=True,
-                add_AUT_AUT_row=True,
-                extended_dividends_adjustment=False,
-                behavioral_responses=False,
-                fetch_data_online=False
-            )
-            calculator_firstyearCO.load_clean_data()
-
-            calculator_longtermCO = TaxDeficitCalculator(
-                year=2018,
-                alternative_imputation=True,
-                non_haven_TD_imputation_selection='EU',
-                sweden_treatment='adjust', belgium_treatment='replace', SGP_CYM_treatment='replace',
-                China_treatment_2018="2017_CbCR",
-                use_adjusted_profits=True,
-                average_ETRs=True,
-                years_for_avg_ETRs=[2016, 2017, 2018],
-                carve_outs=True,
-                carve_out_rate_assets=0.05, carve_out_rate_payroll=0.05,
-                depreciation_only=False, exclude_inventories=False, payroll_premium=20,
-                ex_post_ETRs=False,
-                de_minimis_exclusion=True,
-                add_AUT_AUT_row=True,
-                extended_dividends_adjustment=False,
-                behavioral_responses=False,
-                fetch_data_online=False
-            )
-            calculator_longtermCO.load_clean_data()
-
-        else:
-            raise Exception("Three years are available for now: 2016, 2017, and 2018.")
+        calculator_firstyearCO = TaxDeficitCalculator(
+            alternative_imputation=True,
+            non_haven_TD_imputation_selection='EU',
+            sweden_treatment='adjust', belgium_treatment='adjust', SGP_CYM_treatment='replace',
+            use_adjusted_profits=True,
+            average_ETRs=True,
+            years_for_avg_ETRs=[2016, 2017, 2018, 2019, 2020],
+            carve_outs=True,
+            carve_out_rate_assets=0.08, carve_out_rate_payroll=0.1,
+            depreciation_only=False, exclude_inventories=False, payroll_premium=20,
+            ex_post_ETRs=False,
+            de_minimis_exclusion=True,
+            extended_dividends_adjustment=False,
+            behavioral_responses=False,
+            fetch_data_online=False
+        )
+        calculator_firstyearCO.load_clean_data()
 
         return (calculator_noCO, calculator_firstyearCO, calculator_longtermCO)
 
