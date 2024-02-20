@@ -873,8 +873,6 @@ class TaxDeficitCalculator:
             axis=1
         )
 
-        print(len(oecd[oecd['JUR'] == 'FJTa']))
-
         # We eliminate stateless entities and the "Foreign Jurisdictions Total" fields
         oecd = oecd[
             ~oecd['JUR'].isin(['FJT', 'STA'])
@@ -1343,8 +1341,6 @@ class TaxDeficitCalculator:
                     ].copy()
 
                     # Growth rate to apply to the valid observations for the replacement
-                    print(partner, ok_year, problematic_year)
-
                     if problematic_year > ok_year:
                         growth_rate_multiplier = GDP_growth_rates.loc[
                             'European Union',
@@ -1356,8 +1352,6 @@ class TaxDeficitCalculator:
                             'European Union',
                             f'uprusd{int(ok_year - 2000)}{int(problematic_year - 2000)}'
                         ]
-
-                    print(growth_rate_multiplier)
 
                     # Applying the growth rate to all variables but employees
                     mask = extract['CBC'] != 'EMPLOYEES'
@@ -1701,8 +1695,10 @@ class TaxDeficitCalculator:
             revenue_threshold = self.exclusion_threshold_revenues
             profit_threshold = self.exclusion_threshold_profits
 
-            mask_revenues = (oecd['Total Revenues'] >= revenue_threshold)
-            mask_profits = (oecd['Profit (Loss) before Income Tax'] >= profit_threshold)
+            exchange_rates_USD_to_EUR = oecd['YEAR'].map(self.USD_to_EUR_rates)
+
+            mask_revenues = oecd['Total Revenues'] >= (revenue_threshold / exchange_rates_USD_to_EUR)
+            mask_profits = oecd['Profit (Loss) before Income Tax'] >= (profit_threshold / exchange_rates_USD_to_EUR)
 
             mask_de_minimis_exclusion = np.logical_or(mask_revenues, mask_profits)
 
