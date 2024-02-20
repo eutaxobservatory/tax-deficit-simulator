@@ -56,6 +56,7 @@ class TaxDeficitCalculator:
     def __init__(
         self,
         year=2017,
+        replace_tax_haven_tax_deficits=True,
         alternative_imputation=True,
         non_haven_TD_imputation_selection='EU',
         sweden_treatment='adjust',
@@ -381,6 +382,8 @@ class TaxDeficitCalculator:
         self.USD_to_EUR = 1 / xrates.loc[self.year, 'usd']
 
         self.China_treatment_2018 = China_treatment_2018
+
+        self.replace_tax_haven_tax_deficits = replace_tax_haven_tax_deficits
 
         if year == 2016:
 
@@ -2660,6 +2663,7 @@ class TaxDeficitCalculator:
             calculator = TaxDeficitCalculator(
                 year=self.year,
                 add_AUT_AUT_row=True,
+                replace_tax_haven_tax_deficits=self.replace_tax_haven_tax_deficits,
                 average_ETRs=self.average_ETRs_bool,
                 years_for_avg_ETRs=self.years_for_avg_ETRs,
                 fetch_data_online=self.fetch_data_online,
@@ -2687,18 +2691,30 @@ class TaxDeficitCalculator:
             )
 
         else:
-            merged_df['tax_deficit_x_tax_haven_merged'] = merged_df.apply(
-                lambda row: self.combine_haven_tax_deficits(
-                    row,
-                    carve_outs=self.carve_outs,
-                    save_countries_replaced=save_countries_replaced
-                ),
-                axis=1
-            )
 
-        # self.countries_replaced = merged_df[
-        #     merged_df['tax_deficit_x_tax_haven_merged'] > merged_df['tax_deficit_x_tax_haven']
-        # ]['Parent jurisdiction (alpha-3 code)'].unique()
+            if self.replace_tax_haven_tax_deficits:
+
+                merged_df['tax_deficit_x_tax_haven_merged'] = merged_df.apply(
+                    lambda row: self.combine_haven_tax_deficits(
+                        row,
+                        carve_outs=self.carve_outs,
+                        save_countries_replaced=save_countries_replaced
+                    ),
+                    axis=1
+                )
+
+            else:
+
+                merged_df['tax_deficit_x_tax_haven_merged'] = merged_df.apply(
+                    (
+                        lambda row: row['tax_deficit_x_tax_haven']
+                        if not np.isnan(row['tax_deficit_x_tax_haven'])
+                        else row['tax_deficit_x_tax_haven_TWZ']
+                    ),
+                    axis=1
+                )
+
+                # Such that self.countries_replaced remains an empty list
 
         merged_df.drop(columns=['tax_deficit_x_tax_haven', 'tax_deficit_x_tax_haven_TWZ'], inplace=True)
 
@@ -4857,11 +4873,6 @@ class TaxDeficitCalculator:
         if self.oecd is None or self.twz is None:
             raise Exception('You first need to load clean data with the dedicated method and inplace=True.')
 
-        # We fetch the list of OECD-reporting parent countries whose tax haven tax deficit is taken from TWZ data and
-        # not from OECD data in the benchmark computations
-        # _ = self.compute_all_tax_deficits(minimum_ETR=minimum_rate)
-        # countries_replaced = self.countries_replaced.copy()
-
         oecd = self.oecd.copy()
 
         # --- Step common to OECD and TWZ data
@@ -4928,14 +4939,6 @@ class TaxDeficitCalculator:
             path_to_excel_file=self.path_to_excel_file,
             path_to_geographies=self.path_to_geographies
         )
-
-        # We exclude OECD-reporting countries, except for those whose tax haven tax deficit is taken from TWZ data
-        # twz = twz[
-        #     np.logical_or(
-        #         ~twz['PARENT_COUNTRY_CODE'].isin(unique_parent_countries),
-        #         twz['PARENT_COUNTRY_CODE'].isin(countries_replaced)
-        #     )
-        # ].copy()
 
         # We exclude the few observations for wich parent and partner countries are the same (only for MLT and CYP)
         # This would otherwise induce double-counting with the domestic TWZ data
@@ -5043,35 +5046,41 @@ class TaxDeficitCalculator:
 
         if not self.carve_outs:
 
-            temp_df = full_sample_df.copy()
-            temp_df['TAX_DEFICIT_oecd_th'] = temp_df['TAX_DEFICIT'] * np.logical_and(
-                temp_df['SOURCE'] == 'oecd',
-                temp_df['PARTNER_COUNTRY_CODE'].isin(self.tax_haven_country_codes + ['REST'])
-            )
-            temp_df['TAX_DEFICIT_twz_th'] = temp_df['TAX_DEFICIT'] * np.logical_and(
-                temp_df['SOURCE'] == 'twz_th',
-                temp_df['PARTNER_COUNTRY_CODE'].isin(self.tax_haven_country_codes + ['REST'])
-            )
-            temp_df = temp_df[
-                ~np.logical_and(
-                    temp_df['PARTNER_COUNTRY_CODE'] == temp_df['PARENT_COUNTRY_CODE'],
-                    temp_df['SOURCE'] == 'oecd'
+            if self.replace_tax_haven_tax_deficits:
+
+                temp_df = full_sample_df.copy()
+                temp_df['TAX_DEFICIT_oecd_th'] = temp_df['TAX_DEFICIT'] * np.logical_and(
+                    temp_df['SOURCE'] == 'oecd',
+                    temp_df['PARTNER_COUNTRY_CODE'].isin(self.tax_haven_country_codes + ['REST'])
                 )
-            ].copy()
-            temp_df['IS_OECD'] = temp_df['SOURCE'] == 'oecd'
-            temp_df = temp_df.groupby(['PARENT_COUNTRY_CODE']).sum()[
-                ['TAX_DEFICIT_oecd_th', 'TAX_DEFICIT_twz_th', 'IS_OECD']
-            ].reset_index()
-            temp_df = temp_df[temp_df['IS_OECD'] > 0].copy()
-            temp_df = temp_df[temp_df['TAX_DEFICIT_twz_th'] > temp_df['TAX_DEFICIT_oecd_th']].copy()
-            temp_df = temp_df.reset_index()
-            temp_df = temp_df[
-                ~temp_df['PARENT_COUNTRY_CODE'].isin(
-                    self.COUNTRIES_WITH_MINIMUM_REPORTING + self.COUNTRIES_WITH_CONTINENTAL_REPORTING
+                temp_df['TAX_DEFICIT_twz_th'] = temp_df['TAX_DEFICIT'] * np.logical_and(
+                    temp_df['SOURCE'] == 'twz_th',
+                    temp_df['PARTNER_COUNTRY_CODE'].isin(self.tax_haven_country_codes + ['REST'])
                 )
-            ].copy()
-            countries_replaced = sorted(list(temp_df['PARENT_COUNTRY_CODE'].unique()))
-            print('Countries replaced:', countries_replaced)
+                temp_df = temp_df[
+                    ~np.logical_and(
+                        temp_df['PARTNER_COUNTRY_CODE'] == temp_df['PARENT_COUNTRY_CODE'],
+                        temp_df['SOURCE'] == 'oecd'
+                    )
+                ].copy()
+                temp_df['IS_OECD'] = temp_df['SOURCE'] == 'oecd'
+                temp_df = temp_df.groupby(['PARENT_COUNTRY_CODE']).sum()[
+                    ['TAX_DEFICIT_oecd_th', 'TAX_DEFICIT_twz_th', 'IS_OECD']
+                ].reset_index()
+                temp_df = temp_df[temp_df['IS_OECD'] > 0].copy()
+                temp_df = temp_df[temp_df['TAX_DEFICIT_twz_th'] > temp_df['TAX_DEFICIT_oecd_th']].copy()
+                temp_df = temp_df.reset_index()
+                temp_df = temp_df[
+                    ~temp_df['PARENT_COUNTRY_CODE'].isin(
+                        self.COUNTRIES_WITH_MINIMUM_REPORTING + self.COUNTRIES_WITH_CONTINENTAL_REPORTING
+                    )
+                ].copy()
+                countries_replaced = sorted(list(temp_df['PARENT_COUNTRY_CODE'].unique()))
+                print('Countries replaced:', countries_replaced)
+
+            else:
+
+                countries_replaced = []
 
         else:
 
