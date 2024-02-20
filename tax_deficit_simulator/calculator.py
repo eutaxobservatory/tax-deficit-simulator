@@ -1054,6 +1054,11 @@ class TaxDeficitCalculator:
             axis=1
         )
 
+        # We again restrict to the years of interest for the average so that imputed statutory tax rates are also
+        # averaged over the relevant period (so far, they were averaged over 2016-2020 (i.e., the whole period for
+        # which we have some data ))
+        oecd = oecd[oecd['YEA'].isin(years)].copy()
+
         # oecd['ETR'] = winsorize(oecd['ETR'].values, limits=[0.04, 0.04], nan_policy='omit')
 
         quantile = oecd['ETR'].quantile(q=0.96, interpolation='nearest')
