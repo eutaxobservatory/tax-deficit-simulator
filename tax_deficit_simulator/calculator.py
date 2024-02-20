@@ -385,7 +385,6 @@ class TaxDeficitCalculator:
             2019: ['IRL', 'NZL'],
             2020: ['IRL', 'NZL'],
         }
-
         self.COUNTRIES_WITH_CONTINENTAL_REPORTING = {
             2016: ['AUT', 'NOR', 'SVN', 'SWE'],                         # Slovenia is not really a continental split
             2017: ['AUT', 'GBR', 'GRC', 'IMN', 'NOR', 'SVN', 'SWE'],    # Romania?
@@ -3952,8 +3951,6 @@ class TaxDeficitCalculator:
         if self.oecd is None or self.twz is None:
             raise Exception('You first need to load clean data with the dedicated method and inplace=True.')
 
-        # We fetch the list of OECD-reporting parent countries whose tax haven tax deficit is taken from TWZ data and
-        # not from OECD data in the benchmark computations
         oecd = self.oecd.copy()
 
         # --- Step common to OECD and TWZ data
